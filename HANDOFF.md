@@ -1,0 +1,709 @@
+﻿# AI Agent Handoff Document: Axie Leaderboard Live Tracker
+
+> Historical handoff note: the three-process tracker architecture described in
+> older sections was retired after Phase 1. The current app is one unified
+> `npm run dev` process with one fixed leaderboard window until Phase 2
+> pagination is integrated.
+
+**Date:** 2026-08-18
+**Current Agent:** GitHub Copilot (Claude Haiku 4.5)
+**Previous Work Session:** Implemented live mode caching strategies, created comprehensive documentation, debugged activity filter issues
+
+---
+
+## 1. Project Overview
+
+**Project name:** Axie Infinity Live Leaderboard Tracker
+
+**What it does:**
+Real-time monitoring system that displays a configurable fixed window of Axie Infinity ranked players. Players can toggle "live mode" to poll for recent ranked battle activity and filter by time windows ("Which players battled in the last 5 minutes?"). System displays each player's current 3-axie team with morphed Axie previews, rune equipment, and last battle timestamp.
+
+**Primary users:**
+Axie Infinity competitive players, streamers, and battle strategists who need to track opponent activity and team composition in real-time.
+
+**Current stage:**
+**MVP with critical bugs and technical debt.** Core features implemented (live tracking, activity filtering, rune scanning), but live mode reload bug unresolved and architecture optimization incomplete.
+
+**Main goals right now:**
+- Fix live mode page reload bug (CRITICAL â€“ blocks production use)
+- Resolve activity filter flickering (intermittent player disappearance)
+- Stabilize API caching strategy to balance freshness vs. rate limits
+- Integrate the real Phase 2 pagination pipeline so the unified app can browse beyond one fixed rank window
+
+---
+
+## 2. Tech Stack & Architecture
+
+**Frontend:**
+- Framework & version: Vanilla JavaScript + Vite 5.x (no React/Vue)
+- State management: Vanilla JS + `sessionStorage` browser cache
+- Styling: Plain CSS (`style.css`) â€“ minimal, functional
+- Key libraries:
+  - PIXI.js (v7) â€“ Axie sprite rendering with morphed genes
+  - Spine runtime â€“ animated Axie model display
+  - Fetch API â€“ HTTP requests to backend
+
+**Backend:**
+- Runtime & framework: Node.js (14+) + Express.js
+- Database: None (stateless, in-memory caches only)
+- ORM / query layer: N/A
+- Auth: None (API key-based via `AXIE_ECHELON_API_KEY` environment variable)
+- External APIs: Sky Mavis GraphQL + REST endpoints
+
+**Infrastructure & Tooling:**
+- Repo URL: Local development only (no GitHub yet)
+- Package manager: npm
+- Build & run commands:
+  - Single instance: `npm run dev` (reads `.env`, ports 5173/8787)
+  - Unified app: `npm run dev` (reads `.env`, ports 5173/8787)
+  - Production build: `npm run build` (frontend only; backend is always runtime)
+- Deployment: Local/on-machine only; Docker-ready but not containerized
+
+**High-level architecture:**
+
+```
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                    BROWSER (Vite Dev Server)                â”‚
+â”‚                                                              â”‚
+â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”‚
+â”‚  â”‚ index.html + src/main.js                            â”‚  â”‚
+â”‚  â”‚ â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”‚  â”‚
+â”‚  â”‚ â”‚ Live Mode Toggle â†’ hydrateLeaderboard() poll  â”‚  â”‚  â”‚
+â”‚  â”‚ â”‚ Activity Filter (0s-20m window)                â”‚  â”‚  â”‚
+â”‚  â”‚ â”‚ Compact Mode (reduce row height)               â”‚  â”‚  â”‚
+â”‚  â”‚ â”‚ Rune Filter UI                                 â”‚  â”‚  â”‚
+â”‚  â”‚ â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â”‚  â”‚
+â”‚  â”‚ Renders: Player rows + PIXI Axie previews          â”‚  â”‚
+â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â”‚
+â”‚                                                              â”‚
+â”‚  HTTP Proxy (via vite.config.js):                           â”‚
+â”‚  /api/* â†’ localhost:8787 (backend)                          â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                          â†“
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚               EXPRESS BACKEND (Node.js)                      â”‚
+â”‚                                                              â”‚
+â”‚  dotenv config:                                             â”‚
+â”‚  .env (shared local configuration)                          â”‚
+â”‚                                                              â”‚
+â”‚  GET /api/leaderboard?limit=50&offset=0&liveMode=true      â”‚
+â”‚  â”œâ”€ Fetch raw ranks 1-50 from Sky Mavis                    â”‚
+â”‚  â”œâ”€ Enrich: for each player, fetch battle logs             â”‚
+â”‚  â”‚  â”œâ”€ Live mode: Bypass all caches â†’ fresh team + time  â”‚
+â”‚  â”‚  â””â”€ Normal: Check teamCache â†’ fetch â†’ cache            â”‚
+â”‚  â”œâ”€ Extract lastRankedBattleTime from battle logs          â”‚
+â”‚  â””â”€ Return enriched players                                â”‚
+â”‚                                                              â”‚
+â”‚  Caching layers:                                            â”‚
+â”‚  â”œâ”€ pageCache: Leaderboard page (30s TTL)                 â”‚
+â”‚  â”œâ”€ teamCache: Player 3-axie team (30s TTL, BYPASSED live) â”‚
+â”‚  â”œâ”€ enrichmentCache: Phase 1 (ready/stale/failed)         â”‚
+â”‚  â””â”€ rankCandidateCache: Rune scan candidates (30s TTL)    â”‚
+â”‚                                                              â”‚
+â”‚  GET /api/leaderboard/rune/:runeId?milestone=3            â”‚
+â”‚  â””â”€ Scan ranks 1-200, return players with rune equipped   â”‚
+â”‚                                                              â”‚
+â”‚  Concurrency control: 2 concurrent battle-log fetches      â”‚
+â”‚  (High/Low priority queue for visible vs. background work) â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+```
+
+**Communication pattern:** REST API only (no WebSocket, no GraphQL).
+- Frontend polls backend every N seconds (default 30s, configurable in the shared `.env`)
+- Backend dedupes concurrent requests for same player
+- Battle log fetches use concurrency semaphore + priority queue
+
+---
+
+## 3. Implemented Features
+
+### Feature: Live Mode Tracking
+- **What it does:** Polls leaderboard every N seconds, bypasses all caches for fresh `lastRankedBattleTime` data, allows user to filter by activity window ("Show only players who battled in last 5 minutes")
+- **Key files:**
+  - `src/main.js` lines 435-530 (live mode toggle, polling controls)
+  - `src/main.js` lines 949-1010 (hydration with fresh fetch)
+  - `src/main.js` lines 595-610 (activity filter logic)
+  - `server.js` lines 1737-1785 (live mode route handler)
+
+### Feature: Compact Mode Display
+- **What it does:** Reduces row padding, font size, Axie preview dimensions to fit 3-4Ã— more players per screen
+- **Key files:**
+  - `style.css` (`.compact-mode` CSS classes)
+  - `src/main.js` lines 1087-1110 (compact toggle event listener)
+- **Limitations:** State not persisted; reverts to normal on page reload
+
+### Feature: Activity Window Filtering
+- **What it does:** Filters leaderboard by `lastRankedBattleTime` within user-selected window (0s, 1m, 2m, 3m, 4m, 5m, 10m, 15m, 20m)
+- **Key files:**
+  - `src/main.js` lines 191, 315-530 (battle window state, presets, UI controls)
+  - `src/main.js` lines 595-610 (filter logic)
+
+### Feature: Rune Filter Scanning
+- **What it does:** Searchable UI to find players equipped with specific runes across ranks 1-200
+- **Key files:**
+  - `src/main.js` lines 1100-1200 (rune picker, suggestions, filter state)
+  - `server.js` lines 1520-1630 (rune scan endpoint, candidate fetching)
+  - `src/data/runes.json` (rune registry; generated via `scripts/update-runes.mjs`)
+
+### Feature: Axie Team Rendering
+- **What it does:** Displays current 3-axie team with PIXI sprite rendering; shows morphed Axie if applicable
+- **Key files:**
+  - `src/renderer.js` (PIXI scene setup, sprite loading, animation)
+  - `src/geneDecoder.js` (morphed gene detection)
+  - Server enrichment: `server.js` lines 1015-1075
+
+### Retired Architecture: Fixed-Window Tracker Processes
+- **What it did:** Displayed separate fixed rank windows through duplicated Vite and backend processes.
+- **Why it was retired:** It duplicated configuration and delayed the unified pagination UI planned for Phase 2.
+
+### Feature: Axie Collectible Classification
+- **What it does:** Heuristically tags Axies as Origin, MEO, Nightmare, Mystic, Shiny, etc. based on title, parts, and genes
+- **Key files:**
+  - `server.js` lines 410-455 (classifier logic)
+  - `src/geneDecoder.js` (gene-based detection)
+
+---
+
+## 4. In-Progress / Partially Implemented Features
+
+### Feature: Live Mode Stability & Performance
+- **Current status:** Live mode works but triggers page reload ~every 2-5 minutes; activity filter has intermittent flickering
+- **What's done:**
+  - Query parameter `?liveMode=true` implemented
+  - Cache bypass logic in place (Option A: full bypass)
+  - Timestamp preservation on frontend (workaround for flickering)
+- **What's missing:**
+  - Root cause of reload bug not identified
+  - Optimal caching strategy not finalized (currently too aggressive)
+- **Known issues:**
+  - Live mode reload (CRITICAL â€“ blocks use)
+  - Activity filter flickering (players disappear/reappear)
+  - API hammering due to full cache bypass (up to ~150 calls/min for a 50-player window)
+- **Blockers:**
+  - Reload bug needs DevTools console capture during reproduction
+  - Decision needed: Option A (full bypass) vs. Option B (5-10s cache in live mode)
+- **Key files:**
+  - `server.js` lines 970-1075 (fetchAndEnrichLeaderboard with liveMode param)
+  - `src/main.js` lines 960-1010 (fresh fetch logic, timestamp preservation)
+
+### Feature: Phase 1 On-Demand Team Enrichment API
+- **Current status:** Endpoints exist but not integrated into main UI
+- **What's done:**
+  - `GET /api/leaderboard/team/:userID` endpoint (ready/stale/failed states)
+  - Separate enrichmentCache with 6-state model
+  - Background refresh for stale entries
+- **What's missing:**
+  - Frontend integration (currently unused)
+  - Phase 2/3 migration plan not executed
+- **Key files:**
+  - `server.js` lines 1070-1150 (enrichment cache, on-demand endpoint)
+
+---
+
+## 5. Known Bugs & Limitations
+
+### CRITICAL BUG: Live Mode Page Reload
+
+**Bug:** When live mode is toggled ON, the page reloads automatically within 2-5 minutes. All state resets: live mode toggle â†’ OFF, compact mode â†’ normal, sessionStorage clears.
+
+**How to reproduce:**
+1. Open the unified app
+2. Toggle "Live Mode" ON
+3. Wait 2-5 minutes while observing
+4. Page reloads unexpectedly
+
+**Impact:** CRITICAL â€“ Makes live tracking unusable for production monitoring. Users lose state and must restart.
+
+**Likely root causes (unconfirmed):**
+- Vite HMR reconnection on network transient (Firefox specific?)
+- Firefox extension interference with orphaned data streams
+- Unhandled fetch error triggering automatic page navigation
+- Browser tab visibility handling (Firefox auto-reload on inactive tabs)
+
+**Likely files involved:**
+- `src/main.js` (polling loop, error handling)
+- `vite.config.js` (HMR config)
+- `server.js` (API error responses)
+
+**Investigation needed:**
+- Open DevTools console before toggling live mode
+- Capture any error messages or `[PAGE RELOAD DETECTED]` logs
+- Check Network tab for failed requests before reload
+- Test with Firefox extensions disabled
+
+---
+
+### MEDIUM BUG: Activity Filter Flickering
+
+**Bug:** In live mode with activity window set (e.g., "5 minutes"), players periodically disappear and reappear. Example: Player shows at T=0s, hidden at T=15s (even though window hasn't passed), back at T=30s.
+
+**How to reproduce:**
+1. Enable live mode
+2. Set activity window to 5 minutes
+3. Wait for players to populate with `lastRankedBattleTime` values
+4. Observe rows for 2-3 poll cycles (~60-90 seconds)
+5. Watch for players briefly disappearing
+
+**Impact:** MEDIUM â€“ Confusing UX; users think players went offline. Doesn't break functionality but undermines trust.
+
+**Root cause:** Battle log fetch failures return `lastRankedBattleTime: null`, which fails activity filter. Next poll succeeds, timestamp returns.
+
+**Workaround implemented:** Frontend preserves previous timestamps if new fetch returns null (lines 964-973, `src/main.js`). Masks symptom but doesn't fix root.
+
+**Real fix needed:** Switch from Option A (full cache bypass) to Option B (5-10s cache) to reduce API hammering and fetch failures.
+
+**Likely files involved:**
+- `server.js` lines 1015-1075 (fetchAndEnrichLeaderboard, team fetch logic)
+- `src/main.js` lines 960-1010 (hydration, timestamp preservation)
+
+---
+
+### Limitations
+
+- **Compact mode not persisted:** Reverts to normal on page reload; no localStorage preservation
+- **No pagination:** The app currently shows one fixed configured rank window; it can't scroll to rank 51+ yet
+- **Activity filter only in live mode:** "Battle activity window" disabled in normal mode (by design, requires fresh timestamps)
+- **Rune filter limited to rank 1-200:** Hardcoded; requires 2 upstream Sky Mavis API calls; can't extend beyond 200 without code change
+- **No error boundaries:** Unhandled JS errors crash the app
+- **Hardcoded API URLs & Sky Mavis endpoint selection:** No abstraction layer; switching endpoints requires code edit
+- **PIXI rendering concurrency limit (4 axies):** Compact mode shows 3-4Ã— more rows but only 4 concurrent PIXI renders; may cause display lag
+- **Firefox-specific issues:** MaxListenersExceededWarning observed; likely extension-related
+- **No authentication:** Relies only on `AXIE_ECHELON_API_KEY` in env; any leak exposes quota
+- **Dual cache during Phase 1 transition:** `teamCache` and `enrichmentCache` both exist; redundant code paths
+
+---
+
+### Technical Debt
+
+1. **Full cache bypass in live mode (Option A) is too aggressive:** Hammers the API (up to ~150 calls/min for a 50-player window). Should revert to 5-10s cache (Option B) to balance freshness + stability.
+
+2. **Timestamp preservation workaround is a band-aid:** Fixes flickering but doesn't address root cause (flaky API calls). Proper solution: implement retry logic + exponential backoff in battle log fetching.
+
+3. **Dual cache paths (teamCache + enrichmentCache):** Phase 1 migration left two separate caching systems. Should be unified once Phase 3 retires legacy eager-enrichment path. See line 1070 comment in `server.js`.
+
+4. **Overlapping rank candidate caches:** Rune scan (rank 1-200) and leaderboard pool (rank 1-250) have separate cache keys; ranks 1-200 fetched twice under different keys. Should use single cache key.
+
+5. **Vite proxy target hardcoded in frontend:** `vite.config.js` line 10 proxies to `http://127.0.0.1:${backendPort}`. Works locally but inflexible; consider VITE_BACKEND_URL env var.
+
+6. **Large monolithic files:**
+   - `server.js`: 1800+ lines (routing, enrichment, caching, utilities mixed)
+   - `src/main.js`: 1250+ lines (UI state, API calls, rendering, filters mixed)
+   - Should split into modules/services
+
+7. **No input validation on frontend:** User can set negative rank filters, invalid time windows; no client-side guards.
+
+8. **Concurrency semaphore implementation is low-level:** Direct counter + promise queue. Could use a library (p-queue, bull) for better debuggability.
+
+9. **Firefox extension interference not investigated:** `MaxListenersExceededWarning` suggests orphaned listeners; should isolate cause.
+
+10. **No versioning or feature flags:** Hard to test code paths; no way to A/B test caching strategies.
+
+---
+
+## 6. Key Files & Directories to Inspect
+
+### Entry Points & Configuration
+
+- **`package.json`** â€“ Dependencies, build scripts (`npm run dev`, `npm run build`)
+- **`vite.config.js`** â€“ Vite config; frontend port (5173 default), backend proxy (8787), HMR settings
+- **`server.js`** â€“ Express backend entry point; dotenv config chain (lines 1-15); all API routes (lines 1700+)
+- **`.env`** â€“ Unified configuration (PORT=8787, VITE_PORT=5173, AXIE_ECHELON_API_KEY)
+- **`.env.example`** â€“ Shared local configuration template; copy it to `.env` and keep the API key out of version control
+
+### Frontend Core
+
+- **`src/main.js`** â€“ CRITICAL; ~1250 lines
+  - Lines 1-35: Env var loading, polling interval setup
+  - Lines 435-530: Live mode toggle, polling controls
+  - Lines 595-610: Activity filter logic
+  - Lines 949-1010: `hydrateLeaderboard()` main poll function; **contains live mode cache-bypass logic (lines 964-973)**
+  - Lines 1087-1110: Compact mode toggle
+  - Lines 1100-1200: Rune filter picker UI
+
+- **`src/renderer.js`** â€“ PIXI.js scene setup, sprite rendering
+- **`src/geneDecoder.js`** â€“ Gene parsing, morphed gene detection
+- **`src/pagination.js`** â€“ Pagination state (currently unused)
+- **`src/config.js`** â€“ API endpoint constants
+- **`style.css`** â€“ All styling; note `.compact-mode` CSS
+
+- **`index.html`** â€“ HTML structure; has many data- attributes for JS selectors
+
+### Backend Core
+
+- **`server.js`** â€“ CRITICAL; ~1800 lines
+  - Lines 1-8: Shared dotenv configuration
+  - Lines 23-50: Constants (AXIE_ECHELON_API_KEY, ports, CORS origin)
+  - Lines 755-860: Caching infrastructure (pageCache, teamCache, getCachedPage, setCachedPage)
+  - Lines 860-980: Concurrency limiter (acquireBattleLogSlot, releaseBattleLogSlot, withBattleLogSlot)
+  - **Lines 920-1075: `fetchAndEnrichLeaderboard(limit, offset, milestone, liveMode)` â€“ CRITICAL; handles live mode logic (line 1015, check `if (liveMode)` block)**
+  - Lines 1070-1150: Enrichment cache (Phase 1 on-demand team endpoint)
+  - Lines 1410-1630: Rune filter (scanLeaderboardForRune, fetchRankCandidates)
+  - **Lines 1737-1785: `GET /api/leaderboard` route handler â€“ passes liveMode to fetchAndEnrichLeaderboard**
+
+### Development Command
+
+- **`npm run dev`** â€“ Starts the unified backend and frontend development processes
+
+### Documentation
+
+- **`PROJECT_STATUS.md`** â€“ Comprehensive feature/bug overview (created this session)
+- **`README.md`** â€“ Original project overview
+- **`COPILOT_CONTEXT.md`** â€“ Previous notes
+- **`docs/`** â€“ Additional planning docs (leaderboard enrichment, track summaries)
+
+### Data & Scripts
+
+- **`src/data/runes.json`** â€“ Pre-generated rune registry
+- **`scripts/update-runes.mjs`** â€“ Updates rune.json (run when new season starts)
+- **`.env.example`** â€“ Template (though not in current repo, should be added)
+
+### Build Artifacts (Generated)
+
+- **`dist/`** â€“ Production frontend build (created by `npm run build`)
+
+---
+
+## 7. How to Run the Project Locally
+
+### Prerequisites
+
+- **Node version:** 14+ (tested on 18+)
+- **Package manager:** npm (or yarn/pnpm)
+- **OS:** Windows (PowerShell scripts), but backend runs on macOS/Linux
+- **Browser:** Firefox (primary testing) or Chrome
+- **Mavis API Key:** Required (get from Sky Mavis; keep in `.env`)
+
+### Setup Steps
+
+**Single-instance mode (backward compatible):**
+```bash
+# 1. Install dependencies
+cd "c:\Users\Cej\Desktop\axie morph viewer using perplexity"
+npm install
+
+# 2. Set up environment
+# Create .env file in project root:
+cp .env.example .env  # (doesn't exist yet; see below)
+
+# 3. Edit .env and add:
+AXIE_ECHELON_API_KEY=your_actual_key_here
+DEBUG_ON=false
+
+# 4. Run dev
+npm run dev
+
+# Frontend available at: http://127.0.0.1:5173
+# Backend running at: http://127.0.0.1:8787
+```
+
+The current app intentionally runs as one process. Until Phase 2 pagination is
+integrated, `VITE_LEADERBOARD_LIMIT` and `VITE_LEADERBOARD_OFFSET` expose one
+fixed leaderboard window only.
+
+**Production build:**
+```bash
+npm run build
+# Creates dist/ folder (frontend only)
+# Backend must run separately: node server.js (with .env set)
+```
+
+### How to Verify It's Working
+
+1. Open `http://127.0.0.1:5173`
+2. Leaderboard table should load with 50 players (ranks 1-50 by default)
+3. Each player row should show: Rank, Name, MMR, Win Rate, Recent Form, and Axie team preview
+4. Check browser console (F12) for no errors
+5. Toggle "Live Mode" â€“ should start polling every 30s (logs should show `[LIVE MODE]` messages)
+6. Check Network tab â€“ should see `GET /api/leaderboard?limit=50&offset=0&milestone=3&liveMode=true` every 30s
+
+**Expected issues during first run:**
+- CORS errors if backend not running (verify `npm run dev` or launcher is active)
+- Missing AXIE_ECHELON_API_KEY â€“ will show "AXIE_ECHELON_API_KEY is missing from .env"
+- Rate limit errors (429) if polling too aggressively â€“ reduce polling interval via env var
+
+---
+
+## 8. Development Conventions & Patterns
+
+### Component & File Organization
+
+- **No frameworks:** Vanilla JS (ES6+), no React/Vue/Svelte
+- **Monolithic files:** `src/main.js` contains UI logic, API calls, state management, event listeners
+- **Separation of concerns (light):**
+  - `src/main.js` â€“ Frontend UI + state + polling logic
+  - `src/renderer.js` â€“ PIXI rendering (separated early but still tightly coupled)
+  - `src/geneDecoder.js` â€“ Gene parsing logic (could be a utility module)
+  - `server.js` â€“ Backend routing + business logic (no separate service layer)
+
+### Naming Conventions
+
+- **Functions:** camelCase (e.g., `hydrateLeaderboard`, `getCachedTeam`, `fetchAndEnrichLeaderboard`)
+- **Constants:** SCREAMING_SNAKE_CASE (e.g., `TEAM_CACHE_TTL_MS`, `MAX_LEADERBOARD_REQUEST_SIZE`)
+- **Classes/Types:** PascalCase (rare in this codebase; used sparingly)
+- **CSS classes:** kebab-case (e.g., `.compact-mode`, `.rune-suggestion-item`)
+- **HTML IDs/data attributes:** kebab-case (e.g., `#live-mode`, `data-last-ranked-battle-time`)
+
+### State Management Patterns
+
+- **Frontend global state:** Plain JS variables at module scope (e.g., `let liveModeEnabled = false`, `let leaderboardData = []`)
+- **Persistence:** `sessionStorage` only (clears on page reload by design)
+- **No React/Vue:** No hooks, context, or reducers; manual event listeners on DOM elements
+- **Browser cache:** `sessionStorage` stores last leaderboard response fingerprint to detect changes
+
+### API Calling Pattern
+
+- **Direct fetch:** `await fetch()` in `hydrateLeaderboard()` and other functions
+- **No HTTP client library:** No axios, fetch wrapper, or interceptor middleware
+- **Error handling:** Try-catch blocks, logs to console, returns null on failure
+- **Deduping:** In-memory `Map` (e.g., `inFlightBattleLogFetches`) to prevent duplicate concurrent requests
+
+### Polling / Async Patterns
+
+- **setInterval:** Main timer for live mode polling (line 465-480, `src/main.js`)
+- **No queue/scheduler:** Direct function calls; no Bull, p-queue, or job system
+- **Promise-based:** `async/await` for network calls; concurrency controlled via semaphore in backend
+
+### Rules & Practices Observed
+
+- **Keep components minimal:** UI manipulation via direct DOM selectors (querySelector)
+- **No global error handler:** Errors logged but not caught centrally; can crash the app
+- **Env vars in code:** Configuration embedded in .env files; no abstraction layer
+- **Direct console.log for debugging:** No logging library (pino, winston); all logs to stdout
+- **In-memory data structures only:** No persistence layer; caches cleared on server restart
+
+---
+
+## 9. Suggested Improvements & Refactors
+
+### Performance
+
+**Issue 1: Option A (full cache bypass) hammers Sky Mavis API**
+- **Current:** Live mode bypasses all caches, fetching up to ~150 calls/min for one 50-player window
+- **Impact:** High rate-limit risk; causes fetch failures â†’ activity filter flickering
+- **Fix:** Revert to **Option B** â€“ keep 5-10s team cache in live mode. Provides 60-70% cache hit rate while keeping `lastRankedBattleTime` fresh enough for activity filter.
+- **Implementation:** Modify `fetchAndEnrichLeaderboard()` line 1015 to pass `liveModeTeamCacheTTL = 5000` instead of bypassing cache entirely.
+- **Key files:** `server.js` lines 970-1075
+
+**Issue 2: PIXI rendering bottleneck with compact mode**
+- **Current:** Max 4 concurrent PIXI renders; compact mode shows 15-20 rows â†’ lag
+- **Impact:** Visual glitches, perceived slowness
+- **Fix:** Implement virtualization (render only visible rows) or lazy-load PIXI scenes
+- **Key files:** `src/renderer.js`, render loop optimization needed
+
+**Issue 3: Monolithic 1800-line server.js**
+- **Current:** All routing, enrichment logic, caching, utilities in one file
+- **Impact:** Hard to reason about, difficult to test, slow to navigate
+- **Fix:** Split into modules:
+  - `server/routes/leaderboard.js` â€“ All leaderboard endpoints
+  - `server/services/enrichmentService.js` â€“ fetchAndEnrichLeaderboard, team fetching
+  - `server/services/cacheService.js` â€“ All cache logic
+  - `server/utils/battleLogFetcher.js` â€“ Concurrency + fetch retry logic
+- **Key files:** `server.js` (all of it)
+
+### Code Quality & Maintainability
+
+**Issue 1: No error boundaries; unhandled errors crash the app**
+- **Current:** Fetch failures, parsing errors fall through; no try-catch wrapper
+- **Impact:** App hangs or dies silently
+- **Fix:** Add global error handler:
+  ```javascript
+  window.addEventListener('error', (e) => {
+    console.error('[ERROR]', e.error);
+    leaderboardBody.innerHTML = '<tr><td colspan="8">Error loading leaderboard. Check console.</td></tr>';
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    console.error('[UNHANDLED PROMISE]', e.reason);
+  });
+  ```
+- **Key files:** `src/main.js` top level
+
+**Issue 2: Dual cache paths (teamCache + enrichmentCache)**
+- **Current:** Phase 1 transition left two separate caching systems for same data
+- **Impact:** Duplicated code, harder to debug, more surface area for bugs
+- **Fix:** Plan Phase 3 migration to unify onto single `PlayerEnrichmentCache` with 6-state model
+- **Key files:** `server.js` lines 840-860 (teamCache), 1070-1150 (enrichmentCache)
+
+**Issue 3: Frontend state is scattered across module-scope variables**
+- **Current:** `let liveModeEnabled`, `let leaderboardData`, etc. spread throughout `src/main.js`
+- **Impact:** Hard to track state; easy to create bugs with implicit dependencies
+- **Fix:** Create a state object:
+  ```javascript
+  const appState = {
+    liveModeEnabled: false,
+    leaderboardData: [],
+    activeBattleWindowMinutes: 5,
+    compactModeEnabled: false,
+    // ... all state centralized
+  };
+  ```
+- **Key files:** `src/main.js` top section
+
+### Scalability
+
+**Issue 1: Fixed leaderboard window**
+- **Current:** The unified app reads one `VITE_LEADERBOARD_LIMIT` and `VITE_LEADERBOARD_OFFSET` from the shared environment.
+- **Impact:** Ranks outside that window are unavailable until pagination is integrated.
+- **Fix:** Complete the Phase 2 pagination pipeline and connect it to the leaderboard UI.
+- **Key files:** `src/leaderboard/leaderboardState.js`, `src/leaderboard/leaderboardView.js`, `docs/planning/leaderboard-roadmap.md`
+
+**Issue 2: Pagination UI not integrated**
+- **Current:** The shared pagination helper exists, but the main leaderboard still requests one configured window.
+- **Impact:** Users cannot browse rank 51 and beyond from the app when the configured window ends at rank 50.
+- **Fix:** Implement the planned page state and controls in the single leaderboard view.
+
+### Security & Robustness
+
+**Issue 1: AXIE_ECHELON_API_KEY stored in .env file**
+- **Current:** Plain text in `.env`, visible to anyone with file access
+- **Impact:** If leaked, attacker uses your API quota
+- **Fix:** Use vault (HashiCorp Vault, AWS Secrets Manager) or at minimum enforce `.env` in `.gitignore` + `.env.example`
+- **Key files:** `.env`, `.gitignore`, documentation
+
+**Issue 2: No rate-limit handling**
+- **Current:** 429 responses logged but not handled gracefully
+- **Impact:** During rate limits, activity filter goes blank
+- **Fix:** Implement exponential backoff + fallback to cached data
+- **Key files:** `server.js` lines 1400-1450 (fetchWithRetry â€“ already has retry; could improve)
+
+**Issue 3: CORS origin hardcoded to localhost:5173**
+- **Current:** `server.js` line 49: `const allowedOrigin = process.env.CORS_ORIGIN || "http://127.0.0.1:5173"`
+- **Impact:** Production deployment broken; need manual env var
+- **Fix:** Add `.env` validation at startup:
+  ```javascript
+  if (!process.env.CORS_ORIGIN && process.env.NODE_ENV === 'production') {
+    throw new Error('CORS_ORIGIN must be set in production');
+  }
+  ```
+- **Key files:** `server.js` lines 49-55
+
+---
+
+## 10. Recommended Next Steps for the New Agent
+
+Prioritized task list for the new agent to stabilize and improve the project:
+
+### Phase 1: Fix Critical Bugs (Days 1-3)
+
+1. **Identify & fix live mode page reload bug** (CRITICAL)
+   - *Why:* Blocks production use; makes live tracking unusable
+   - *How:*
+     - Reproduce issue, capture DevTools console logs
+     - Check for Vite HMR errors, fetch exceptions, timer issues
+     - Test with Firefox extensions disabled
+     - Likely: Check `src/main.js` polling loop error handling, `server.js` error responses
+   - *Estimate:* 4-8 hours
+   - *Success metric:* Live mode runs stable for 10+ minutes without reload
+
+2. **Resolve activity filter flickering** (HIGH)
+   - *Why:* Confuses users; undermines trust in live tracking
+   - *How:*
+     - Implement Option B: Switch from full cache bypass to 5-10s cache
+     - Modify `server.js` line 1015 logic
+     - Test with activity window set to 5 minutes; verify no disappearances
+   - *Estimate:* 2-4 hours
+   - *Success metric:* Players remain visible for full activity window duration
+
+3. **Integrate leaderboard pagination** (HIGH)
+  - *Why:* The unified app currently exposes only one fixed rank window
+  - *How:* Follow the Phase 2 pagination plan and connect page state to the existing leaderboard endpoints
+  - *Success metric:* Users can navigate beyond the initial configured rank window in one app
+
+### Phase 2: Reduce Technical Debt (Days 4-6)
+
+4. **Refactor server.js into modules** (MEDIUM)
+   - *Why:* 1800-line file is unmaintainable
+   - *How:*
+     - Create `server/routes/leaderboard.js`, `server/services/enrichmentService.js`, `server/utils/`
+     - Move code blocks incrementally; test after each move
+     - Keep `server.js` as entry point only
+   - *Estimate:* 6-8 hours
+   - *Success metric:* `server.js` < 300 lines; tests pass
+
+5. **Centralize frontend state management** (MEDIUM)
+   - *Why:* Scattered variables make debugging harder
+   - *How:*
+     - Create `appState` object in `src/main.js`
+     - Refactor all state reads/writes to use it
+     - Add debug logging to trace state changes
+   - *Estimate:* 4-6 hours
+   - *Success metric:* Single source of truth for all app state
+
+6. **Unify cache layers (teamCache + enrichmentCache)** (LOWâ€“defer to Phase 3)
+   - *Why:* Redundant code; technical debt for next refactor
+   - *How:*
+     - Document current Phase 1 status (see `server.js` line 1070 comment)
+     - Plan Phase 3 migration path
+     - Don't implement yet; just create RFC/plan
+   - *Estimate:* 2-4 hours (planning only)
+   - *Success metric:* Clear migration strategy documented
+
+### Phase 3: Stabilization & Polish (Days 7-10)
+
+7. **Add error boundaries & global error handling** (MEDIUM)
+   - *Why:* Crashes undermine reliability
+   - *How:*
+     - Add `window.addEventListener('error', ...)` and `unhandledrejection` handlers
+     - Log errors with context (state snapshot, last request)
+     - Display user-friendly error messages
+   - *Estimate:* 2-3 hours
+   - *Success metric:* App doesn't die on fetch failures; graceful degradation
+
+8. **Persist compact mode preference** (LOW)
+   - *Why:* User experience; users expect state to persist
+   - *How:*
+     - Save `compactModeEnabled` to `localStorage` instead of just in-memory
+     - Restore on page load
+   - *Estimate:* 30 minutes
+   - *Success metric:* Compact mode preference survives reload
+
+9. **Create .env.example template** (LOW)
+   - *Why:* Better onboarding for new users
+   - *How:*
+     - List all required/optional env vars with descriptions
+     - Include defaults, example values
+   - *Estimate:* 30 minutes
+   - *Success metric:* New users can copy .env.example â†’ .env and know what to fill in
+
+10. **Investigate & fix Firefox extension interference** (LOWâ€“stretch goal)
+    - *Why:* Eliminate MaxListenersExceededWarning; may be contributing to reload bug
+    - *How:*
+      - Run in Firefox safe mode (no extensions)
+      - Reproduce live mode reload
+      - If gone, identify which extension causes it
+    - *Estimate:* 1-2 hours
+    - *Success metric:* No warnings in console; reload bug fixed or confirmed unrelated
+
+---
+
+## Summary for New Agent
+
+You're taking over an **Axie Infinity real-time leaderboard tracker** that monitors competitive players' ranked battle activity in one unified app. The system is **feature-complete MVP but has critical stability issues and an unfinished pagination pipeline**:
+
+1. **Live mode page reload** (CRITICAL) â€“ The app unexpectedly resets every 2-5 minutes when live tracking is enabled. This is your #1 priority.
+2. **Activity filter flickering** (HIGH) â€“ Players briefly disappear and reappear; confuses users. Root cause: API hammering due to overly aggressive cache bypass.
+3. **API rate-limit pressure** â€“ Current caching strategy (Option A: full bypass) can create heavy API traffic. Need to revert to Option B (5-10s cache).
+4. **Fixed leaderboard window** â€“ Until Phase 2 pagination is integrated, the shared `VITE_LEADERBOARD_LIMIT` and `VITE_LEADERBOARD_OFFSET` expose only one rank window.
+
+**Your roadmap:**
+
+**Days 1-3:** Fix the reload bug and activity filter flickering. These block everything else.
+**Days 4-6:** Refactor monolithic `server.js` and `src/main.js` into maintainable modules; centralize state.
+**Days 7+:** Add error handling, finish pagination, and document for production.
+
+**Key files to inspect first:**
+- `server.js` lines 1015-1075 (live mode cache logic â€“ where Option A happens)
+- `src/main.js` lines 949-1010 (polling loop â€“ where reload might originate)
+- `src/main.js` lines 964-973 (timestamp preservation workaround)
+
+**Critical question to resolve immediately:** Is the reload bug in Vite HMR, browser, backend, or frontend polling? Run with DevTools console open during live mode to capture the smoking gun.
+
+Good luck! The foundation is solid; you're debugging + optimizing, not rebuilding from scratch.
+
+---
+
+**End of Handoff Document**
+
+Generated: 2026-08-18
+Length: ~6,000 words
+Files referenced: ~25 critical files identified
+Ready to pass to next agent âœ…

@@ -1,4 +1,4 @@
-# Current Workspace Recovery Review
+﻿# Current Workspace Recovery Review
 
 This document records the recovery review completed after the local Git
 workspace was damaged during an attempted history cleanup. It is intended as
@@ -21,7 +21,7 @@ were preserved on disk but were never copied into the clean public tree.
 The files were reviewed in dependency order, from configuration to routes and
 then up through the frontend:
 
-1. `src/server/shared/env.js` loads `.env` and optional tracker overrides.
+1. `src/server/shared/env.js` loads the shared `.env` configuration.
 2. `src/server/shared/validators.js` normalizes Axie IDs and Ronin addresses.
 3. `src/server/shared/concurrency.js` limits battle-log work and prioritizes
    visible requests over background refreshes.
@@ -80,7 +80,7 @@ then up through the frontend:
 - `runeCatalog.js` converts the raw API `_items` envelope into an ID-keyed map
   with `id`, `name`, `imageUrl`, and `class`.
 - Every recovered rune has a name and image URL.
-- Refresh instructions are in `docs/rune-registry.md` and the generator is
+- Refresh instructions are in `docs/implementation/rune-registry.md` and the generator is
   `scripts/update-runes.mjs`.
 
 ### Lookup and leaderboard behavior
@@ -146,7 +146,7 @@ Additional focused checks confirmed:
   validated, but their byte-for-byte original implementations are unavailable.
 - The original rune generator and registry were not recoverable; the generator
   was recreated from the official API contract and the registry was regenerated
-  manually with the user’s API command.
+  manually with the userâ€™s API command.
 - The restored workspace has no historical commits. Do not push it directly.
   Use the separate clean public repository after reviewing this workspace and
   rotating previously exposed Skymavis keys.
@@ -158,7 +158,7 @@ Additional focused checks confirmed:
 - [x] Restore rune generation script and instructions.
 - [x] Restore missing backend module contracts.
 - [x] Restore cache expiry and concurrency behavior.
-- [x] Correct tracker documentation ports.
+- [x] Consolidate the former tracker documentation around the unified app.
 - [x] Add security documentation and ignore rules.
 - [x] Run syntax and production-build checks.
 - [ ] Rotate/revoke all previously exposed Skymavis keys.

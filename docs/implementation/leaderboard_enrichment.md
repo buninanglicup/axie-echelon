@@ -2,7 +2,7 @@
 
 This document records the current leaderboard enrichment behavior, the changes made to stabilize top-player team previews, and the test configuration used during debugging.
 
-**See also:** [Cache and Polling Strategy](cache-and-polling-strategy.md) — comprehensive guide to the three-layer cache architecture, polling optimization, and tuning recommendations for live battle tracking.
+**See also:** [Cache and Polling Strategy](../planning/cache-and-polling-strategy.md) — comprehensive guide to the three-layer cache architecture, polling optimization, and tuning recommendations for live battle tracking.
 
 ## Current goal
 Fetch the Skymavis leaderboard and enrich each row with the player's most recent ranked team so the frontend can render morph previews for top players.

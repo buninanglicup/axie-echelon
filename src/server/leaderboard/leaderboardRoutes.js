@@ -101,7 +101,7 @@ router.get("/api/leaderboard/pool", async (request, response) => {
         recentForm: Array.isArray(player.recent_form) ? player.recent_form : [],
         userID: player.userID,
         // Seeded, not fetched -- see the PlayerEnrichment status model in
-        // leaderboard-pagination-plan.md ยง4. The frontend is responsible
+        // leaderboard-roadmap.md section 4. The frontend is responsible
         // for moving a player through queued/loading as it requests
         // GET /api/leaderboard/team/:userID for whichever page is visible.
         enrichment: { status: "not_requested" }

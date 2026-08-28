@@ -267,7 +267,7 @@ function startLeaderboardPolling() {
 // turned on" and "turned on again after being disabled" -- re-enabling
 // intentionally falls back to the documented default rather than
 // remembering whatever window the user had picked before disabling
-// (confirmed UX call, see leaderboard-pagination-plan.md).
+// (confirmed UX call, see docs/planning/leaderboard-roadmap.md).
 function updateLiveModeControls() {
   const { liveModeEnabled } = leaderboardState;
   if (liveOnlyControls) liveOnlyControls.hidden = !liveModeEnabled;
