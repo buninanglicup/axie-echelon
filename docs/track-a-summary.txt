@@ -1,0 +1,102 @@
+TRACK A — CONFIRMED BUG FIXES
+==============================
+Date: 2026-08-12
+Scope: main.js, server.js, config.js
+
+This is a corrected, smaller replacement for the earlier "leaderboard-patch-corrected.patch"
+draft. That draft assumed the Skymavis season-leaderboards endpoint clamps to 20 records per
+request, and built a 3-request chunking/merging layer (fetchLeaderboardPage /
+fetchLeaderboardWindow) around that assumption. That assumption was tested and disproven:
+
+  - GET /api/leaderboard?limit=50&offset=0   -> 50 players returned
+  - GET /api/leaderboard?limit=100&offset=0  -> 100 players returned
+  - GET /api/leaderboard?limit=50&offset=50  -> ranks 51-100 returned correctly
+
+All three tests were run against the unmodified server.js, which makes a single
+pass-through request to Skymavis with no chunking logic at all. This confirms
+/origins/v2/season-leaderboards is not capped at 20 per request, and no upstream
+pagination/merging is needed.
+
+Likely origin of the "20" figure: Sky Mavis's own docs for a DIFFERENT endpoint,
+GET /origin/v2/community/users/:client_id/battle-logs, document a `page` parameter
+with "Maximum: 20". That endpoint's own `limit` parameter is documented as
+Minimum: 5, Maximum: 100 -- a different field, on a different endpoint, from what the
+leaderboard chunking assumption was based on. The existing codebase's own battle-logs
+call had also been mistakenly clamping `limit` to 20 based on the same mix-up.
+
+CHANGES
+-------
+
+server.js
+  1. Added two new constants near the existing leaderboard-enrichment config:
+       - MAX_LEADERBOARD_REQUEST_SIZE (default 100): caps how large a single
+         /api/leaderboard request (and the battle-log enrichment fan-out it
+         triggers) can be. This is a self-imposed safety cap, not a reflection
+         of any real upstream constraint.
+       - BATTLE_LOGS_MIN_LIMIT (5) / BATTLE_LOGS_MAX_LIMIT (100): reflect the
+         documented range for the battle-logs endpoint's `limit` parameter.
+  2. fetchBattleLogsForClient(): replaced the incorrect `Math.min(limit, 20)`
+     clamp with a proper Math.min/Math.max clamp against the documented 5-100
+     range. Functionally unchanged today (the only caller passes limit=20,
+     which sits inside both the old and new range), but no longer silently
+     truncates a legitimate future request for more logs, and no longer
+     permits an invalid sub-5 value either.
+  3. /api/leaderboard route: the incoming `limit` query param is now clamped
+     to MAX_LEADERBOARD_REQUEST_SIZE. No chunking/pagination was added or
+     removed -- the route already made (and still makes) exactly one
+     pass-through request to Skymavis.
+  4. No functional change to fetchAndEnrichLeaderboard()'s request logic --
+     it was already a single request; only the two constants and their
+     comments were added around it.
+
+main.js
+  5. applyLeaderboardActivityFilter(): now returns players unfiltered when
+     liveModeEnabled is false, in addition to the existing
+     activeBattleWindowMinutes check. Previously, setting the "Active within"
+     slider while Live mode was off still filtered the leaderboard, since the
+     function never checked liveModeEnabled at all.
+  6. updateLiveModeControls(): now calls renderFilteredLeaderboard()
+     immediately after starting/stopping polling. Previously, toggling Live
+     mode on or off had no immediate visual effect on the activity filter --
+     the table would only reflect the change on the next slider interaction,
+     manual refresh, or poll tick.
+
+config.js
+  7. Removed the unused `getSeasonLeaderboardLimit = 20` export. It was never
+     imported by main.js or server.js, and encoded the same incorrect "20"
+     assumption addressed above. Replaced with a comment explaining why it
+     was removed, for anyone who finds a stale reference to it later.
+
+NOT CHANGED IN THIS PASS
+-------------------------
+  - No pagination/chunking logic was added to server.js. There was none to
+    remove either -- the "leaderboard-patch-corrected.patch" draft that
+    proposed fetchLeaderboardPage/fetchLeaderboardWindow was never applied to
+    this codebase, so there was nothing to revert.
+  - The proposed genes_metamorph / genesmetamorph dual-field addition was
+    NOT applied. A real battle-log API response payload was inspected and
+    only genes_metamorph (with underscore) exists upstream; main.js only ever
+    reads that same key. The dual-field addition would have been dead code.
+  - Rune/charm filtering, the "scan beyond top 50" feature, and the
+    per-player battle-history detail page are separate, larger tracks
+    (Track B and Track C) and are not part of this change set.
+
+VALIDATION PERFORMED
+---------------------
+  - node --check server.js  -> passed
+  - node --check config.js  -> passed
+  - node --check main.js    -> passed
+  - Full diff of both files reviewed line-by-line; no unrelated changes.
+
+SUGGESTED VALIDATION BEFORE COMMIT
+------------------------------------
+  1. Start the backend and confirm /api/leaderboard still returns expected
+     data at a few limit/offset combinations (50/0, 100/0, 50/50).
+  2. In the UI: set "Active within" while Live mode is OFF -> confirm all
+     loaded players remain visible (previously they would have been
+     incorrectly filtered).
+  3. Turn Live mode ON with an active-within window already set -> confirm
+     the table filters immediately, without waiting for the next poll tick.
+  4. Turn Live mode back OFF -> confirm the table immediately shows all
+     players again.
+  5. Confirm normal leaderboard loading/refresh still works as before.

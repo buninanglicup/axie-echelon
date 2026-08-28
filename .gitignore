@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+
+# Vite cache
+.vite/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Temporary / debug files
+tmp-*.js
+probe-*.txt
+COMMIT_MESSAGE.txt
+test query.txt
+commit msg.txt
+
+# Sample / dump JSON files (likely from API debugging)
+GetBattleLogsByUserID.json
+GetSeasonLeaderboardResponse.json
+ListFighterConfigofUser.json
+ListUserFighters.json
+
+# Large / binary assets that shouldn't be in git
+new filter UI for axie leaderboard.png

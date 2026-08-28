@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Axie Echelon | Beyond The Rank</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+
+  <body>
+    <div class="top-bar">
+      <div class="brand-wrap">
+        <span class="logo-dot">✦</span>
+        <div>
+          <div class="brand-kicker">AXIE ECHELON</div>
+          <h1>Beyond The Rank</h1>
+          <div class="brand-subtitle">Axie Origins rankings, teams, and insights</div>
+        </div>
+
+
+      </div>
+
+      <nav class="top-nav">
+        <button class="nav-button active" data-nav="leaderboard">Leaderboard</button>
+        <button class="nav-button" data-nav="morph">Morph Viewer</button>
+        <button class="nav-button nav-button-upcoming" data-nav="meta" disabled aria-disabled="true" title="Coming Soon">Meta Analytics</button>
+        <button class="nav-button nav-button-upcoming" data-nav="team-builder" disabled aria-disabled="true" title="Coming Soon">Team Builder</button>
+      </nav>
+    </div>
+
+    <main class="container dashboard-layout">
+      <aside class="side-panel">
+        <div class="sidebar-heading">
+          <span class="sidebar-heading-label">Filters</span>
+          <button id="reset-filters" type="button" class="sidebar-reset">Reset Filters</button>
+        </div>
+
+        <section class="panel-card live-tracking-card">
+          <div class="panel-title">Live Tracking</div>
+          <div class="live-tracking-row">
+            <span class="live-tracking-label">Live Updates</span>
+            <label class="toggle-switch">
+              <input id="live-mode" type="checkbox" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div id="live-only-controls" class="live-only-controls" hidden>
+            <div class="recency-filter-section">
+              <div class="recency-label-row">
+                <span class="recency-label">Match Recency</span>
+                <output id="recent-activity-value" class="recency-output">Up to 5m ago</output>
+              </div>
+              <div class="recency-slider-wrapper">
+                <div class="recency-slider-visual">
+                  <div class="recency-slider-track">
+                    <div class="recency-slider-thumb"></div>
+                  </div>
+                </div>
+                <input id="recent-activity-filter" class="recency-range-input" type="range" min="0" max="8" step="1" value="5" aria-label="Match recency" />
+                <div class="recency-tick-labels" aria-hidden="true">
+                  <span class="tick-label" style="left: 0%">0s</span>
+                  <span class="tick-label" style="left: 12.5%">1m</span>
+                  <span class="tick-label" style="left: 25%">2m</span>
+                  <span class="tick-label" style="left: 37.5%">3m</span>
+                  <span class="tick-label" style="left: 50%">4m</span>
+                  <span class="tick-label" style="left: 62.5%">5m</span>
+                  <span class="tick-label" style="left: 75%">10m</span>
+                  <span class="tick-label" style="left: 87.5%">15m</span>
+                  <span class="tick-label" style="left: 100%">20m</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="poll-every-section">
+              <label class="poll-label-row" for="polling-interval">Polling Interval</label>
+              <select id="polling-interval" class="poll-select">
+                <option value="15">15s</option>
+                <option value="30" selected>30s</option>
+                <option value="60">1m</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel-card search-tools-card">
+          <div class="panel-title">Build &amp; Player Search</div>
+          <label class="field-label" for="player-name-search">Player Name</label>
+          <div class="search-input-with-clear">
+            <input id="player-name-search" type="search" placeholder="Search player..." />
+            <button type="button" class="icon-button" aria-label="Clear player name" title="Clear player name">×</button>
+          </div>
+
+          <label class="field-label" for="axie-card-search">Axie Card</label>
+          <div class="rune-search-wrap search-select-wrap">
+            <input id="axie-card-search" type="search" placeholder="Search card..." autocomplete="off" />
+            <div id="axie-card-suggestions" class="rune-suggestions" hidden></div>
+          </div>
+
+          <label class="field-label" for="rune-search-input">Rune Name</label>
+          <div class="rune-search-wrap search-select-wrap">
+            <input id="rune-search-input" type="search" placeholder="Search rune..." autocomplete="off" />
+            <div id="rune-suggestions" class="rune-suggestions" hidden></div>
+          </div>
+          <p id="rune-filter-status" class="rune-filter-status" hidden></p>
+          <button id="rune-filter-clear" type="button" class="rune-filter-clear" hidden>Clear rune filter</button>
+        </section>
+
+        <section class="panel-card leaderboard-filter-card">
+          <div class="panel-title">Rank Filters</div>
+
+          <div class="rank-filter-block filter-block">
+            <div class="rank-label-row">Rank range</div>
+            <div class="rank-range-inputs">
+              <input id="rank-min" aria-label="Minimum rank" class="rank-simple-input" type="number" min="1" max="1000" placeholder="1" />
+              <span class="rank-range-separator">to</span>
+              <input id="rank-max" aria-label="Maximum rank" class="rank-simple-input" type="number" min="1" max="1000" placeholder="1000" />
+              <div id="rank-min-error" class="field-error" aria-live="polite" hidden></div>
+              <div id="rank-max-error" class="field-error" aria-live="polite" hidden></div>
+            </div>
+            <button id="rank-top-n-button" class="rank-chip-button">Top 100 only</button>
+          </div>
+        </section>
+      </aside>
+
+      <section class="main-content">
+        <section id="leaderboard-view" class="view-panel">
+          <div class="panel-heading">
+            <div>
+              <div class="eyebrow">AXIE ORIGINS</div>
+              <h2>Season Leaderboard</h2>
+              <div class="leaderboard-status" aria-live="polite">
+                <span class="status-dot" aria-hidden="true"></span>
+                <span id="header-last-updated">Updated —</span>
+              </div>
+            </div>
+            <div class="toolbar">
+              <div class="leaderboard-controls">
+                <label class="sr-only" for="season-selector">Season</label>
+                <span class="season-selector-wrap" title="Previous season access is available to Premium users">
+                  <select
+                    id="season-selector"
+                    aria-label="Season"
+                    aria-describedby="season-selector-help"
+                    disabled
+                  >
+                    <option value="19" selected>Season 18 · Live</option>
+                  </select>
+                  <span id="season-selector-help" class="sr-only">Previous season access is available to Premium users</span>
+                </span>
+
+                <div class="era-tabs" role="tablist" aria-label="Era">
+                  <button type="button" class="era-tab" role="tab" data-milestone="1" aria-selected="false">Rare</button>
+                  <button type="button" class="era-tab" role="tab" data-milestone="2" aria-selected="false">Epic</button>
+                  <button type="button" class="era-tab" role="tab" data-milestone="3" aria-selected="false">Mystic</button>
+                  <button type="button" class="era-tab" role="tab" data-milestone="4" aria-selected="false">Final</button>
+                </div>
+
+                <span class="control-divider" aria-hidden="true">|</span>
+
+              </div>
+
+            </div>
+          </div>
+
+          <div id="active-filters" class="active-filters" aria-live="polite" hidden></div>
+
+          <div class="table-header-bar">
+            <span class="table-header-label">View</span>
+            <div class="density-switch" role="group" aria-label="Leaderboard density">
+              <button id="standard-mode-toggle" type="button" class="density-option active" aria-pressed="true">Standard</button>
+              <button id="compact-mode-toggle" type="button" class="density-option" aria-label="Switch to compact view" aria-pressed="false">Compact</button>
+            </div>
+          </div>
+
+          <div class="leaderboard-wrapper">
+            <table id="leaderboard-table" class="leaderboard-table">
+              <thead>
+                <tr>
+                  <th>RANK</th>
+                  <th>PLAYER</th>
+                  <th>LATEST RANK TEAM</th>
+                  <th>MMR</th>
+                </tr>
+              </thead>
+              <tbody id="leaderboard-body"></tbody>
+            </table>
+          </div>
+          <div class="leaderboard-footer">
+            <span id="leaderboard-count">Showing 0 entries</span>
+            <div class="page-controls" aria-label="Leaderboard pages">
+              <button type="button" disabled aria-label="Previous page">&lt;</button>
+              <button type="button" class="active" aria-current="page">1</button>
+              <button type="button" disabled>2</button>
+              <button type="button" disabled>3</button>
+              <button type="button" disabled aria-label="Next page">&gt;</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="meta-view" class="view-panel hidden">
+          <div class="panel-heading compact-heading">
+            <div>
+              <div class="eyebrow">Meta Analytics</div>
+              <h2>Archetype Index</h2>
+            </div>
+            <button id="refresh-meta" class="primary-button">Update</button>
+          </div>
+          <div class="analytics-grid">
+            <article class="analytics-card">
+              <div class="analytic-title">S+ Tier</div>
+              <div class="big-number">Beast / Aqua / Plant</div>
+              <div class="subtle-text">24.4% pick share • 62.8% line win</div>
+            </article>
+            <article class="analytics-card">
+              <div class="analytic-title">Counter Swaps</div>
+              <div class="big-number">Reptile + Bug</div>
+              <div class="subtle-text">9.2% higher first-turn pressure</div>
+            </article>
+            <article class="analytics-card">
+              <div class="analytic-title">Hot Board</div>
+              <div class="big-number">Dawn Burst</div>
+              <div class="subtle-text">+11.6 MMR interval</div>
+            </article>
+          </div>
+          <div class="table-block">
+            <table class="leaderboard-table compact-table">
+              <thead>
+                <tr>
+                  <th>Archetype</th>
+                  <th>Pick Rate</th>
+                  <th>Win Rate</th>
+                  <th>Counter</th>
+                  <th>Tier</th>
+                </tr>
+              </thead>
+              <tbody id="meta-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="team-builder-view" class="view-panel hidden">
+          <div class="panel-heading compact-heading">
+            <div>
+              <div class="eyebrow">Team Builder</div>
+              <h2>AI Advisor</h2>
+            </div>
+            <button id="analyze-team" class="primary-button">Analyze Team</button>
+          </div>
+          <div class="advisor-panel">
+            <div id="team-analysis-result" class="analysis-result">Ready for analysis.</div>
+          </div>
+        </section>
+
+        <section id="morph-view" class="view-panel hidden">
+          <div class="intro">
+            Search single/multiple Axie IDs or a Ronin wallet to view morphed parts.
+          </div>
+
+          <section class="search-card morph-card">
+            <div class="mode-tabs">
+              <button class="mode active" data-mode="id">
+                Axie ID
+              </button>
+
+              <button class="mode" data-mode="address">
+                Ronin address
+              </button>
+            </div>
+
+            <form id="lookup-form">
+              <label id="input-label" for="lookup-input">
+                Axie ID
+              </label>
+
+              <div class="input-row">
+                <input
+                  id="lookup-input"
+                  required
+                  placeholder="e.g. 11929586"
+                />
+
+                <button type="submit">
+                  Search
+                </button>
+
+                <button type="button" id="clear-button" class="clear-button">
+                  Clear
+                </button>
+
+                <button type="button" id="filter-button" class="filter-button">
+                  Filters
+                </button>
+              </div>
+            </form>
+
+            <p id="status" class="status"></p>
+          </section>
+
+          <div id="filter-panel" class="filter-panel" aria-hidden="true">
+            <div class="filter-panel-inner">
+              <label style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+                <input type="checkbox" id="show-only-collectibles" checked />
+                <strong>Show only collectibles</strong>
+              </label>
+              <h3>Special collection</h3>
+
+              <div class="filter-grid" id="collectible-filters">
+                <!-- checkboxes injected by JS -->
+              </div>
+
+              <h4>Evolved parts</h4>
+              <div class="evolved-control">
+                <input type="range" id="evolved-range" min="0" max="6" value="0" disabled />
+                <div class="evolved-label">Min evolved parts: <span id="evolved-value">0</span></div>
+              </div>
+
+              <div class="filter-actions">
+                <button id="filter-apply">Apply</button>
+                <button id="filter-reset">Reset</button>
+                <button id="filter-close">Close</button>
+              </div>
+            </div>
+          </div>
+
+          <section id="results" class="results"></section>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

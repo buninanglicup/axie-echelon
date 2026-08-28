@@ -1,0 +1,24 @@
+{
+  "name": "axie-morph-viewer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "backend": "node server.js",
+    "frontend": "vite",
+    "dev": "concurrently -k \"npm run backend\" \"npm run frontend\"",
+    "build": "vite build",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@axieinfinity/mixer": "^1.4.6",
+    "@pixi-spine/all-3.8": "^4.0.6",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "pixi.js": "^7.4.3"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "vite": "^6.0.5"
+  }
+}

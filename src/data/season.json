@@ -1,0 +1,9 @@
+{
+  "_comment": "Update manually each new season. Use `node scripts/list-seasons.mjs` to look up the new seasonId/seasonName/seasonStartedAt/seasonEndedAt. NOTE: the Skymavis API's numeric `id` runs one ahead of the display `name` (id 19 = 'Season 18' in the UI) -- copy the numeric id into seasonId, not the number implied by the name.",
+  "seasonId": 19,
+  "seasonName": "Season 18",
+  "seasonStartedAt": 1783483200,
+  "seasonEndedAt": 1788319800,
+  "eraDurationDays": [14, 14, 14, 14],
+  "eraNames": ["Rare", "Epic", "Mystic", "Final"]
+}
