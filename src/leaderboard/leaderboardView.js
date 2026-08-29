@@ -2,8 +2,9 @@
 // no logic changes. All former bare module-scope `let` variables (e.g.
 // `leaderboardData`, `rankMin`, `liveModeEnabled`) are now properties of the
 // imported `leaderboardState` object -- see leaderboardState.js for why.
-import { renderMorphedAxieCached } from "../shared/morphRenderer.js";
-import { formatRelativeTime } from "../shared/formatting.js";
+import { renderLeaderboardRows, updateLeaderboardRelativeTimes } from "./leaderboardRenderer.js";
+import { applyLeaderboardFilters } from "./leaderboardFilters.js";
+import { createRuneFilterController } from "./leaderboardRuneFilter.js";
 import {
   leaderboardState,
   DEFAULT_BATTLE_WINDOW_MINUTES,
@@ -24,7 +25,6 @@ import {
   rankTopNButton,
   resetFiltersButton,
   activeFilters,
-  leaderboardCount,
   liveModeToggle,
   pollingControls,
   pollingIntervalSelect,
@@ -38,9 +38,6 @@ import {
   standardModeToggle,
   leaderboardTable,
   runeSearchInput,
-  runeSuggestions,
-  runeFilterStatus,
-  runeFilterClear
 } from "./leaderboardState.js";
 
 // ===== sessionStorage leaderboard page cache =====
@@ -124,58 +121,15 @@ function updateEraTabs(milestone) {
   }
 }
 
-function applyRankFilter(players) {
-  const { rankMin, rankMax } = leaderboardState;
-  return (players || []).filter((player) => {
-    const rank = Number(player?.rank);
-    if (!Number.isFinite(rank) || rank <= 0) return false;
-    if (rankMin && rank < rankMin) return false;
-    if (rankMax && rank > rankMax) return false;
-    return true;
-  });
-}
-
-function getLastBattleTimestamp(player) {
-  return player.lastRankedBattleTime || player.team?.lastRankedBattleTime || null;
-}
-
-// Apply the "active within" filter to leaderboard data.
-// This filter uses each player's last ranked battle timestamp and keeps only players
-// whose last ranked battle ended within the selected time window.
-// It is applied on the client side after loading the enriched leaderboard data.
-function applyLeaderboardActivityFilter(players) {
-  // Active-within is a live-mode-only filter: it depends on lastRankedBattleTime
-  // staying fresh via polling, so it should have no effect while live mode is off.
-  const { liveModeEnabled, activeBattleWindowMinutes } = leaderboardState;
-  if (!liveModeEnabled || activeBattleWindowMinutes === null || activeBattleWindowMinutes === undefined) return players;
-
-  const now = Date.now();
-  const windowMs = activeBattleWindowMinutes * 60 * 1000;
-
-  return (players || []).filter((player) => {
-    const timestamp = getLastBattleTimestamp(player);
-    if (!timestamp) return false;
-
-    const ts = typeof timestamp === "number" ? timestamp : Date.parse(timestamp);
-    if (!Number.isFinite(ts)) return false;
-
-    const ageMs = now - ts;
-    return ageMs >= 0 && ageMs <= windowMs;
-  });
-}
-
-function applyLeaderboardFilters(players) {
-  let filtered = applyLeaderboardActivityFilter(players);
-  filtered = applyRankFilter(filtered);
-  return filtered;
-}
-
 function renderFilteredLeaderboard() {
   if (leaderboardState.runeFilterActive) return;
   const leaderboardBody = document.querySelector("#leaderboard-body");
   if (!leaderboardBody) return;
   renderLeaderboardRows(leaderboardBody, applyLeaderboardFilters(leaderboardState.leaderboardData));
+  updateActiveFilters();
 }
+
+let clearRuneFilter = () => {};
 
 function updateActiveFilters() {
   if (!activeFilters) return;
@@ -294,254 +248,6 @@ function updateLiveModeControls() {
   renderFilteredLeaderboard();
 }
 
-// ===== Leaderboard row rendering =====
-function renderLeaderboardRows(leaderboardBody, players) {
-  console.log(`[renderLeaderboardRows] START: ${players.length} players to render`);
-
-  while (leaderboardBody.firstChild) {
-    leaderboardBody.removeChild(leaderboardBody.firstChild);
-  }
-
-  for (let rowIndex = 0; rowIndex < players.length; rowIndex++) {
-    const player = players[rowIndex];
-    const row = document.createElement("tr");
-    const rankNumber = Number(player.rank);
-    if (rankNumber >= 1 && rankNumber <= 3) row.classList.add(`leaderboard-rank-${rankNumber}`);
-
-    // Rank cell
-    const rankCell = document.createElement("td");
-    rankCell.textContent = player.rank || "-";
-    if (rankNumber >= 1 && rankNumber <= 3) rankCell.classList.add("podium-rank");
-    row.append(rankCell);
-
-    // Player name cell
-    const playerCell = document.createElement("td");
-    const playerNameContainer = document.createElement("div");
-    playerNameContainer.className = "player-name-container";
-
-    const playerName = document.createElement("div");
-    const playerProfileUrl = player.profileUrl || (player.roninAddress ? `${PROFILE_BASE}/${player.roninAddress}/axies/` : null);
-
-    if (playerProfileUrl) {
-      const playerLink = document.createElement("a");
-      playerLink.className = "player-name-link";
-      playerLink.href = playerProfileUrl;
-      playerLink.target = "_blank";
-      playerLink.rel = "noopener noreferrer";
-      playerLink.title = `View ${player.name || player.userID}'s Axie profile (opens in new tab)`;
-      playerLink.setAttribute(
-        "aria-label",
-        `View ${player.name || player.userID}'s Axie profile on the Axie marketplace, opens in a new tab`
-      );
-      playerLink.textContent = `${player.name || player.userID} ↗`;
-      playerName.append(playerLink);
-    } else {
-      playerName.className = "player-name";
-      playerName.title = player.name || player.userID;
-      playerName.textContent = player.name || player.userID;
-    }
-
-    playerNameContainer.append(playerName);
-
-    // BUG FIX (2026-08-19, caught during Phase 1 validation): this subtitle
-    // used to only be created when `player.lastRankedBattleTime` was
-    // truthy, which meant a failed live-mode fetch (now correctly reported
-    // as an honest `null`, see leaderboardEnrichment.js) rendered NO
-    // subtitle at all -- not the "can't fetch last battle" message the rest
-    // of this codebase's documentation claimed formatRelativeTime()
-    // already handled. That claim was only true if this element existed in
-    // the first place. Before the backend's honest-null change, a failed
-    // fetch's timestamp was almost always silently backfilled from a
-    // previous cycle by the old oldTimestamps workaround (since removed),
-    // so `player.lastRankedBattleTime` was rarely actually null and this
-    // gap rarely surfaced. Now it does, on every fetch failure, so the
-    // subtitle is always created; only its `dataset.lastRankedBattleTime`
-    // attribute is conditional, so updateLeaderboardRelativeTimes()'s
-    // per-second refresh (which reads that dataset attribute) also falls
-    // through to "can't fetch last battle" rather than a stale value.
-    const subtitle = document.createElement("div");
-    subtitle.className = "last-battle-subtitle";
-    if (player.lastRankedBattleTime) {
-      subtitle.dataset.lastRankedBattleTime = player.lastRankedBattleTime;
-    }
-    subtitle.textContent = formatRelativeTime(
-      player.lastRankedBattleTime ? new Date(player.lastRankedBattleTime) : null
-    );
-    playerNameContainer.append(subtitle);
-
-    playerCell.append(playerNameContainer);
-    row.append(playerCell);
-
-    // Team cell with Axies
-    const teamCell = document.createElement("td");
-
-    if (player.team && Array.isArray(player.team.fighters) && player.team.fighters.length > 0) {
-      const teamFighters = player.team.fighters
-        .sort((a, b) => (a.position || 0) - (b.position || 0))
-        .slice(0, 3);
-
-      console.log(
-        `[renderLeaderboardRows] Row ${rowIndex}: ${player.name || player.userID} has ${teamFighters.length} fighters`
-      );
-
-      console.debug(
-        "Leaderboard team preview:",
-        player.name || player.userID,
-        teamFighters.map((fighter) => ({
-          axieID: fighter.axieID,
-          position: fighter.position,
-          hasGenesMetamorph: Boolean(fighter.genes_metamorph),
-          hasRune: Boolean(fighter.rune),
-          runeId: fighter.rune?.id,
-          runeName: fighter.rune?.name
-        }))
-      );
-
-      const previewGrid = document.createElement("div");
-      previewGrid.className = "team-preview";
-
-      const previewSlots = Array.from({ length: 3 }, (_, index) => teamFighters[index] || null);
-      for (let slotIndex = 0; slotIndex < previewSlots.length; slotIndex++) {
-        const fighter = previewSlots[slotIndex];
-        const previewItem = document.createElement("div");
-        previewItem.className = "team-preview-item";
-        previewItem.dataset.rowIndex = rowIndex;
-        previewItem.dataset.slotIndex = slotIndex;
-
-        if (!fighter) {
-          console.log(`[renderLeaderboardRows] Row ${rowIndex}, Slot ${slotIndex}: EMPTY`);
-          previewItem.classList.add("empty");
-          previewItem.textContent = "Empty slot";
-          previewGrid.append(previewItem);
-          continue;
-        }
-
-        const axieID = fighter.axieID || "?";
-        console.log(`[renderLeaderboardRows] Row ${rowIndex}, Slot ${slotIndex}: Starting render for Axie #${axieID}`);
-
-        // Create wrapper for Axie image and rune (they form a single visual unit)
-        const axieWrapper = document.createElement("div");
-        axieWrapper.className = "axie-wrapper";
-        axieWrapper.style.position = "relative";
-        axieWrapper.style.width = "100%";
-        axieWrapper.style.height = "100%";
-        previewItem.append(axieWrapper);
-
-        // Create separate container for the morphed Axie image
-        // This prevents renderMorphedAxieCached from wiping out the rune badge
-        const morphContainer = document.createElement("div");
-        morphContainer.className = "morph-container";
-        morphContainer.style.position = "relative";
-        morphContainer.style.width = "100%";
-        morphContainer.style.height = "100%";
-        axieWrapper.append(morphContainer);
-
-        // Render morphed Axie into the morphContainer, not the previewItem
-        const genes = fighter.genes_metamorph;
-        if (genes) {
-          morphContainer.classList.add("is-loading");
-          console.log(`[renderLeaderboardRows] Row ${rowIndex}, Slot ${slotIndex}, Axie #${axieID}: Calling renderMorphedAxieCached`);
-
-          renderMorphedAxieCached(morphContainer, genes, {
-            snapshot: true,
-            width: 240,
-            height: 240,
-            imageHeight: "96px"
-          })
-            .catch((error) => {
-              console.warn(
-                `[renderLeaderboardRows] Row ${rowIndex}, Slot ${slotIndex}, Axie #${axieID}: Render failed`,
-                error
-              );
-              morphContainer.innerHTML = `<div style="color: #aaa;">#${axieID}</div>`;
-            })
-            .finally(() => {
-              morphContainer.classList.remove("is-loading");
-              console.log(`[renderLeaderboardRows] Row ${rowIndex}, Slot ${slotIndex}, Axie #${axieID}: Render complete`);
-            });
-        } else {
-          morphContainer.classList.add("empty");
-          morphContainer.textContent = `#${axieID} (no morph)`;
-          console.warn(
-            `[renderLeaderboardRows] Row ${rowIndex}, Slot ${slotIndex}: Missing genes_metamorph for Axie #${axieID}`
-          );
-        }
-
-        // Add rune badge as child of axieWrapper (positioned relative to Axie, not the card)
-        if (fighter.rune) {
-          if (fighter.rune.imageUrl) {
-            // Image-based rune badge
-            console.log(`[renderLeaderboardRows] Row ${rowIndex}, Slot ${slotIndex}, Axie #${axieID}: Adding rune badge ${fighter.rune.name}`);
-            const runeBadge = document.createElement("img");
-            runeBadge.className = "rune-badge";
-            runeBadge.src = fighter.rune.imageUrl;
-            runeBadge.alt = `Rune: ${fighter.rune.name}`;
-            runeBadge.title = fighter.rune.name;
-            runeBadge.setAttribute("aria-label", `Rune: ${fighter.rune.name}`);
-
-            // Gracefully hide rune if image fails to load
-            runeBadge.addEventListener("error", () => {
-              runeBadge.style.display = "none";
-              console.warn(`[renderLeaderboardRows] Row ${rowIndex}, Slot ${slotIndex}, Axie #${axieID}: Failed to load rune image`);
-            });
-
-            axieWrapper.append(runeBadge);
-          } else {
-            // Fallback text-based badge for runes without images
-            console.log(`[renderLeaderboardRows] Row ${rowIndex}, Slot ${slotIndex}, Axie #${axieID}: Adding fallback rune badge ${fighter.rune.name}`);
-            const runeBadge = document.createElement("div");
-            runeBadge.className = "rune-badge rune-badge-text";
-            runeBadge.textContent = "?";
-            runeBadge.title = fighter.rune.name;
-            runeBadge.setAttribute("aria-label", `Rune: ${fighter.rune.name}`);
-            axieWrapper.append(runeBadge);
-          }
-        }
-
-        // Add Axie ID link to marketplace (positioned relative to card)
-        const marketplaceUrl = `https://app.axieinfinity.com/marketplace/axies/${axieID}/`;
-        const idLink = document.createElement("a");
-        idLink.className = "axie-id";
-        idLink.href = marketplaceUrl;
-        idLink.target = "_blank";
-        idLink.rel = "noopener noreferrer";
-        idLink.setAttribute("aria-label", `View Axie #${axieID} on the Axie Marketplace, opens in a new tab`);
-        idLink.title = `View Axie #${axieID} on the marketplace (opens in new tab)`;
-        idLink.textContent = `#${axieID} ↗`;
-        previewItem.append(idLink);
-
-        previewGrid.append(previewItem);
-      }
-
-      teamCell.append(previewGrid);
-    } else {
-      teamCell.textContent = "-";
-      teamCell.style.color = "#888";
-    }
-    row.append(teamCell);
-
-    const mmrCell = document.createElement("td");
-    mmrCell.textContent = player.mmr || "-";
-    row.append(mmrCell);
-
-    leaderboardBody.append(row);
-  }
-
-  console.log(`[renderLeaderboardRows] COMPLETE: ${players.length} rows rendered`);
-  updateActiveFilters();
-  if (leaderboardCount) leaderboardCount.textContent = `Showing ${players.length} entries`;
-}
-
-function updateLeaderboardRelativeTimes() {
-  // Update all last-battle-subtitle elements with fresh relative time calculations
-  // This runs every second to keep the "Last played: XX:XX:XX ago" text current
-  const subtitles = document.querySelectorAll(".last-battle-subtitle");
-  for (const subtitle of subtitles) {
-    const timestamp = subtitle.dataset.lastRankedBattleTime || null;
-    subtitle.textContent = formatRelativeTime(timestamp);
-  }
-}
-
 // Vite and the backend start in parallel under `npm run dev`. The frontend
 // can become ready a moment before Express begins listening, so an initial
 // ECONNREFUSED is a startup race rather than a permanent API failure.
@@ -592,6 +298,7 @@ async function hydrateLeaderboard() {
         leaderboardBody,
         applyLeaderboardFilters(leaderboardState.leaderboardData)
       );
+      updateActiveFilters();
     }
     renderedFromCacheFingerprint = fingerprintLeaderboard(leaderboardState.leaderboardData);
   } else if (!leaderboardState.runeFilterActive) {
@@ -665,6 +372,7 @@ async function hydrateLeaderboard() {
       leaderboardBody,
       applyLeaderboardFilters(leaderboardState.leaderboardData)
     );
+    updateActiveFilters();
 
     // update last-updated indicator
     try {
@@ -676,109 +384,6 @@ async function hydrateLeaderboard() {
     leaderboardBody.innerHTML =
       '<tr><td colspan="4" style="text-align:center; padding:1rem; color:#f33;">Error loading leaderboard</td></tr>';
   }
-}
-
-// ===== Rune filter (Track B) =====
-// UX modeled on axie.top's sidebar: a searchable rune picker that, when a
-// rune is selected, replaces the normal top-N table with every matching
-// player found within the scanned rank range (see LEADERBOARD_MAX_RANK on the
-// backend). This is a stub UI -- functional, not styled to match 1:1.
-async function loadRuneCatalogIfNeeded() {
-  if (leaderboardState.runeCatalogLoaded) return;
-  try {
-    const response = await fetch("/api/runes");
-    if (!response.ok) throw new Error(`Rune catalog request failed: ${response.status}`);
-    const data = await response.json();
-    leaderboardState.runeCatalog = Array.isArray(data.runes) ? data.runes : [];
-    leaderboardState.runeCatalogLoaded = true;
-  } catch (error) {
-    console.warn("Failed to load rune catalog", error);
-  }
-}
-
-function renderRuneSuggestions(query) {
-  if (!runeSuggestions) return;
-  runeSuggestions.replaceChildren();
-
-  const trimmed = query.trim().toLowerCase();
-  if (!trimmed) {
-    runeSuggestions.hidden = true;
-    return;
-  }
-
-  const matches = leaderboardState.runeCatalog
-    .filter((rune) => rune.name.toLowerCase().includes(trimmed))
-    .slice(0, 20);
-
-  if (matches.length === 0) {
-    runeSuggestions.hidden = true;
-    return;
-  }
-
-  for (const rune of matches) {
-    const item = document.createElement("button");
-    item.type = "button";
-    item.className = "rune-suggestion-item";
-    item.innerHTML = `
-      ${rune.imageUrl ? `<img src="${rune.imageUrl}" alt="" width="28" height="28" />` : ""}
-      <span>${rune.name}</span>
-      ${rune.class ? `<span class="rune-class-tag">${rune.class}</span>` : ""}
-    `;
-    item.addEventListener("click", () => applyRuneFilter(rune));
-    runeSuggestions.append(item);
-  }
-
-  runeSuggestions.hidden = false;
-}
-
-async function applyRuneFilter(rune) {
-  leaderboardState.activeRuneId = rune.id;
-  leaderboardState.runeFilterActive = true;
-
-  if (runeSearchInput) runeSearchInput.value = rune.name;
-  if (runeSuggestions) runeSuggestions.hidden = true;
-  if (runeFilterClear) runeFilterClear.hidden = false;
-
-  const leaderboardBody = document.querySelector("#leaderboard-body");
-  if (runeFilterStatus) {
-    runeFilterStatus.hidden = false;
-    runeFilterStatus.textContent = `Scanning top ${200} ranked players for "${rune.name}"...`;
-  }
-  if (leaderboardBody) leaderboardBody.replaceChildren();
-
-  try {
-    const url = `/api/leaderboard/rune/${encodeURIComponent(rune.id)}?milestone=${leaderboardState.currentEraMilestone}`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`Rune filter request failed: ${response.status}`);
-    const data = await response.json();
-    const matches = Array.isArray(data.players) ? data.players : [];
-
-    // A rune filter change may have happened again while this request was
-    // in flight -- only render if this response is still the active filter.
-    if (leaderboardState.activeRuneId !== rune.id) return;
-
-    if (runeFilterStatus) {
-      runeFilterStatus.textContent = `${matches.length} player(s) running "${rune.name}" within top ${data.scannedRanks || LEADERBOARD_MAX_RANK}.`;
-    }
-    if (leaderboardBody) renderLeaderboardRows(leaderboardBody, matches);
-  } catch (error) {
-    console.error("Rune filter error:", error);
-    if (runeFilterStatus) runeFilterStatus.textContent = `Failed to scan for "${rune.name}".`;
-    if (leaderboardBody) {
-      leaderboardBody.innerHTML =
-        '<tr><td colspan="4" style="text-align:center; padding:1rem; color:#f33;">Error loading rune filter results</td></tr>';
-    }
-  }
-}
-
-function clearRuneFilter() {
-  leaderboardState.activeRuneId = null;
-  leaderboardState.runeFilterActive = false;
-  if (runeSearchInput) runeSearchInput.value = "";
-  if (runeSuggestions) runeSuggestions.hidden = true;
-  if (runeFilterStatus) runeFilterStatus.hidden = true;
-  if (runeFilterClear) runeFilterClear.hidden = true;
-  renderFilteredLeaderboard();
 }
 
 async function syncConfiguredEra() {
@@ -815,6 +420,18 @@ const SEASON_ERA_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // Every 24 hours
 // the original file did at the top level) so import order no longer matters
 // for correctness -- main.js controls exactly when this feature "starts."
 export function initLeaderboardView() {
+  const runeFilterController = createRuneFilterController({
+    renderRows: renderLeaderboardRows,
+    updateActiveFilters,
+    getLeaderboardBody: () => document.querySelector("#leaderboard-body"),
+    onClear: () => clearRuneFilter()
+  });
+  clearRuneFilter = () => {
+    runeFilterController.clearRuneFilter();
+    renderFilteredLeaderboard();
+  };
+  runeFilterController.init();
+
   // Wire rank inputs (if present)
   if (rankMinInput) {
     // Validate and clamp min rank to 1..1000. Keep empty input allowed.
@@ -1087,25 +704,6 @@ export function initLeaderboardView() {
     compactModeToggle.setAttribute("aria-label", "Switch to compact view");
   }
   // ===== END: Compact mode toggle =====
-
-  if (runeSearchInput) {
-    runeSearchInput.addEventListener("input", (e) => {
-      loadRuneCatalogIfNeeded().then(() => renderRuneSuggestions(e.target.value));
-    });
-    runeSearchInput.addEventListener("focus", () => {
-      loadRuneCatalogIfNeeded().then(() => renderRuneSuggestions(runeSearchInput.value));
-    });
-  }
-
-  if (runeFilterClear) {
-    runeFilterClear.addEventListener("click", clearRuneFilter);
-  }
-
-  document.addEventListener("click", (e) => {
-    if (!runeSuggestions || runeSuggestions.hidden) return;
-    if (e.target === runeSearchInput || runeSuggestions.contains(e.target)) return;
-    runeSuggestions.hidden = true;
-  });
 
   async function startLeaderboardView() {
     // Resolve the era before the first leaderboard request so the initial

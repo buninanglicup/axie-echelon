@@ -99,7 +99,10 @@ An Axie is considered collectible when it has at least one verified collectible 
 - `server.js`: backend entry point, middleware, router mounting, shutdown handling.
 - `src/main.js`: frontend entry point and page-reload diagnostics.
 - `vite.config.js`: frontend port and backend proxy configuration.
-- `src/leaderboard/leaderboardView.js`: leaderboard hydration, rendering, filters, live mode, and rune UI.
+- `src/leaderboard/leaderboardView.js`: leaderboard coordinator, hydration, initialization, and live-mode wiring.
+- `src/leaderboard/leaderboardRenderer.js`: leaderboard rows, team previews, and relative-time refresh.
+- `src/leaderboard/leaderboardFilters.js`: rank and activity filtering.
+- `src/leaderboard/leaderboardRuneFilter.js`: rune catalog, suggestions, scan results, and reset behavior.
 - `src/leaderboard/leaderboardState.js`: leaderboard state, constants, and DOM references.
 - `src/axieLookup/axieLookupView.js`: Axie lookup UI, cards, filters, and pagination.
 - `src/axieLookup/axieLookupState.js`: lookup state and DOM references.

@@ -100,7 +100,10 @@ calls (profile, and composition on a cache hit) and fixes *correctness*
 |---|---|
 | `src/main.js` | Page-reload-detection debug scaffolding + wires up the two features |
 | `src/leaderboard/leaderboardState.js` | Leaderboard's mutable state object, DOM refs, constants |
-| `src/leaderboard/leaderboardView.js` | Hydration, rendering, filters, live mode, rune filter â€” everything else |
+| `src/leaderboard/leaderboardView.js` | Leaderboard coordinator, hydration, initialization, and live-mode wiring |
+| `src/leaderboard/leaderboardRenderer.js` | Leaderboard rows, team previews, and relative-time refresh |
+| `src/leaderboard/leaderboardFilters.js` | Rank and activity filtering |
+| `src/leaderboard/leaderboardRuneFilter.js` | Rune catalog, suggestions, scan results, and reset behavior |
 | `src/axieLookup/axieLookupState.js` | Axie-lookup's mutable state object, DOM refs, constants |
 | `src/axieLookup/axieLookupView.js` | Mode toggle, form submit, pagination (both client & server), card rendering |
 | `src/shared/formatting.js` | `formatRelativeTime`, `escapeHtml` |

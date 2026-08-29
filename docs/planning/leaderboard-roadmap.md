@@ -1,6 +1,23 @@
 Leaderboard Pagination & Live-Filter Fix — Shared Understanding
 Status: Planning / implementation tracking. This document records the diagnosis, settled decisions, implementation progress, and remaining work.
 
+## Current implementation status
+
+- Phase 1 backend split: complete.
+- Phase 1 frontend split: complete; the former large view module now delegates
+  rendering, filtering, and rune filtering to focused modules.
+- Shared leaderboard constants and rank ceiling: complete.
+- Tracker retirement and unified single-process startup: complete.
+- Frontend pool/team pagination pipeline: planned; the UI still uses the legacy
+  eager leaderboard endpoint.
+
+Current frontend module boundaries:
+
+- `leaderboardView.js`: coordinator, initialization, hydration, and live-mode wiring.
+- `leaderboardRenderer.js`: leaderboard rows, team previews, and relative-time refresh.
+- `leaderboardFilters.js`: rank and activity predicates.
+- `leaderboardRuneFilter.js`: rune catalog, suggestions, scan results, and reset behavior.
+
 Note: This version consolidates the first draft and the subsequent implementation updates. The change log in Section 1 explains what was added after the first draft.
 
 1. What changed since the first draft
