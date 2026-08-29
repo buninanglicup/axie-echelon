@@ -22,7 +22,7 @@ export const GET_SEASON_LEADERBOARD_API_OFFSET = Number(import.meta.env.VITE_LEA
 // Product decisions shared with the backend constants module. The upstream
 // request cap remains backend-only because the frontend calls our API.
 export const MAXIMUM_PLAYERS_DISPLAYED_PER_PAGE = 50;
-export const LEADERBOARD_MAX_RANK = 1000;
+export const LEADERBOARD_MAX_RANK = 35;
 export const POLLING_INTERVAL_SECONDS = Number(import.meta.env.VITE_POLLING_INTERVAL || 30); // polling cadence in seconds
 
 // CORRECTION (2026-08-19, during the file split): this constant was
