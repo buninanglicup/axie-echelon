@@ -18,8 +18,8 @@ export function formatRelativeTime(timestamp) {
   const hours = Math.floor(totalMinutes / 60);
 
   if (hours === 0 && totalMinutes < 60) {
-    if (totalMinutes === 0) return "Played: just now";
-    return `Played ${totalMinutes}m ago`;
+    if (totalMinutes === 0) return `Played: ${seconds}secs ago`;
+    return `Played: ${totalMinutes}m ${seconds}secs ago`;
   }
 
   if (hours < 24) {
