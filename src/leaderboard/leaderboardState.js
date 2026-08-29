@@ -89,6 +89,16 @@ export const leaderboardState = {
   runeFilterActive: false
 };
 
+// Live-mode only: retain the last successful battle timestamp per player and
+// era so a transient fetch failure does not remove an otherwise active row.
+// This cache affects filter eligibility only; rendered subtitles still use
+// the raw timestamp from the current poll response.
+export const lastKnownGoodBattleTime = new Map();
+
+export function battleTimeCacheKey(eraMilestone, userID) {
+  return `${eraMilestone}:${userID}`;
+}
+
 // ===== Leaderboard-only DOM refs (queried once at module load, same timing
 // as the original file) =====
 export const lastBattleFilter = document.querySelector("#recent-activity-filter");

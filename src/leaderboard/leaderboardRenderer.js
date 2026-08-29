@@ -2,6 +2,7 @@
 // in leaderboardView.js so rendering stays independent of orchestration.
 import { renderMorphedAxieCached } from "../shared/morphRenderer.js";
 import { formatRelativeTime } from "../shared/formatting.js";
+import { getLastBattleTimestamp } from "./leaderboardFilters.js";
 import { leaderboardState, PROFILE_BASE, leaderboardCount } from "./leaderboardState.js";
 
 export function renderLeaderboardRows(leaderboardBody, players) {
@@ -52,12 +53,18 @@ export function renderLeaderboardRows(leaderboardBody, players) {
 
     const subtitle = document.createElement("div");
     subtitle.className = "last-battle-subtitle";
-    if (player.lastRankedBattleTime) {
-      subtitle.dataset.lastRankedBattleTime = player.lastRankedBattleTime;
+    const displayTimestamp = getLastBattleTimestamp(player);
+    if (displayTimestamp) {
+      subtitle.dataset.lastRankedBattleTime = displayTimestamp;
     }
     subtitle.textContent = formatRelativeTime(
-      player.lastRankedBattleTime ? new Date(player.lastRankedBattleTime) : null
+      displayTimestamp ? new Date(displayTimestamp) : null
     );
+    const isCoastingOnCache =
+      leaderboardState.liveModeEnabled &&
+      player.battleTimeFetchFailed &&
+      Boolean(displayTimestamp);
+    subtitle.classList.toggle("battle-time-unconfirmed", isCoastingOnCache);
     playerNameContainer.append(subtitle);
 
     playerCell.append(playerNameContainer);

@@ -2123,3 +2123,8 @@ input {
 .active-filters[hidden] {
   display: none;
 }
+
+.last-battle-subtitle.battle-time-unconfirmed {
+  opacity: 0.7;
+  font-style: italic;
+}

@@ -8,10 +8,13 @@ import { createRuneFilterController } from "./leaderboardRuneFilter.js";
 import {
   leaderboardState,
   DEFAULT_BATTLE_WINDOW_MINUTES,
+  battleWindowPresets,
   LEADERBOARD_STORAGE_TTL_MS,
   GET_SEASON_LEADERBOARD_API_LIMIT,
   GET_SEASON_LEADERBOARD_API_OFFSET,
   LEADERBOARD_MAX_RANK,
+  lastKnownGoodBattleTime,
+  battleTimeCacheKey,
   PROFILE_BASE,
   getBattleWindowPreset,
   getLeaderboardStorageKey,
@@ -243,6 +246,7 @@ function updateLiveModeControls() {
     leaderboardState.activeBattleWindowMinutes = null;
     if (lastBattleFilter) lastBattleFilter.value = "";
     updateLeaderboardFilterLabels();
+    lastKnownGoodBattleTime.clear();
   }
 
   renderFilteredLeaderboard();
@@ -302,7 +306,9 @@ async function hydrateLeaderboard() {
     }
     renderedFromCacheFingerprint = fingerprintLeaderboard(leaderboardState.leaderboardData);
   } else if (!leaderboardState.runeFilterActive) {
-    leaderboardBody.replaceChildren();
+    if (leaderboardState.leaderboardData.length === 0) {
+      leaderboardBody.replaceChildren();
+    }
   }
 
   try {
@@ -342,12 +348,24 @@ async function hydrateLeaderboard() {
     // `null` (never a stale value) plus `battleTimeFetchFailed: true` when
     // that fetch failed, while still returning the player's last-known TEAM
     // composition from its own long-TTL cache so the row doesn't go blank.
-    // No client-side merging is needed anymore: `players` from the response
-    // is used as-is. A null lastRankedBattleTime renders as "can't fetch
-    // last battle" via formatRelativeTime() below, which already handles it.
+    // Player data is used as-is. Filtering may separately consult the
+    // last-known-good timestamp cache when a live battle-time fetch fails;
+    // rendering still uses the raw current-cycle timestamp.
     const players = Array.isArray(data.players) ? data.players : [];
 
     if (leaderboardState.liveModeEnabled) {
+      const eraMilestone = leaderboardState.currentEraMilestone;
+      for (const player of players) {
+        if (player.userID && !player.battleTimeFetchFailed && player.lastRankedBattleTime) {
+          lastKnownGoodBattleTime.set(
+            battleTimeCacheKey(eraMilestone, player.userID),
+            player.lastRankedBattleTime
+          );
+        }
+      }
+
+      evictStaleBattleTimeCacheEntries();
+
       const failedCount = players.filter((p) => p.battleTimeFetchFailed).length;
       if (failedCount > 0) {
         console.log(`[LIVE MODE] ${failedCount}/${players.length} player(s) had a failed battle-time fetch this cycle; showing last-known team with an honest "can't fetch last battle" timestamp for those rows.`);
@@ -383,6 +401,26 @@ async function hydrateLeaderboard() {
     console.error("Leaderboard fetch error:", error);
     leaderboardBody.innerHTML =
       '<tr><td colspan="4" style="text-align:center; padding:1rem; color:#f33;">Error loading leaderboard</td></tr>';
+  }
+}
+
+// Retained timestamps are only useful while they remain inside the selected
+// live activity window. Evicting them once per poll keeps the map bounded and
+// makes narrowing the window take effect immediately.
+function evictStaleBattleTimeCacheEntries() {
+  const selectedWindowMinutes = leaderboardState.activeBattleWindowMinutes;
+  const fallbackMaxMinutes = battleWindowPresets[battleWindowPresets.length - 1].minutes;
+  const windowMinutes = Number.isFinite(selectedWindowMinutes)
+    ? selectedWindowMinutes
+    : fallbackMaxMinutes;
+  const windowMs = windowMinutes * 60 * 1000;
+  const now = Date.now();
+
+  for (const [key, timestamp] of lastKnownGoodBattleTime) {
+    const ts = Date.parse(timestamp);
+    if (!Number.isFinite(ts) || now - ts > windowMs) {
+      lastKnownGoodBattleTime.delete(key);
+    }
   }
 }
 
