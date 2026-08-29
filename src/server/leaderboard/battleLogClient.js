@@ -169,13 +169,24 @@ export async function fetchBattleLogsForClient(clientId, limit = 20, priority = 
     //     ]
     //   }
     // }
+    const MAX_TRACKED_RANKED_BATTLES = 3;
+    const recentRankedBattleTimes = [];
+    let team = null;
+
     for (const battle of battles) {
       if (battle.gameData && battle.gameData.gameMode === 'ranked' && Array.isArray(battle.gameData.players)) {
         // Find the player entry (current user) vs opponent by matching userID
         const playerEntry = battle.gameData.players.find(p => p.userID === clientId);
-        const lastRankedBattleTime = extractBattleTimestamp(battle);
+        const battleTimestamp = extractBattleTimestamp(battle);
 
-        if (playerEntry && playerEntry.team && Array.isArray(playerEntry.team.fighters)) {
+        if (battleTimestamp) {
+          recentRankedBattleTimes.push(battleTimestamp);
+        }
+
+        // Only extract fighters/team once, from the most recent ranked battle --
+        // team composition display is unchanged, we're just also harvesting
+        // timestamps from the battles after it in the same already-fetched array.
+        if (!team && playerEntry && playerEntry.team && Array.isArray(playerEntry.team.fighters)) {
           const teamFighters = playerEntry.team.fighters
             .map(fighter => {
               // Extract first rune (max 1 per axie) and look up its metadata
@@ -210,12 +221,22 @@ export async function fetchBattleLogsForClient(clientId, limit = 20, priority = 
             })
             .sort((a, b) => a.position - b.position);
 
-          if (teamFighters.length > 0 || lastRankedBattleTime) {
-            if (DEBUG_ON) console.log(`[fetchBattleLogsForClient] Extracted ${teamFighters.length} fighters for ${clientId}`);
-            return { fighters: teamFighters, lastRankedBattleTime };
+          if (teamFighters.length > 0) {
+            team = { fighters: teamFighters };
           }
         }
+
+        if (recentRankedBattleTimes.length >= MAX_TRACKED_RANKED_BATTLES) break;
       }
+    }
+
+    if (recentRankedBattleTimes.length > 0 || team) {
+      if (DEBUG_ON) console.log(`[fetchBattleLogsForClient] Extracted ${team?.fighters?.length || 0} fighters and ${recentRankedBattleTimes.length} recent ranked battle times for ${clientId}`);
+      return {
+        fighters: team?.fighters || [],
+        lastRankedBattleTime: recentRankedBattleTimes[0] || null,
+        recentRankedBattleTimes // newest-first, up to 3 entries
+      };
     }
 
     if (DEBUG_ON) console.log(`[fetchBattleLogsForClient] No ranked battles found for ${clientId}`);

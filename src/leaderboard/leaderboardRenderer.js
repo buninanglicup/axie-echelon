@@ -1,9 +1,9 @@
 // Leaderboard DOM rendering only. Data fetching and filter decisions remain
 // in leaderboardView.js so rendering stays independent of orchestration.
 import { renderMorphedAxieCached } from "../shared/morphRenderer.js";
-import { formatRelativeTime } from "../shared/formatting.js";
+import { formatRelativeTime, estimateNextRankedActivity, formatNextActivityEstimate } from "../shared/formatting.js";
 import { getLastBattleTimestamp } from "./leaderboardFilters.js";
-import { leaderboardState, PROFILE_BASE, leaderboardCount } from "./leaderboardState.js";
+import { leaderboardState, RANKED_SESSION_GAP_THRESHOLD_MS, PROFILE_BASE, leaderboardCount } from "./leaderboardState.js";
 
 export function renderLeaderboardRows(leaderboardBody, players) {
   console.log(`[renderLeaderboardRows] START: ${players.length} players to render`);
@@ -54,18 +54,34 @@ export function renderLeaderboardRows(leaderboardBody, players) {
     const subtitle = document.createElement("div");
     subtitle.className = "last-battle-subtitle";
     const displayTimestamp = getLastBattleTimestamp(player);
-    if (displayTimestamp) {
-      subtitle.dataset.lastRankedBattleTime = displayTimestamp;
-    }
-    subtitle.textContent = formatRelativeTime(
-      displayTimestamp ? new Date(displayTimestamp) : null
-    );
     const isCoastingOnCache =
       leaderboardState.liveModeEnabled &&
       player.battleTimeFetchFailed &&
       Boolean(displayTimestamp);
+
+    if (displayTimestamp) {
+      subtitle.dataset.lastRankedBattleTime = displayTimestamp;
+    }
+    subtitle.dataset.battleTimeFetchFailed = String(Boolean(player.battleTimeFetchFailed));
+    subtitle.textContent = formatRelativeTime(
+      displayTimestamp ? new Date(displayTimestamp) : null,
+      {
+        unavailableLabel: player.battleTimeFetchFailed ? "Can't fetch last battle" : "Played: —",
+        failedLabel: "Can't fetch last battle"
+      }
+    );
     subtitle.classList.toggle("battle-time-unconfirmed", isCoastingOnCache);
     playerNameContainer.append(subtitle);
+
+    const nextActivitySubtitle = document.createElement("div");
+    nextActivitySubtitle.className = "next-activity-subtitle";
+    if (Array.isArray(player.recentRankedBattleTimes) && player.recentRankedBattleTimes.length > 0) {
+      nextActivitySubtitle.dataset.recentRankedBattleTimes = JSON.stringify(player.recentRankedBattleTimes);
+    }
+    nextActivitySubtitle.textContent = formatNextActivityEstimate(
+      estimateNextRankedActivity(player.recentRankedBattleTimes, RANKED_SESSION_GAP_THRESHOLD_MS)
+    );
+    playerNameContainer.append(nextActivitySubtitle);
 
     playerCell.append(playerNameContainer);
     row.append(playerCell);
@@ -223,6 +239,21 @@ export function updateLeaderboardRelativeTimes() {
   const subtitles = document.querySelectorAll(".last-battle-subtitle");
   for (const subtitle of subtitles) {
     const timestamp = subtitle.dataset.lastRankedBattleTime || null;
-    subtitle.textContent = formatRelativeTime(timestamp);
+    const failedThisCycle = subtitle.dataset.battleTimeFetchFailed === "true";
+    subtitle.textContent = formatRelativeTime(timestamp, {
+      unavailableLabel: failedThisCycle ? "Can't fetch last battle" : "Played: —",
+      failedLabel: "Can't fetch last battle"
+    });
+  }
+
+  const nextActivitySubtitles = document.querySelectorAll(".next-activity-subtitle");
+  for (const el of nextActivitySubtitles) {
+    let times = [];
+    try {
+      times = el.dataset.recentRankedBattleTimes ? JSON.parse(el.dataset.recentRankedBattleTimes) : [];
+    } catch {
+      /* malformed dataset, treat as no data */
+    }
+    el.textContent = formatNextActivityEstimate(estimateNextRankedActivity(times, RANKED_SESSION_GAP_THRESHOLD_MS));
   }
 }

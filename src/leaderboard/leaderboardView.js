@@ -13,6 +13,7 @@ import {
   GET_SEASON_LEADERBOARD_API_LIMIT,
   GET_SEASON_LEADERBOARD_API_OFFSET,
   LEADERBOARD_MAX_RANK,
+  RANKED_SESSION_GAP_THRESHOLD_MS,
   lastKnownGoodBattleTime,
   battleTimeCacheKey,
   PROFILE_BASE,
@@ -42,8 +43,9 @@ import {
   leaderboardTable,
   runeSearchInput,
 } from "./leaderboardState.js";
+import { formatRelativeTime, estimateNextRankedActivity, formatNextActivityEstimate } from "../shared/formatting.js";
 
-// ===== sessionStorage leaderboard page cache =====
+// ===== sessionStorage leaderboard page cache ======
 function loadLeaderboardPageFromStorage(limit, offset, milestone) {
   if (typeof sessionStorage === "undefined") return null;
   const key = getLeaderboardStorageKey(limit, offset, milestone);
@@ -83,7 +85,7 @@ function saveLeaderboardPageToStorage(limit, offset, milestone, payload) {
 function fingerprintLeaderboard(players) {
   if (!Array.isArray(players)) return "";
   return players
-    .map((p) => `${p.userID}:${p.rank}:${p.mmr}:${p.winRate}:${p.lastRankedBattleTime || ""}`)
+    .map((p) => `${p.userID}:${p.rank}:${p.mmr}:${p.winRate}:${p.lastRankedBattleTime || ""}:${(p.recentRankedBattleTimes || []).join(",")}`)
     .join("|");
 }
 

@@ -49,6 +49,21 @@ export const battleWindowPresets = [
   { index: 8, label: "20m", minutes: 20 }
 ];
 
+// Idle-time threshold used to keep the next-ranked-activity estimate
+// (see estimateNextRankedActivity() in shared/formatting.js) scoped to a
+// single play session. Ranked battles separated by more than this are
+// treated as belonging to different sessions and are excluded from the
+// cadence calculation -- otherwise a battle from yesterday could get
+// averaged in with battles from just now and produce a meaningless gap.
+//
+// Conceptually related to DEFAULT_BATTLE_WINDOW_MINUTES above (both encode
+// "how much idle time before we stop treating this player's battles as
+// connected"), but intentionally a SEPARATE value: DEFAULT_BATTLE_WINDOW_MINUTES
+// controls the "active within" leaderboard filter, while this controls
+// session-trimming for the activity estimate. They're allowed to drift
+// apart -- don't assume changing one should change the other.
+export const RANKED_SESSION_GAP_THRESHOLD_MS = 20 * 60 * 1000;
+
 export function getBattleWindowPreset(value) {
   const numericValue = Number(value);
   if (Number.isFinite(numericValue)) {

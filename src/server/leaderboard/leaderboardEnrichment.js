@@ -127,6 +127,7 @@ export async function fetchAndEnrichLeaderboard(limit, offset, eraMilestone, liv
 
         let team = null;
         let lastRankedBattleTime = null;
+        let recentRankedBattleTimes = []; // only ever populated in live mode
         let battleTimeFetchFailed = false; // true only in live mode when this cycle's fetch failed
 
         if (liveMode) {
@@ -151,6 +152,7 @@ export async function fetchAndEnrichLeaderboard(limit, offset, eraMilestone, liv
             setCachedTeamComposition(userID, fresh.fighters);
             team = fresh;
             lastRankedBattleTime = fresh.lastRankedBattleTime || null;
+            recentRankedBattleTimes = fresh.recentRankedBattleTimes || []; // same never-stale rule as lastRankedBattleTime
           } else {
             battleTimeFetchFailed = true;
             const cachedComposition = getCachedTeamComposition(userID);
@@ -162,6 +164,7 @@ export async function fetchAndEnrichLeaderboard(limit, offset, eraMilestone, liv
               team = null;
             }
             lastRankedBattleTime = null; // NEVER backfilled from a previous poll -- see function-level comment
+            recentRankedBattleTimes = []; // never backfilled, same reasoning as lastRankedBattleTime
           }
         } else {
           // NON-LIVE MODE: unchanged behavior -- serve from the legacy
@@ -194,6 +197,7 @@ export async function fetchAndEnrichLeaderboard(limit, offset, eraMilestone, liv
           }
 
           lastRankedBattleTime = team?.lastRankedBattleTime || null;
+          recentRankedBattleTimes = team?.recentRankedBattleTimes || [];
         }
 
         return {
@@ -213,6 +217,7 @@ export async function fetchAndEnrichLeaderboard(limit, offset, eraMilestone, liv
           // rendering the last-known team, instead of either blanking the
           // row or silently reusing an old timestamp.
           battleTimeFetchFailed,
+          recentRankedBattleTimes,
           userID: userID,
           roninAddress,
           profileUrl
@@ -230,6 +235,7 @@ export async function fetchAndEnrichLeaderboard(limit, offset, eraMilestone, liv
           team: null,
           lastRankedBattleTime: null,
           battleTimeFetchFailed: liveMode, // consistent with the liveMode branch's semantics above
+          recentRankedBattleTimes: [],
           userID: player.userID,
           roninAddress: null,
           profileUrl: null
