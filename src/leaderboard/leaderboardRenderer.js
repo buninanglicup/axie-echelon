@@ -5,6 +5,18 @@ import { formatRelativeTime, predictNextActivity, formatActivityEstimate, format
 import { getLastBattleTimestamp } from "./leaderboardFilters.js";
 import { leaderboardState, RANKED_SESSION_GAP_THRESHOLD_MS, MIN_VALID_MATCH_DURATION_MS, POLLING_STALE_MULTIPLIER, DEFAULT_MATCH_DURATION_MS, PROFILE_BASE, leaderboardCount } from "./leaderboardState.js";
 
+function formatDebugClock(date) {
+  if (!date || Number.isNaN(date.getTime())) return "?";
+
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  const seconds = date.getSeconds();
+  const hour12 = hours % 12 || 12;
+  const meridiem = hours >= 12 ? "pm" : "am";
+
+  return `${String(hour12).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")} ${meridiem}`;
+}
+
 export function renderLeaderboardRows(leaderboardBody, players) {
   console.log(`[renderLeaderboardRows] START: ${players.length} players to render`);
 
@@ -97,12 +109,8 @@ export function renderLeaderboardRows(leaderboardBody, players) {
           .map((battle, index) => {
             const start = battle.startedAt ? new Date(battle.startedAt) : null;
             const end = battle.endedAt ? new Date(battle.endedAt) : null;
-            const startLabel = start && !Number.isNaN(start.getTime())
-              ? start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })
-              : "?";
-            const endLabel = end && !Number.isNaN(end.getTime())
-              ? end.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })
-              : "?";
+            const startLabel = formatDebugClock(start);
+            const endLabel = formatDebugClock(end);
             const durationMs = start && end ? Math.max(0, end.getTime() - start.getTime()) : null;
             const durationLabel = durationMs != null
               ? `${Math.floor(durationMs / 60000)}m ${Math.floor((durationMs % 60000) / 1000)}s`
@@ -324,14 +332,15 @@ export function updateLeaderboardRelativeTimes() {
         const totalSecs = Math.floor(lastPlayedMs / 1000);
         const mins = Math.floor(totalSecs / 60);
         const secs = totalSecs % 60;
+        const pad = (value) => String(value).padStart(2, "0");
         if (mins === 0) {
-          lastPlayedLabel = `${secs}s ago`;
+          lastPlayedLabel = `${pad(secs)}s ago`;
         } else if (mins < 60) {
-          lastPlayedLabel = `${mins}m ${secs}s ago`;
+          lastPlayedLabel = `${pad(mins)}m ${pad(secs)}s ago`;
         } else {
           const hours = Math.floor(mins / 60);
           const minsPart = mins % 60;
-          lastPlayedLabel = `${hours}h ${minsPart}m ago`;
+          lastPlayedLabel = `${pad(hours)}h ${pad(minsPart)}m ago`;
         }
       }
     }
@@ -351,15 +360,12 @@ export function updateLeaderboardRelativeTimes() {
           .map((battle, index, list) => {
             const start = battle.startedAt ? new Date(battle.startedAt) : null;
             const end = battle.endedAt ? new Date(battle.endedAt) : null;
-            const startLabel = start && !Number.isNaN(start.getTime())
-              ? start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })
-              : "?";
-            const endLabel = end && !Number.isNaN(end.getTime())
-              ? end.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })
-              : "?";
+            const startLabel = formatDebugClock(start);
+            const endLabel = formatDebugClock(end);
             const durationMs = start && end ? Math.max(0, end.getTime() - start.getTime()) : null;
+            const pad = (value) => String(value).padStart(2, "0");
             const durationLabel = durationMs != null
-              ? `${Math.floor(durationMs / 60000)}m ${Math.floor((durationMs % 60000) / 1000)}s`
+              ? `${pad(Math.floor(durationMs / 60000))}m ${pad(Math.floor((durationMs % 60000) / 1000))}s`
               : "?";
 
             const previousBattle = list[index + 1] || null;
@@ -367,7 +373,14 @@ export function updateLeaderboardRelativeTimes() {
               ? Math.max(0, start.getTime() - new Date(previousBattle.endedAt).getTime())
               : null;
             const stopLabel = stopMs != null
-              ? `${Math.floor(stopMs / 3600000)}h ${Math.floor((stopMs % 3600000) / 60000)}m ${Math.floor((stopMs % 60000) / 1000)}s`
+              ? (() => {
+                  const hours = Math.floor(stopMs / 3600000);
+                  const minutes = Math.floor((stopMs % 3600000) / 60000);
+                  const seconds = Math.floor((stopMs % 60000) / 1000);
+                  if (hours > 0) return `${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`;
+                  if (minutes > 0) return `${pad(minutes)}m ${pad(seconds)}s`;
+                  return `${pad(seconds)}s`;
+                })()
               : null;
 
             return stopLabel

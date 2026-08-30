@@ -199,6 +199,10 @@ export function formatActivityEstimateCompact(result, lastPlayedLabel = "—") {
   return `${prediction} · Last played ${lastPlayedLabel}`;
 }
 
+function padTwo(value) {
+  return String(Math.max(0, value)).padStart(2, "0");
+}
+
 function msToClock(deltaMs) {
   // Keep the clock representation coarse on purpose: the prediction is a
   // heuristic, not a precise stopwatch, so the UI only needs minute/second
@@ -206,7 +210,7 @@ function msToClock(deltaMs) {
   const totalSeconds = Math.floor(Math.abs(deltaMs) / 1000);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
-  return `${minutes}m ${seconds}s`;
+  return `${padTwo(minutes)}m ${padTwo(seconds)}s`;
 }
 
 export function escapeHtml(value) {
