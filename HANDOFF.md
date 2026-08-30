@@ -22,13 +22,13 @@ Real-time monitoring system that displays a configurable fixed window of Axie In
 Axie Infinity competitive players, streamers, and battle strategists who need to track opponent activity and team composition in real-time.
 
 **Current stage:**
-**MVP with critical bugs and technical debt.** Core features implemented (live tracking, activity filtering, rune scanning), but live mode reload bug unresolved and architecture optimization incomplete.
+**Live activity estimation is implemented and ready for manual verification.** The leaderboard now predicts each player's next ranked activity using recent same-session cadence and a median global match duration, while keeping the broader MVP issues tracked separately.
 
 **Main goals right now:**
-- Fix live mode page reload bug (CRITICAL â€“ blocks production use)
-- Resolve activity filter flickering (intermittent player disappearance)
-- Stabilize API caching strategy to balance freshness vs. rate limits
-- Integrate the real Phase 2 pagination pipeline so the unified app can browse beyond one fixed rank window
+- Verify the live-mode estimate in-browser and against the live API data
+- Confirm the staleness, pause, and surrender-edge cases behave as expected
+- Keep the repo clean by ignoring local validation artefacts and debug output
+- Continue any follow-up polish after the manual validation pass
 
 ---
 

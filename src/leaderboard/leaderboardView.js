@@ -14,6 +14,8 @@ import {
   GET_SEASON_LEADERBOARD_API_OFFSET,
   LEADERBOARD_MAX_RANK,
   RANKED_SESSION_GAP_THRESHOLD_MS,
+  MIN_VALID_MATCH_DURATION_MS,
+  POLLING_STALE_MULTIPLIER,
   lastKnownGoodBattleTime,
   battleTimeCacheKey,
   PROFILE_BASE,
@@ -43,7 +45,7 @@ import {
   leaderboardTable,
   runeSearchInput,
 } from "./leaderboardState.js";
-import { formatRelativeTime, estimateNextRankedActivity, formatNextActivityEstimate } from "../shared/formatting.js";
+import { formatRelativeTime, predictNextActivity, formatActivityEstimate } from "../shared/formatting.js";
 
 // ===== sessionStorage leaderboard page cache ======
 function loadLeaderboardPageFromStorage(limit, offset, milestone) {
@@ -376,6 +378,11 @@ async function hydrateLeaderboard() {
 
     leaderboardState.leaderboardData = players;
     console.log("Leaderboard data:", leaderboardState.leaderboardData);
+
+    if (leaderboardState.liveModeEnabled) {
+      leaderboardState.lastSuccessfulPollAt = Date.now();
+      leaderboardState.avgMatchDurationMs = typeof data.avgMatchDurationMs === "number" ? data.avgMatchDurationMs : null;
+    }
 
     // A rune filter is showing scan results right now -- keep leaderboardData
     // warm in the background (so clearing the filter has fresh data ready)

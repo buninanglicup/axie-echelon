@@ -56,6 +56,24 @@ function backoffWithJitter(attempt) {
   return Math.round(base * jitterFactor);
 }
 
+// Normalizes a Unix timestamp candidate to milliseconds. Battle-log API
+// fields (startedAt, endedAt, etc.) are inconsistently seconds-or-ms across
+// different response shapes -- treat anything under 1e12 as seconds.
+function normalizeEpochToMs(candidate) {
+  if (typeof candidate === 'number' && Number.isFinite(candidate)) {
+    return candidate > 1e12 ? candidate : candidate * 1000;
+  }
+  if (typeof candidate === 'string') {
+    const maybeNumber = Number(candidate);
+    if (!Number.isNaN(maybeNumber)) {
+      return maybeNumber > 1e12 ? maybeNumber : maybeNumber * 1000;
+    }
+    const parsed = Date.parse(candidate);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+  return null;
+}
+
 function extractBattleTimestamp(battle) {
   if (!battle || typeof battle !== 'object') return null;
   const candidate =
@@ -74,19 +92,19 @@ function extractBattleTimestamp(battle) {
     battle.gameData?.timestamp;
 
   if (candidate == null) return null;
-  let parsedMs = null;
+  const parsedMs = normalizeEpochToMs(candidate);
+  if (parsedMs == null || Number.isNaN(parsedMs)) return null;
+  return new Date(parsedMs).toISOString();
+}
 
-  if (typeof candidate === 'number' && Number.isFinite(candidate)) {
-    parsedMs = candidate > 1e12 ? candidate : candidate * 1000;
-  } else if (typeof candidate === 'string') {
-    const maybeNumber = Number(candidate);
-    if (!Number.isNaN(maybeNumber)) {
-      parsedMs = maybeNumber > 1e12 ? maybeNumber : maybeNumber * 1000;
-    } else {
-      parsedMs = Date.parse(candidate);
-    }
-  }
-
+// Extracts specifically the battle's START time (gameData.startedAt),
+// distinct from extractBattleTimestamp() which prioritizes END time.
+// Needed for match-duration and pause calculations.
+function extractBattleStartTimestamp(battle) {
+  if (!battle || typeof battle !== 'object') return null;
+  const candidate = battle.gameData?.startedAt ?? battle.startedAt;
+  if (candidate == null) return null;
+  const parsedMs = normalizeEpochToMs(candidate);
   if (parsedMs == null || Number.isNaN(parsedMs)) return null;
   return new Date(parsedMs).toISOString();
 }
@@ -108,6 +126,8 @@ export async function fetchBattleLogsForClient(clientId, limit = 20, priority = 
     //   - gameMode: "ranked" (we only process ranked battles)
     //   - team.fighters[3]: array of 3 axies with axieID, genes, runes[], charms{}
     //   - lastRankedBattleTime: extracted from gameData.endedAt / createdAt / gameData.startTime etc.
+    //   - recentRankedBattles: array of {startedAt, endedAt} pairs (newest-first), up to MAX_TRACKED_RANKED_BATTLES
+    //     Used by Phase 2+ for match-duration and pause calculations (live mode only).
     //
     // *** CRITICAL for your use case: lastRankedBattleTime is VOLATILE ***
     // You're tracking which top-rank players just finished a battle to decide who to fight next.
@@ -143,7 +163,12 @@ export async function fetchBattleLogsForClient(clientId, limit = 20, priority = 
     const battles = Array.isArray(data._items) ? data._items : [];
     if (DEBUG_ON) console.log(`[fetchBattleLogsForClient] Found ${battles.length} battles`);
 
-    // Find first ranked battle and extract player's team
+    // Find first ranked battle and extract player's team.
+    // The live prediction feature only needs the last few valid ranked matches,
+    // so we keep a compact rolling list of { startedAt, endedAt } pairs rather
+    // than storing the full original battle log payload. This keeps the
+    // in-memory response small while still supporting the session-based
+    // cadence estimate in the frontend.
     // Battle structure:
     // {
     //   gameData: {
@@ -170,27 +195,22 @@ export async function fetchBattleLogsForClient(clientId, limit = 20, priority = 
     //   }
     // }
     const MAX_TRACKED_RANKED_BATTLES = 3;
-    const recentRankedBattleTimes = [];
+    const recentRankedBattles = []; // [{ startedAt, endedAt }, ...] newest-first
     let team = null;
 
     for (const battle of battles) {
       if (battle.gameData && battle.gameData.gameMode === 'ranked' && Array.isArray(battle.gameData.players)) {
-        // Find the player entry (current user) vs opponent by matching userID
         const playerEntry = battle.gameData.players.find(p => p.userID === clientId);
-        const battleTimestamp = extractBattleTimestamp(battle);
+        const endedAt = extractBattleTimestamp(battle);
+        const startedAt = extractBattleStartTimestamp(battle);
 
-        if (battleTimestamp) {
-          recentRankedBattleTimes.push(battleTimestamp);
+        if (endedAt && startedAt && recentRankedBattles.length < MAX_TRACKED_RANKED_BATTLES) {
+          recentRankedBattles.push({ startedAt, endedAt });
         }
 
-        // Only extract fighters/team once, from the most recent ranked battle --
-        // team composition display is unchanged, we're just also harvesting
-        // timestamps from the battles after it in the same already-fetched array.
         if (!team && playerEntry && playerEntry.team && Array.isArray(playerEntry.team.fighters)) {
           const teamFighters = playerEntry.team.fighters
             .map(fighter => {
-              // Extract first rune (max 1 per axie) and look up its metadata
-              // runes can be either a string or an array, depending on source
               let runeId = null;
               if (typeof fighter.runes === 'string' && fighter.runes) {
                 runeId = fighter.runes;
@@ -198,11 +218,9 @@ export async function fetchBattleLogsForClient(clientId, limit = 20, priority = 
                 runeId = fighter.runes[0];
               }
               const runeMetadata = runeId ? getRuneMetadata(runeId) : null;
-
               if (DEBUG_ON && runeId) {
                 console.log(`[fetchBattleLogsForClient] Fighter #${fighter.axieID} has rune ${runeId}, metadata: ${runeMetadata ? 'found' : 'not found'}`);
               }
-
               return {
                 axieID: fighter.axieID,
                 name: fighter.name || `Axie #${fighter.axieID}`,
@@ -210,10 +228,6 @@ export async function fetchBattleLogsForClient(clientId, limit = 20, priority = 
                 genes_metamorph: fighter.genes_metamorph,
                 position: Number(fighter.position ?? 0),
                 axieType: fighter.axieType,
-                // runes: array of equipped rune IDs (usually 0 or 1 entry per axie).
-                // rune: metadata object { id, name, imageUrl } or null if no rune equipped.
-                //   Populated from cached rune catalog. If lookup fails, gracefully degrades to null.
-                // charms: per-slot charm IDs. Captured for future charm icon display.
                 runes: Array.isArray(fighter.runes) ? fighter.runes : (typeof fighter.runes === 'string' ? [fighter.runes] : []),
                 rune: runeMetadata,
                 charms: fighter.charms || null
@@ -226,16 +240,16 @@ export async function fetchBattleLogsForClient(clientId, limit = 20, priority = 
           }
         }
 
-        if (recentRankedBattleTimes.length >= MAX_TRACKED_RANKED_BATTLES) break;
+        if (recentRankedBattles.length >= MAX_TRACKED_RANKED_BATTLES && team) break;
       }
     }
 
-    if (recentRankedBattleTimes.length > 0 || team) {
-      if (DEBUG_ON) console.log(`[fetchBattleLogsForClient] Extracted ${team?.fighters?.length || 0} fighters and ${recentRankedBattleTimes.length} recent ranked battle times for ${clientId}`);
+    if (recentRankedBattles.length > 0 || team) {
+      if (DEBUG_ON) console.log(`[fetchBattleLogsForClient] Extracted ${team?.fighters?.length || 0} fighters and ${recentRankedBattles.length} recent ranked battle pairs for ${clientId}`);
       return {
         fighters: team?.fighters || [],
-        lastRankedBattleTime: recentRankedBattleTimes[0] || null,
-        recentRankedBattleTimes // newest-first, up to 3 entries
+        lastRankedBattleTime: recentRankedBattles[0]?.endedAt || null,
+        recentRankedBattles
       };
     }
 

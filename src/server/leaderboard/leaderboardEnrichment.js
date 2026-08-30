@@ -13,9 +13,11 @@ import {
   setCachedTeamComposition,
   getCachedPage,
   setCachedPage,
-  inFlightPageRefreshes
+  inFlightPageRefreshes,
+  getCachedGlobalAvgMatchDuration,
+  setCachedGlobalAvgMatchDuration
 } from "./leaderboardCaches.js";
-import { SEASON_LEADERBOARD_API_MAX_LIMIT } from "./leaderboardConstants.js";
+import { SEASON_LEADERBOARD_API_MAX_LIMIT, MIN_VALID_MATCH_DURATION_MS } from "./leaderboardConstants.js";
 
 // ===== LEADERBOARD ENRICHMENT =====
 // Fetch the leaderboard page from Skymavis and enrich each player with recent ranked battle team data.
@@ -66,6 +68,10 @@ import { SEASON_LEADERBOARD_API_MAX_LIMIT } from "./leaderboardConstants.js";
 //     backfilled from a previous cycle's value. This is a deliberate
 //     accuracy requirement: a stale timestamp that LOOKS fresh is worse
 //     than an honest "unknown."
+//   - recentRankedBattles: NEVER cached (live-mode-only feature). Same
+//     never-stale guarantee as lastRankedBattleTime. Used by Phase 2+ for
+//     match-duration and pause calculations. Refer to formatting.js for
+//     implementation details on how the pause averages are computed.
 //
 // *** Frontend note (resolved 2026-08-19) ***
 // src/main.js's hydrateLeaderboard() used to backfill lastRankedBattleTime
@@ -74,6 +80,54 @@ import { SEASON_LEADERBOARD_API_MAX_LIMIT } from "./leaderboardConstants.js";
 // frontend logic has since been removed -- see src/leaderboard/leaderboardView.js
 // (post file-split) for the current behavior, which trusts this function's
 // null/battleTimeFetchFailed fields as-is.
+
+function median(numbers) {
+  const sorted = [...numbers].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+}
+
+// Computes (or returns the cached) global average ranked-match duration
+// across all currently-enriched players' recentRankedBattles. Uses MEDIAN
+// rather than mean to resist skew from long outlier matches -- Axie battle
+// duration likely has high variance (fast sweeps vs. close 3-round
+// battles), and a single very long match shouldn't drag the whole
+// estimate. Matches shorter than MIN_VALID_MATCH_DURATION_MS are excluded
+// as likely surrenders/early exits, not representative match lengths.
+//
+// Returns null (not a fallback default like 180s) if no valid durations
+// exist across the current snapshot -- an honest "unknown" is preferred
+// over a guessed number here, consistent with how lastRankedBattleTime is
+// never backfilled with a stale value (see this file's top comment).
+//
+// Point-in-time only: recomputed from whatever's in the current poll
+// snapshot when the cache expires, with no cross-poll accumulation. TTL is
+// AVG_MATCH_DURATION_CACHE_TTL_MS (see leaderboardConstants.js for why
+// it's a static value, not derived from the user's polling interval).
+function computeGlobalAvgMatchDurationMs(enrichedPlayers) {
+  const cached = getCachedGlobalAvgMatchDuration();
+  if (cached !== undefined) return cached;
+
+  const durations = [];
+  for (const player of enrichedPlayers) {
+    if (!Array.isArray(player.recentRankedBattles)) continue;
+    for (const battle of player.recentRankedBattles) {
+      const startMs = Date.parse(battle.startedAt);
+      const endMs = Date.parse(battle.endedAt);
+      if (Number.isNaN(startMs) || Number.isNaN(endMs)) continue;
+      const durationMs = endMs - startMs;
+      if (durationMs >= MIN_VALID_MATCH_DURATION_MS) {
+        durations.push(durationMs);
+      }
+    }
+  }
+
+  const result = durations.length > 0 ? median(durations) : null;
+  setCachedGlobalAvgMatchDuration(result);
+  if (DEBUG_ON) console.log(`[computeGlobalAvgMatchDurationMs] ${durations.length} valid durations, median=${result}`);
+  return result;
+}
+
 export async function fetchAndEnrichLeaderboard(limit, offset, eraMilestone, liveMode = false) {
   const requestedLimit = Math.max(1, Number(limit) || 20);
   const requestedOffset = Math.max(0, Number(offset) || 0);
@@ -127,7 +181,7 @@ export async function fetchAndEnrichLeaderboard(limit, offset, eraMilestone, liv
 
         let team = null;
         let lastRankedBattleTime = null;
-        let recentRankedBattleTimes = []; // only ever populated in live mode
+        let recentRankedBattles = []; // only ever populated in live mode
         let battleTimeFetchFailed = false; // true only in live mode when this cycle's fetch failed
 
         if (liveMode) {
@@ -152,7 +206,7 @@ export async function fetchAndEnrichLeaderboard(limit, offset, eraMilestone, liv
             setCachedTeamComposition(userID, fresh.fighters);
             team = fresh;
             lastRankedBattleTime = fresh.lastRankedBattleTime || null;
-            recentRankedBattleTimes = fresh.recentRankedBattleTimes || []; // same never-stale rule as lastRankedBattleTime
+            recentRankedBattles = fresh.recentRankedBattles || []; // same never-stale rule as lastRankedBattleTime
           } else {
             battleTimeFetchFailed = true;
             const cachedComposition = getCachedTeamComposition(userID);
@@ -164,7 +218,7 @@ export async function fetchAndEnrichLeaderboard(limit, offset, eraMilestone, liv
               team = null;
             }
             lastRankedBattleTime = null; // NEVER backfilled from a previous poll -- see function-level comment
-            recentRankedBattleTimes = []; // never backfilled, same reasoning as lastRankedBattleTime
+            recentRankedBattles = []; // never backfilled, same reasoning as lastRankedBattleTime
           }
         } else {
           // NON-LIVE MODE: unchanged behavior -- serve from the legacy
@@ -197,7 +251,7 @@ export async function fetchAndEnrichLeaderboard(limit, offset, eraMilestone, liv
           }
 
           lastRankedBattleTime = team?.lastRankedBattleTime || null;
-          recentRankedBattleTimes = team?.recentRankedBattleTimes || [];
+          recentRankedBattles = team?.recentRankedBattles || [];
         }
 
         return {
@@ -217,7 +271,7 @@ export async function fetchAndEnrichLeaderboard(limit, offset, eraMilestone, liv
           // rendering the last-known team, instead of either blanking the
           // row or silently reusing an old timestamp.
           battleTimeFetchFailed,
-          recentRankedBattleTimes,
+          recentRankedBattles,
           userID: userID,
           roninAddress,
           profileUrl
@@ -235,7 +289,7 @@ export async function fetchAndEnrichLeaderboard(limit, offset, eraMilestone, liv
           team: null,
           lastRankedBattleTime: null,
           battleTimeFetchFailed: liveMode, // consistent with the liveMode branch's semantics above
-          recentRankedBattleTimes: [],
+          recentRankedBattles: [],
           userID: player.userID,
           roninAddress: null,
           profileUrl: null
@@ -249,7 +303,9 @@ export async function fetchAndEnrichLeaderboard(limit, offset, eraMilestone, liv
     console.warn(`[/api/leaderboard] ${enrichmentFailures}/${players.length} players failed enrichment for eraMilestone=${eraMilestone} offset=${offset}`);
   }
 
-  return { players: enrichedPlayers, limit, offset, milestone: eraMilestone };
+  const avgMatchDurationMs = liveMode ? computeGlobalAvgMatchDurationMs(enrichedPlayers) : null;
+
+  return { players: enrichedPlayers, limit, offset, milestone: eraMilestone, avgMatchDurationMs };
 }
 
 export function schedulePageRefresh(key, limit, offset, eraMilestone) {

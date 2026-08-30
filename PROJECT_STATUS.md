@@ -72,7 +72,22 @@ A real-time leaderboard tracking system for monitoring top Axie Infinity players
 
 ---
 
-## 3. Live Mode Specifics
+## 3. Current Milestone: Session-Based Ranked Activity Prediction
+
+### Live activity estimate feature
+- Added a live-only next-activity estimate for each player using their recent ranked battle cadence.
+- The estimate is based on a same-session pause heuristic: it trims stale battles older than a 20-minute gap, ignores sub-60s surrender/early-exit matches, and weights the most recent pause more heavily than older pauses.
+- The backend exposes a median global match duration for the current poll so the UI can tell whether a player is likely in a match or simply overdue.
+- Output states are intentionally honest: unknown when there is not enough evidence, before_due while the next activity is still in the future, likely_in_match during a typical match window, and overdue when the expected start time has already passed.
+
+### Validation status
+- The feature is implemented in the backend, shared formatting utilities, and frontend rendering pipeline.
+- The live app is available to test manually against the current leaderboard data and polling logic.
+- Validation artifacts created during the debug pass are intentionally local-only and are ignored by Git to keep the repo clean.
+
+---
+
+## 4. Live Mode Specifics
 
 ### Caching Strategy (Live Mode)
 

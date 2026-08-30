@@ -11,7 +11,8 @@ import {
   TEAM_CACHE_REFRESH_THRESHOLD,
   LEADERBOARD_PAGE_CACHE_TTL_MS,
   CACHE_SWEEP_INTERVAL_MS,
-  RANK_CANDIDATE_CACHE_TTL_MS
+  RANK_CANDIDATE_CACHE_TTL_MS,
+  AVG_MATCH_DURATION_CACHE_TTL_MS
 } from "./leaderboardConstants.js";
 
 export const teamCache = new Map();
@@ -54,6 +55,30 @@ export function getCachedPage(key) {
   return entry.payload;
 }
 export function setCachedPage(key, payload) { pageCache.set(key, { payload, timestamp: Date.now() }); }
+
+// Single global cache entry for the average ranked-match duration across
+// all currently-tracked players (see computeGlobalAvgMatchDurationMs() in
+// leaderboardEnrichment.js). NOT a Map -- this is intentionally one value,
+// not keyed per player.
+//
+// NOT multi-leaderboard-pool-safe: if this app ever tracks multiple
+// leaderboard pools/windows simultaneously, this single key would let one
+// pool's match pacing bleed into another's estimate. Re-key per pool if
+// that's ever added.
+let globalAvgMatchDurationCache = null; // { value: number|null, timestamp } | null
+
+export function getCachedGlobalAvgMatchDuration() {
+  if (!globalAvgMatchDurationCache) return undefined; // no entry yet
+  if (Date.now() - globalAvgMatchDurationCache.timestamp > AVG_MATCH_DURATION_CACHE_TTL_MS) {
+    globalAvgMatchDurationCache = null;
+    return undefined;
+  }
+  return globalAvgMatchDurationCache.value; // may be null itself if last computation found no valid data
+}
+
+export function setCachedGlobalAvgMatchDuration(value) {
+  globalAvgMatchDurationCache = { value, timestamp: Date.now() };
+}
 
 function sweepExpiredCacheEntries() {
   const now = Date.now();

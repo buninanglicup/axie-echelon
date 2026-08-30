@@ -19,11 +19,16 @@ COMMIT_MESSAGE.txt
 test query.txt
 commit msg.txt
 
-# Sample / dump JSON files (likely from API debugging)
+# API response samples (local reference only)
+api-responses/
+
+# Local validation artefacts and scratch files
 GetBattleLogsByUserID.json
 GetSeasonLeaderboardResponse.json
 ListFighterConfigofUser.json
 ListUserFighters.json
+phase5-test.json
+kill-node.ps1
 
 # Large / binary assets that shouldn't be in git
 new filter UI for axie leaderboard.png

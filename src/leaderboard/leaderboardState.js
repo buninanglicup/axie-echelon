@@ -25,6 +25,28 @@ export const MAXIMUM_PLAYERS_DISPLAYED_PER_PAGE = 50;
 export const LEADERBOARD_MAX_RANK = 35;
 export const POLLING_INTERVAL_SECONDS = Number(import.meta.env.VITE_POLLING_INTERVAL || 30); // polling cadence in seconds
 
+// Idle-time threshold used to keep the next-ranked-activity estimate
+// (see predictNextActivity() in shared/formatting.js) scoped to a single
+// play session. 20 minutes is chosen to detect "player took a real break"
+// mid-grind, NOT "same day vs. different day" -- a much shorter signal
+// than a daily-activity cutoff would give. Prevents stale, unrelated
+// battles from polluting the current-session pause average.
+export const RANKED_SESSION_GAP_THRESHOLD_MS = 20 * 60 * 1000;
+
+// Mirrors MIN_VALID_MATCH_DURATION_MS in the backend's
+// leaderboardConstants.js. Duplicated here (not imported) because this is
+// browser code and that file is server-only (reads process.env). Keep
+// these two values in sync manually if either changes.
+export const MIN_VALID_MATCH_DURATION_MS = 60_000;
+
+// With user-configurable polling (15-45s via pollingIntervalSeconds),
+// this multiplier scales the staleness check proportionally: fast polling
+// (15s) has a tighter staleness window (37.5s), slow polling (45s) is more
+// tolerant (112.5s). A single missed tick can trigger staleness on fast
+// polling; slow polling usually needs multiple misses. This asymmetry is
+// intentional -- see leaderboardView.js's use of lastSuccessfulPollAt.
+export const POLLING_STALE_MULTIPLIER = 2.5;
+
 // CORRECTION (2026-08-19, during the file split): this constant was
 // originally declared alongside MARKETPLACE_BASE/BATTLE_LOG_BASE near the
 // top of the old monolithic main.js, which reads as "these three are a
@@ -48,21 +70,6 @@ export const battleWindowPresets = [
   { index: 7, label: "15m", minutes: 15 },
   { index: 8, label: "20m", minutes: 20 }
 ];
-
-// Idle-time threshold used to keep the next-ranked-activity estimate
-// (see estimateNextRankedActivity() in shared/formatting.js) scoped to a
-// single play session. Ranked battles separated by more than this are
-// treated as belonging to different sessions and are excluded from the
-// cadence calculation -- otherwise a battle from yesterday could get
-// averaged in with battles from just now and produce a meaningless gap.
-//
-// Conceptually related to DEFAULT_BATTLE_WINDOW_MINUTES above (both encode
-// "how much idle time before we stop treating this player's battles as
-// connected"), but intentionally a SEPARATE value: DEFAULT_BATTLE_WINDOW_MINUTES
-// controls the "active within" leaderboard filter, while this controls
-// session-trimming for the activity estimate. They're allowed to drift
-// apart -- don't assume changing one should change the other.
-export const RANKED_SESSION_GAP_THRESHOLD_MS = 20 * 60 * 1000;
 
 export function getBattleWindowPreset(value) {
   const numericValue = Number(value);
@@ -92,6 +99,8 @@ export const leaderboardState = {
   pollingIntervalSeconds: POLLING_INTERVAL_SECONDS, // initialized from env variable
   leaderboardPollTimer: null,
   compactModeEnabled: false,
+  lastSuccessfulPollAt: null, // Tracks live-mode poll health; compare to pollingIntervalSeconds * 2.5 to determine if the estimate should mute to Unknown.
+  avgMatchDurationMs: null, // Latest median match duration from the backend; used by predictNextActivity() to estimate whether the player is likely still in a match.
 
   // Rune filter state (declared here, not near the rest of the rune filter
   // code, because updateLiveModeControls() runs synchronously during init
