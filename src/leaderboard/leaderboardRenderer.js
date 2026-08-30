@@ -290,6 +290,12 @@ export function updateLeaderboardRelativeTimes() {
 
   const nextActivitySubtitles = document.querySelectorAll(".next-activity-subtitle");
   for (const el of nextActivitySubtitles) {
+    // Skip live mode features if Live Mode is disabled
+    if (!leaderboardState.liveModeEnabled) {
+      el.innerHTML = "";
+      continue;
+    }
+
     if (isPollingStale) {
       el.innerHTML = "";
       const statusLine = document.createElement("div");
