@@ -1,9 +1,9 @@
 // Leaderboard DOM rendering only. Data fetching and filter decisions remain
 // in leaderboardView.js so rendering stays independent of orchestration.
 import { renderMorphedAxieCached } from "../shared/morphRenderer.js";
-import { formatRelativeTime, predictNextActivity, formatActivityEstimate } from "../shared/formatting.js";
+import { formatRelativeTime, predictNextActivity, formatActivityEstimate, formatActivityEstimateCompact } from "../shared/formatting.js";
 import { getLastBattleTimestamp } from "./leaderboardFilters.js";
-import { leaderboardState, RANKED_SESSION_GAP_THRESHOLD_MS, MIN_VALID_MATCH_DURATION_MS, POLLING_STALE_MULTIPLIER, PROFILE_BASE, leaderboardCount } from "./leaderboardState.js";
+import { leaderboardState, RANKED_SESSION_GAP_THRESHOLD_MS, MIN_VALID_MATCH_DURATION_MS, POLLING_STALE_MULTIPLIER, DEFAULT_MATCH_DURATION_MS, PROFILE_BASE, leaderboardCount } from "./leaderboardState.js";
 
 export function renderLeaderboardRows(leaderboardBody, players) {
   console.log(`[renderLeaderboardRows] START: ${players.length} players to render`);
@@ -78,14 +78,47 @@ export function renderLeaderboardRows(leaderboardBody, players) {
     if (Array.isArray(player.recentRankedBattles) && player.recentRankedBattles.length > 0) {
       nextActivitySubtitle.dataset.recentRankedBattles = JSON.stringify(player.recentRankedBattles);
     }
-    nextActivitySubtitle.textContent = formatActivityEstimate(
-      predictNextActivity(
-        player.recentRankedBattles || [],
-        leaderboardState.avgMatchDurationMs,
-        RANKED_SESSION_GAP_THRESHOLD_MS,
-        MIN_VALID_MATCH_DURATION_MS
-      )
+
+    const prediction = predictNextActivity(
+      player.recentRankedBattles || [],
+      leaderboardState.avgMatchDurationMs,
+      RANKED_SESSION_GAP_THRESHOLD_MS,
+      MIN_VALID_MATCH_DURATION_MS
     );
+    const summaryText = formatActivityEstimate(prediction);
+    const debugSummary = document.createElement("div");
+    debugSummary.className = "debug-next-activity-summary";
+    debugSummary.textContent = summaryText;
+    nextActivitySubtitle.append(debugSummary);
+
+    const debugBattleLines = Array.isArray(player.recentRankedBattles)
+      ? player.recentRankedBattles
+          .slice(0, 4)
+          .map((battle, index) => {
+            const start = battle.startedAt ? new Date(battle.startedAt) : null;
+            const end = battle.endedAt ? new Date(battle.endedAt) : null;
+            const startLabel = start && !Number.isNaN(start.getTime())
+              ? start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })
+              : "?";
+            const endLabel = end && !Number.isNaN(end.getTime())
+              ? end.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })
+              : "?";
+            const durationMs = start && end ? Math.max(0, end.getTime() - start.getTime()) : null;
+            const durationLabel = durationMs != null
+              ? `${Math.floor(durationMs / 60000)}m ${Math.floor((durationMs % 60000) / 1000)}s`
+              : "?";
+            const label = `G${index + 1}`;
+            return `${label} ${startLabel} → ${endLabel} • ${durationLabel}`;
+          })
+      : [];
+
+    if (debugBattleLines.length > 0) {
+      const debugTrace = document.createElement("div");
+      debugTrace.className = "debug-next-activity-trace";
+      debugTrace.textContent = debugBattleLines.join(" | ");
+      nextActivitySubtitle.append(debugTrace);
+    }
+
     playerNameContainer.append(nextActivitySubtitle);
 
     playerCell.append(playerNameContainer);
@@ -241,21 +274,16 @@ export function renderLeaderboardRows(leaderboardBody, players) {
 }
 
 export function updateLeaderboardRelativeTimes() {
+  // Hide the legacy "Played: X" subtitle line (now incorporated into the status line)
+  // This loop preserves data attributes for backward compatibility.
   const subtitles = document.querySelectorAll(".last-battle-subtitle");
   for (const subtitle of subtitles) {
-    const timestamp = subtitle.dataset.lastRankedBattleTime || null;
-    const failedThisCycle = subtitle.dataset.battleTimeFetchFailed === "true";
-    subtitle.textContent = formatRelativeTime(timestamp, {
-      unavailableLabel: failedThisCycle ? "Can't fetch last battle" : "Played: —",
-      failedLabel: "Can't fetch last battle"
-    });
+    subtitle.style.display = "none";
   }
 
-  // Staleness gate: if live-mode polling has stalled, mute the estimate
-  // rather than let "Overdue by X" grow indefinitely with no signal that
-  // the underlying data stopped updating. Scoped to this feature only --
-  // does NOT trigger the app-wide error banner (that's a separate concern
-  // for later, see leaderboardEnrichment.js's error handling).
+  // Polling staleness check: if data hasn't refreshed within 2.5x the polling interval,
+  // don't display a prediction (the underlying game timestamps may be stale).
+  // This is a data-freshness gate, separate from prediction validation.
   const pollingIntervalMs = leaderboardState.pollingIntervalSeconds * 1000;
   const timeSinceLastPoll = Date.now() - (leaderboardState.lastSuccessfulPollAt || 0);
   const isPollingStale = !leaderboardState.liveModeEnabled || timeSinceLastPoll > pollingIntervalMs * POLLING_STALE_MULTIPLIER;
@@ -263,17 +291,95 @@ export function updateLeaderboardRelativeTimes() {
   const nextActivitySubtitles = document.querySelectorAll(".next-activity-subtitle");
   for (const el of nextActivitySubtitles) {
     if (isPollingStale) {
-      el.textContent = formatActivityEstimate({ state: "unknown" });
+      el.innerHTML = "";
+      const statusLine = document.createElement("div");
+      statusLine.className = "activity-status-line";
+      statusLine.textContent = "Polling stale";
+      el.append(statusLine);
       continue;
     }
+
     let times = [];
     try {
       times = el.dataset.recentRankedBattles ? JSON.parse(el.dataset.recentRankedBattles) : [];
     } catch {
       times = []; // malformed dataset, treat as no data rather than throwing mid-interval
     }
-    el.textContent = formatActivityEstimate(
-      predictNextActivity(times, leaderboardState.avgMatchDurationMs, RANKED_SESSION_GAP_THRESHOLD_MS, MIN_VALID_MATCH_DURATION_MS)
-    );
+
+    // Calculate "Last played X ago" directly from the latest completed game's end timestamp.
+    // This is an observed fact, not a prediction. Never show "—" when games exist.
+    let lastPlayedLabel = "—";
+    if (Array.isArray(times) && times.length > 0) {
+      const latestGame = times[0];
+      const latestGameEndTime = Date.parse(latestGame.endedAt);
+      if (!Number.isNaN(latestGameEndTime)) {
+        const now = Date.now();
+        const lastPlayedMs = now - latestGameEndTime;
+        const totalSecs = Math.floor(lastPlayedMs / 1000);
+        const mins = Math.floor(totalSecs / 60);
+        const secs = totalSecs % 60;
+        if (mins === 0) {
+          lastPlayedLabel = `${secs}s ago`;
+        } else if (mins < 60) {
+          lastPlayedLabel = `${mins}m ${secs}s ago`;
+        } else {
+          const hours = Math.floor(mins / 60);
+          const minsPart = mins % 60;
+          lastPlayedLabel = `${hours}h ${minsPart}m ago`;
+        }
+      }
+    }
+
+    const result = predictNextActivity(times, leaderboardState.avgMatchDurationMs, RANKED_SESSION_GAP_THRESHOLD_MS, MIN_VALID_MATCH_DURATION_MS, DEFAULT_MATCH_DURATION_MS);
+    const statusText = formatActivityEstimateCompact(result, lastPlayedLabel);
+
+    el.innerHTML = "";
+    const statusLine = document.createElement("div");
+    statusLine.className = "activity-status-line";
+    statusLine.textContent = statusText;
+    el.append(statusLine);
+
+    const debugBattleLines = Array.isArray(times)
+      ? times
+          .slice(0, 4)
+          .map((battle, index, list) => {
+            const start = battle.startedAt ? new Date(battle.startedAt) : null;
+            const end = battle.endedAt ? new Date(battle.endedAt) : null;
+            const startLabel = start && !Number.isNaN(start.getTime())
+              ? start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })
+              : "?";
+            const endLabel = end && !Number.isNaN(end.getTime())
+              ? end.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })
+              : "?";
+            const durationMs = start && end ? Math.max(0, end.getTime() - start.getTime()) : null;
+            const durationLabel = durationMs != null
+              ? `${Math.floor(durationMs / 60000)}m ${Math.floor((durationMs % 60000) / 1000)}s`
+              : "?";
+
+            const previousBattle = list[index + 1] || null;
+            const stopMs = previousBattle && start && previousBattle.endedAt
+              ? Math.max(0, start.getTime() - new Date(previousBattle.endedAt).getTime())
+              : null;
+            const stopLabel = stopMs != null
+              ? `${Math.floor(stopMs / 3600000)}h ${Math.floor((stopMs % 3600000) / 60000)}m ${Math.floor((stopMs % 60000) / 1000)}s`
+              : null;
+
+            return stopLabel
+              ? `G${index + 1}  ${startLabel} → ${endLabel} · ◷ ${durationLabel} · break ${stopLabel}`
+              : `G${index + 1}  ${startLabel} → ${endLabel} · ◷ ${durationLabel}`;
+          })
+      : [];
+
+    if (debugBattleLines.length > 0) {
+      const debugTrace = document.createElement("div");
+      debugTrace.className = "activity-game-history";
+      for (const line of debugBattleLines) {
+        const lineDiv = document.createElement("div");
+        lineDiv.className = "game-history-line";
+        lineDiv.textContent = line;
+        debugTrace.append(lineDiv);
+      }
+      el.append(debugTrace);
+    }
   }
 }

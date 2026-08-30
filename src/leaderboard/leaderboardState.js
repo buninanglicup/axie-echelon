@@ -39,6 +39,12 @@ export const RANKED_SESSION_GAP_THRESHOLD_MS = 20 * 60 * 1000;
 // these two values in sync manually if either changes.
 export const MIN_VALID_MATCH_DURATION_MS = 60_000;
 
+// Default expected match duration when the global average is not yet available.
+// Used in the prediction state machine to avoid marking games as "overdue"
+// immediately when duration data is missing. A reasonable estimate based on
+// typical Axie Infinity ranked match duration.
+export const DEFAULT_MATCH_DURATION_MS = 5 * 60 * 1000;
+
 // With user-configurable polling (15-45s via pollingIntervalSeconds),
 // this multiplier scales the staleness check proportionally: fast polling
 // (15s) has a tighter staleness window (37.5s), slow polling (45s) is more

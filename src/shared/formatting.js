@@ -46,55 +46,48 @@ export function formatRelativeTime(timestamp, options = {}) {
 // ===== NEXT RANKED ACTIVITY ESTIMATE (session-based cadence heuristic) =====
 //
 // Goal: given a player's recent ranked-battle {startedAt, endedAt} pairs,
-// estimate roughly when they're likely to be in a ranked battle again --
-// so a viewer can time their own play around active/grinding players.
+// estimate when we expect them to start their next ranked battle, based on
+// their historical break patterns.
 //
 // *** What this IS ***
-// A recency-weighted average of the PAUSE time between the player's most
-// recent SAME-SESSION ranked battles -- pause meaning idle time between
-// one battle ending and the next one starting (start[i] - end[i+1]), NOT
-// raw end-to-end gap. End-to-end gap would double-count the next match's
-// own duration as if it were rest time, which is wrong. The most recent
-// pause is weighted 2x over the older one. This is a heuristic for
-// spotting "is this player mid-grind right now," not a statistical model.
+// A recency-weighted average of the PAUSE (idle time) between the player's most
+// recent SAME-SESSION ranked battles. Pause = next battle start - previous battle end.
+// The most recent pause is weighted 2x over the older one. This is a practical
+// heuristic for understanding player behavior patterns during grinding.
 //
 // *** What this is NOT ***
-// - NOT session-aware across a break. A player who pauses for
-//   sessionGapThresholdMs+ resets to a fresh session on their next battle
-//   -- older battles before the pause are deliberately excluded, not
-//   averaged in.
-// - NOT available outside live mode. recentRankedBattles is only ever
-//   populated in live mode (see leaderboardEnrichment.js server-side).
+// - NOT a live-match detection system. We observe completed ranked matches only.
+// - NOT session-aware across breaks. A player who pauses for sessionGapThresholdMs+
+//   resets to a fresh session on their next battle -- older battles before the pause
+//   are deliberately excluded, not averaged in.
+// - NOT available outside live mode. recentRankedBattles is only ever populated
+//   by the live enrichment pipeline (see leaderboardEnrichment.js server-side).
 //
-// *** Output states (see formatActivityEstimate below) ***
-// - Unknown: fewer than 2 same-session, non-surrender battles. Not enough
-//   data for a pause estimate -- shown honestly rather than guessed.
-// - Before due (countdown): predicted next start is still in the future.
-// - Likely in match: predicted start has passed but we're still within a
-//   typical match's duration (needs avgMatchDurationMs; if that's
-//   unavailable this phase is skipped and the estimate goes straight to
-//   overdue once predictedStart passes -- a graceful 2-phase fallback).
-// - Overdue (counts up): past the likely-in-match window. This is where a
-//   manual grace period is left to the viewer's judgment -- the growing
-//   duration itself is the signal, not a fixed cutoff.
+// *** Prediction States (3-phase lifecycle) ***
+// - unknown: fewer than 2 same-session, non-surrender battles
+// - before_due: prediction time is still in the future
+// - expected_game: predicted start has passed, but the expected game window
+//   (predictedStart + effectiveMatchDurationMs) has not closed yet
+// - overdue: the entire expected game window has elapsed without observing
+//   a new completed ranked match
 //
-// *** Self-correcting, no separate staleness check ***
-// Every live poll re-fetches recentRankedBattles fresh; there is no
-// cross-poll accumulation. So "overdue" is never a persisted state -- it's
-// just what this function returns when recomputed with the same, still-
-// unchanged inputs. The moment a player's timestamps actually change (a
-// new battle landed), the next call naturally produces a fresh estimate
-// from the new lastEndedAt. No extra logic needed to "detect" a stale
-// overdue reading -- staleness IS the unchanged input.
+// *** Self-correcting behavior ***
+// Every live poll re-fetches recentRankedBattles fresh. The moment a new battle
+// lands, timestamps change and the prediction recalculates automatically from
+// the latest endedAt. No separate staleness check is needed.
+//
+// *** Session vs. Prediction logic ***
+// - RANKED_SESSION_GAP_THRESHOLD_MS (20 min): session boundary. When a pause
+//   exceeds this, older battles are excluded from pause averaging.
+// - effectiveMatchDurationMs: default 5 min when average data is missing.
+//   This prevents "overdue" from triggering immediately when global stats
+//   are not yet available.
+// - POLLING_STALE_MULTIPLIER (2.5×): data freshness signal, separate from
+//   prediction validation.
 
 // Excludes battles under minValidMatchDurationMs (surrenders/early exits)
-// from pause calculation entirely, per the same rule applied to the global
-// average match duration server-side (see MIN_VALID_MATCH_DURATION_MS in
-// leaderboardConstants.js) -- a 60s surrender followed by a real pause
-// isn't a meaningful "player paced himself" data point. Filtering first,
-// then computing pauses on the cleaned list (rather than skipping inline
-// mid-walk) keeps the session-trim logic below simple and avoids
-// off-by-one risk.
+// from pause calculation entirely, using the same threshold applied server-side
+// to the global average. A 60s surrender is not meaningful "break" data.
 export function computeAvgPauseMs(recentRankedBattles, sessionGapThresholdMs, minValidMatchDurationMs) {
   if (!Array.isArray(recentRankedBattles) || recentRankedBattles.length === 0) return null;
 
@@ -126,12 +119,19 @@ export function computeAvgPauseMs(recentRankedBattles, sessionGapThresholdMs, mi
   return weighted > 0 ? weighted : null;
 }
 
-// Combines the per-player pause average with the global avgMatchDurationMs
-// to produce a 3-phase prediction. avgMatchDurationMs may be null (see
-// computeGlobalAvgMatchDurationMs() server-side -- it returns null rather
-// than a guessed default when no valid data exists); in that case this
-// gracefully degrades to a 2-phase result (skips "likely_in_match").
-export function predictNextActivity(recentRankedBattles, avgMatchDurationMs, sessionGapThresholdMs, minValidMatchDurationMs) {
+// Combines the per-player pause average with a default or observed average
+// match duration to produce a prediction lifecycle.
+//
+// avgMatchDurationMs may be null (when not enough global data exists yet);
+// in that case, this function uses a sensible DEFAULT_MATCH_DURATION_MS
+// rather than treating missing data as "immediate overdue."
+//
+// States:
+// - "unknown": insufficient data for a prediction
+// - "before_due": predicted start is in the future
+// - "expected_game": predicted start has passed, but the expected game window hasn't closed yet
+// - "overdue": the entire expected game window (start + duration) has passed
+export function predictNextActivity(recentRankedBattles, avgMatchDurationMs, sessionGapThresholdMs, minValidMatchDurationMs, defaultMatchDurationMs = 5 * 60 * 1000) {
   // The pause estimate is intentionally derived from the player's own recent
   // same-session cadence, not from a global fallback, because the frontend can
   // only make a useful estimate when it sees the player's last few ranked matches.
@@ -142,21 +142,19 @@ export function predictNextActivity(recentRankedBattles, avgMatchDurationMs, ses
   if (Number.isNaN(lastEndedAt)) return { state: "unknown" };
 
   const predictedStart = lastEndedAt + avgPauseMs;
-  // We intentionally do not invent a default match duration when the global
-  // median is missing; a null duration means "no reliable in-match window" and
-  // allows the state machine to fall back directly to overdue after the due time.
-  const predictedEnd = predictedStart + (avgMatchDurationMs ?? 0);
+  // Use actual average duration if available; otherwise use the default.
+  // This prevents "overdue" from triggering immediately when duration data is missing.
+  const effectiveMatchDurationMs = avgMatchDurationMs ?? defaultMatchDurationMs;
+  const predictedEnd = predictedStart + effectiveMatchDurationMs;
   const now = Date.now();
 
   if (now < predictedStart) return { state: "before_due", predictedStart, predictedEnd };
-  if (avgMatchDurationMs && now < predictedEnd) return { state: "likely_in_match", predictedStart, predictedEnd };
+  if (now < predictedEnd) return { state: "expected_game", predictedStart, predictedEnd };
   return { state: "overdue", predictedStart, predictedEnd };
 }
 
-// Renders predictNextActivity()'s result. Note the "likely_in_match" state
-// is deliberately worded as a status label with a rougher countdown to
-// predictedEnd -- avgMatchDurationMs is a global median, not a per-player
-// precise figure, so this shouldn't read as more confident than it is.
+// Renders predictNextActivity()'s result. This is the verbose format used for
+// fallback/non-live displays. The compact formatter is used in Live Mode.
 export function formatActivityEstimate(result) {
   if (!result || result.state === "unknown") return "Est. next activity: Unknown";
 
@@ -165,11 +163,40 @@ export function formatActivityEstimate(result) {
   if (result.state === "before_due") {
     return `Est. next activity: ~${msToClock(result.predictedStart - now)}`;
   }
-  if (result.state === "likely_in_match") {
-    return `Likely in match — ends ~${msToClock(result.predictedEnd - now)}`;
+  if (result.state === "expected_game") {
+    return `Expected game · ${msToClock(now - result.predictedStart)} elapsed`;
   }
   // overdue
-  return `Overdue by ${msToClock(now - result.predictedStart)}`;
+  return `Next game overdue · ${msToClock(now - result.predictedEnd)}`;
+}
+
+// Compact format for live heuristic validation: prediction state combined
+// with "Last played X ago" for single-line status display.
+// lastPlayedLabel should be the human-readable format like "57s ago" or "10m ago"
+export function formatActivityEstimateCompact(result, lastPlayedLabel = "—") {
+  let prediction = "Unknown";
+
+  if (result && result.state !== "unknown") {
+    const now = Date.now();
+
+    if (result.state === "before_due") {
+      // Prediction is in the future
+      const timeUntilPredictedStart = result.predictedStart - now;
+      prediction = `Next game ~${msToClock(timeUntilPredictedStart)}`;
+    } else if (result.state === "expected_game") {
+      // Predicted start has passed, waiting for the game to complete or be observed
+      const timeElapsedSincePredictedStart = now - result.predictedStart;
+      prediction = `Expected game · ${msToClock(timeElapsedSincePredictedStart)} elapsed`;
+    } else if (result.state === "overdue") {
+      // Expected game window has fully passed without observing a new completed match
+      const timeElapsedSincePredictedEnd = now - result.predictedEnd;
+      prediction = `Next game overdue · ${msToClock(timeElapsedSincePredictedEnd)}`;
+    }
+  } else {
+    prediction = "Next game unknown";
+  }
+
+  return `${prediction} · Last played ${lastPlayedLabel}`;
 }
 
 function msToClock(deltaMs) {
