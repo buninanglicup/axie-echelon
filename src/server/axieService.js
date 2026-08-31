@@ -352,11 +352,10 @@ export async function resolveAxieById(axieId) {
     }
   }
 
-  // Priority 4: Try LIVE_ACCOUNT_ID as last resort
-  if (!fighter && LIVE_ACCOUNT_ID) {
-    console.log(`[resolveAxieById] Fighter not found in owner/delegatee accounts; trying LIVE_ACCOUNT_ID=${LIVE_ACCOUNT_ID}`);
-    fighter = await tryAccount(LIVE_ACCOUNT_ID, "🔧 LIVE_ACCOUNT:");
-  }
+  // Do not silently retry the active tracker profile after the normal owner /
+  // delegatee / profile-resolution attempts have already failed. If the selected
+  // profile cannot resolve this axie, fail loudly instead of hiding a bad config
+  // behind a second lookup pass.
 
   // Final fallback: Use GraphQL detail (without parts if delegated)
   if (!fighter) {
