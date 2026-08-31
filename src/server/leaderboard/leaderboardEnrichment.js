@@ -87,6 +87,17 @@ function median(numbers) {
   return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
+function formatUserLog(userID, userName) {
+  const id = userID ?? "unknown";
+  const name = typeof userName === "string" ? userName.trim() : "";
+
+  if (!name || name === String(id)) {
+    return `userID=${id}`;
+  }
+
+  return `userID=${id} userName=${name}`;
+}
+
 // Computes (or returns the cached) global average ranked-match duration
 // across all currently-enriched players' recentRankedBattles. Uses MEDIAN
 // rather than mean to resist skew from long outlier matches -- Axie battle
@@ -202,7 +213,7 @@ export async function fetchAndEnrichLeaderboard(limit, offset, eraMilestone, liv
           const fresh = await fetchBattleLogsForClientDeduped(userID, 20);
 
           if (fresh) {
-            if (DEBUG_ON) console.log(`[/api/leaderboard] LIVE MODE: fresh fetch OK for userID=${userID}`);
+            if (DEBUG_ON) console.log(`[/api/leaderboard] LIVE MODE: fresh fetch OK for ${formatUserLog(userID, player.name)}`);
             setCachedTeamComposition(userID, fresh.fighters);
             team = fresh;
             lastRankedBattleTime = fresh.lastRankedBattleTime || null;
@@ -211,10 +222,10 @@ export async function fetchAndEnrichLeaderboard(limit, offset, eraMilestone, liv
             battleTimeFetchFailed = true;
             const cachedComposition = getCachedTeamComposition(userID);
             if (cachedComposition) {
-              if (DEBUG_ON) console.log(`[/api/leaderboard] LIVE MODE: fresh fetch FAILED for userID=${userID}, falling back to cached composition (battle time reported as unknown)`);
+              if (DEBUG_ON) console.log(`[/api/leaderboard] LIVE MODE: fresh fetch FAILED for ${formatUserLog(userID, player.name)}, falling back to cached composition (battle time reported as unknown)`);
               team = { fighters: cachedComposition, lastRankedBattleTime: null };
             } else {
-              if (DEBUG_ON) console.log(`[/api/leaderboard] LIVE MODE: fresh fetch FAILED for userID=${userID}, no cached composition available either`);
+              if (DEBUG_ON) console.log(`[/api/leaderboard] LIVE MODE: fresh fetch FAILED for ${formatUserLog(userID, player.name)}, no cached composition available either`);
               team = null;
             }
             lastRankedBattleTime = null; // NEVER backfilled from a previous poll -- see function-level comment
@@ -233,7 +244,7 @@ export async function fetchAndEnrichLeaderboard(limit, offset, eraMilestone, liv
             team = await fetchBattleLogsForClientDeduped(userID, 20);
 
             if (team) {
-              if (DEBUG_ON) console.log(`[/api/leaderboard] team attached for userID=${userID}`);
+              if (DEBUG_ON) console.log(`[/api/leaderboard] team attached for ${formatUserLog(userID, player.name)} (from fresh fetch)`);
               setCachedTeam(userID, team);
               // Opportunistically warm the long-TTL composition cache too,
               // so that if the user later flips live mode ON, this player's
@@ -241,10 +252,10 @@ export async function fetchAndEnrichLeaderboard(limit, offset, eraMilestone, liv
               // first live-mode poll succeeds.
               setCachedTeamComposition(userID, team.fighters);
             } else {
-              if (DEBUG_ON) console.log(`[/api/leaderboard] No team extracted for userID=${userID}`);
+              if (DEBUG_ON) console.log(`[/api/leaderboard] No team extracted for ${formatUserLog(userID, player.name)}`);
             }
           } else {
-            if (DEBUG_ON) console.log(`[/api/leaderboard] team (from cache) attached for userID=${userID}`);
+            if (DEBUG_ON) console.log(`[/api/leaderboard] team (from cache) attached for ${formatUserLog(userID, player.name)}`);
             if (isTeamCacheStale(userID)) {
               scheduleTeamRefresh(userID);
             }
