@@ -194,7 +194,7 @@ export async function fetchBattleLogsForClient(clientId, limit = 20, priority = 
     //     ]
     //   }
     // }
-    const MAX_TRACKED_RANKED_BATTLES = 3;
+    const MAX_TRACKED_RANKED_BATTLES = 4;
     const recentRankedBattles = []; // [{ startedAt, endedAt }, ...] newest-first
     let team = null;
 
