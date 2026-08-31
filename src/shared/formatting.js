@@ -164,16 +164,16 @@ export function formatActivityEstimate(result) {
     return `Est. next activity: ~${msToClock(result.predictedStart - now)}`;
   }
   if (result.state === "expected_game") {
-    return `Expected game · ${msToClock(now - result.predictedStart)} elapsed`;
+    return `Likely playing · ${msToClock(now - result.predictedStart)} elapsed`;
   }
   // overdue
   return `Next game overdue · ${msToClock(now - result.predictedEnd)}`;
 }
 
 // Compact format for live heuristic validation: prediction state combined
-// with "Last played X ago" for single-line status display.
+// with "Last played X ago" and the underlying pause heuristic for single-line status display.
 // lastPlayedLabel should be the human-readable format like "57s ago" or "10m ago"
-export function formatActivityEstimateCompact(result, lastPlayedLabel = "—") {
+export function formatActivityEstimateCompact(result, lastPlayedLabel = "—", heuristicPauseMs = null) {
   let prediction = "Unknown";
 
   if (result && result.state !== "unknown") {
@@ -186,7 +186,7 @@ export function formatActivityEstimateCompact(result, lastPlayedLabel = "—") {
     } else if (result.state === "expected_game") {
       // Predicted start has passed, waiting for the game to complete or be observed
       const timeElapsedSincePredictedStart = now - result.predictedStart;
-      prediction = `Expected game · ${msToClock(timeElapsedSincePredictedStart)} elapsed`;
+      prediction = `Likely playing · ${msToClock(timeElapsedSincePredictedStart)} elapsed`;
     } else if (result.state === "overdue") {
       // Expected game window has fully passed without observing a new completed match
       const timeElapsedSincePredictedEnd = now - result.predictedEnd;
@@ -196,7 +196,11 @@ export function formatActivityEstimateCompact(result, lastPlayedLabel = "—") {
     prediction = "Next game unknown";
   }
 
-  return `${prediction} · Last played ${lastPlayedLabel}`;
+  const heuristicSuffix = Number.isFinite(heuristicPauseMs) && heuristicPauseMs > 0
+    ? ` · heuristic: ${msToClock(heuristicPauseMs)}`
+    : "";
+
+  return `${prediction} · Last played ${lastPlayedLabel}${heuristicSuffix}`;
 }
 
 function padTwo(value) {

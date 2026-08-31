@@ -1,7 +1,7 @@
 // Leaderboard DOM rendering only. Data fetching and filter decisions remain
 // in leaderboardView.js so rendering stays independent of orchestration.
 import { renderMorphedAxieCached } from "../shared/morphRenderer.js";
-import { formatRelativeTime, predictNextActivity, formatActivityEstimate, formatActivityEstimateCompact } from "../shared/formatting.js";
+import { formatRelativeTime, predictNextActivity, formatActivityEstimate, formatActivityEstimateCompact, computeAvgPauseMs } from "../shared/formatting.js";
 import { getLastBattleTimestamp } from "./leaderboardFilters.js";
 import { leaderboardState, RANKED_SESSION_GAP_THRESHOLD_MS, MIN_VALID_MATCH_DURATION_MS, POLLING_STALE_MULTIPLIER, DEFAULT_MATCH_DURATION_MS, PROFILE_BASE, leaderboardCount } from "./leaderboardState.js";
 
@@ -346,7 +346,10 @@ export function updateLeaderboardRelativeTimes() {
     }
 
     const result = predictNextActivity(times, leaderboardState.avgMatchDurationMs, RANKED_SESSION_GAP_THRESHOLD_MS, MIN_VALID_MATCH_DURATION_MS, DEFAULT_MATCH_DURATION_MS);
-    const statusText = formatActivityEstimateCompact(result, lastPlayedLabel);
+    const heuristicPauseMs = result && result.state !== "unknown"
+      ? computeAvgPauseMs(times, RANKED_SESSION_GAP_THRESHOLD_MS, MIN_VALID_MATCH_DURATION_MS)
+      : null;
+    const statusText = formatActivityEstimateCompact(result, lastPlayedLabel, heuristicPauseMs);
 
     el.innerHTML = "";
     const statusLine = document.createElement("div");
@@ -377,9 +380,10 @@ export function updateLeaderboardRelativeTimes() {
                   const hours = Math.floor(stopMs / 3600000);
                   const minutes = Math.floor((stopMs % 3600000) / 60000);
                   const seconds = Math.floor((stopMs % 60000) / 1000);
-                  if (hours > 0) return `${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`;
-                  if (minutes > 0) return `${pad(minutes)}m ${pad(seconds)}s`;
-                  return `${pad(seconds)}s`;
+                  if (hours > 0) {
+                    return `${hours}h ${pad(minutes)}m ${pad(seconds)}s`;
+                  }
+                  return `${pad(minutes)}m ${pad(seconds)}s`;
                 })()
               : null;
 

@@ -2140,7 +2140,7 @@ input {
 /* Live Mode prediction status line */
 .activity-status-line {
   color: #58a6ff;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   margin-top: 2px;
   white-space: nowrap;
@@ -2149,7 +2149,7 @@ input {
 /* Game history container - holds individual game lines */
 .activity-game-history {
   margin-top: 6px;
-  font-size: 10px;
+  font-size: 12px;
   font-family: "SFMono-Regular", "Consolas", "Liberation Mono", "Menlo", monospace;
   color: #7ee787;
   line-height: 1.4;

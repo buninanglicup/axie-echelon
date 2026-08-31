@@ -162,7 +162,7 @@ predictedStart ≤ now < predictedStart + effectiveMatchDurationMs
 
 **Display:**
 ```
-Expected game · 2m 15s elapsed
+Likely playing · 2m 15s elapsed
 ```
 
 **Calculation:**
@@ -171,7 +171,7 @@ elapsedSincePrediction = now - predictedStart
 ```
 
 **Meaning:**
-> "The predicted start time has arrived. We are currently within the expected game duration window. We have not yet observed a new completed ranked match."
+> "The predicted start time has arrived. We are currently within the likely activity window and have not yet observed a new completed ranked match. This is a probabilistic signal, not a confirmed live-match detection."
 
 **Important:** This does NOT mean the player is confirmed to be in a match.
 - We have no live-match signal
@@ -184,16 +184,16 @@ elapsedSincePrediction = now - predictedStart
 8:30:24 PM — Predicted end (start + 5m)
 ─────────────────────────────────
 8:25:24 PM (now)
-→ Expected game · 0m 0s elapsed
+→ Likely playing · 0m 0s elapsed
 
 8:26:00 PM (now)
-→ Expected game · 0m 36s elapsed
+→ Likely playing · 0m 36s elapsed
 
 8:27:30 PM (now)
-→ Expected game · 2m 6s elapsed
+→ Likely playing · 2m 6s elapsed
 
 8:29:59 PM (now)
-→ Expected game · 4m 35s elapsed
+→ Likely playing · 4m 35s elapsed
 ```
 
 The timer counts up continuously (not reset per poll), giving a live sense of how long we've been waiting.
@@ -289,7 +289,7 @@ Located in `src/leaderboard/leaderboardState.js`:
 | Type | Source | Example |
 |------|--------|---------|
 | **Observed** | Latest completed game | `Last played 57s ago` |
-| **Predicted** | Heuristic calculation | `Expected game · 2m 15s elapsed` |
+| **Predicted** | Heuristic calculation | `Likely playing · 2m 15s elapsed` |
 
 These are calculated independently.
 
@@ -341,14 +341,14 @@ Display: Next game ~1m 24s · Last played 57s ago
 ─────────────────
 
 8:25:30 PM (now)
-State B: Expected game window
-Display: Expected game · 0m 6s elapsed · Last played 2m 30s ago
+State B: Likely playing window
+Display: Likely playing · 0m 6s elapsed · Last played 2m 30s ago
 
 ─────────────────
 
 8:28:00 PM (now)
-State B: Still expected game window
-Display: Expected game · 2m 36s elapsed · Last played 5m ago
+State B: Still likely playing window
+Display: Likely playing · 2m 36s elapsed · Last played 5m ago
 
 ─────────────────
 
@@ -416,7 +416,7 @@ We have no live-match signal. Showing "In match" would be false confidence.
 
 To validate this heuristic against actual player behavior:
 
-1. **Watch the "Expected game" timer**
+1. **Watch the "Likely playing" timer**
    - If it counts up to 4–5 min regularly without a new game, prediction is accurate
    - If a new game appears within 1–2 min, prediction was conservative (good)
 
