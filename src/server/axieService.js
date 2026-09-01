@@ -10,9 +10,7 @@ import {
   MAVIS_API_URL,
   USE_TEST_ACCOUNT,
   TEST_ACCOUNT_ID,
-  TEST_OWNER_ADDRESS,
-  LIVE_ACCOUNT_ID,
-  LIVE_OWNER_ADDRESS
+  TEST_OWNER_ADDRESS
 } from "./shared/env.js";
 import { cleanRoninAddress } from "./shared/validators.js";
 import {
@@ -265,15 +263,16 @@ export async function resolveAxieById(axieId) {
       console.log(`[resolveAxieById] ⚠️ DELEGATED AXIE: delegatee=${delegateeAddress}, delegateeAccountId=${delegateeAccountId}`);
     }
 
-    // Get owner info
-    accountId =
-      axieDetail?.ownerProfile?.accountId || LIVE_ACCOUNT_ID;
+    // Get owner info from the axie detail itself. Do not silently fall back to
+    // the active tracker profile here: the profile is only a process-level
+    // selector, not the owner context for this specific axie.
+    accountId = axieDetail?.ownerProfile?.accountId || null;
 
     ownerAddress = axieDetail?.ownerProfile?.addresses?.ronin
       ? cleanRoninAddress(axieDetail.ownerProfile.addresses.ronin)
-      : LIVE_OWNER_ADDRESS;
+      : null;
 
-    console.log(`[resolveAxieById] Extracted: accountId=${accountId}, ownerAddress=${ownerAddress}`);
+    console.log(`[resolveAxieById] Extracted: accountId=${accountId || "N/A"}, ownerAddress=${ownerAddress || "N/A"}`);
   }
 
   if (!ownerAddress && !delegateeAddress) {
@@ -298,7 +297,7 @@ export async function resolveAxieById(axieId) {
   }
 
   if (!accountId && !delegateeAccountId) {
-    console.error(`[resolveAxieById] FAIL POINT 3: No account ID could be resolved. LIVE_ACCOUNT_ID=${LIVE_ACCOUNT_ID}`);
+    console.error(`[resolveAxieById] FAIL POINT 3: No account ID could be resolved from owner/delegatee profile data.`);
     throw new Error("No account ID was found.");
   }
 
