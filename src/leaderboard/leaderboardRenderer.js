@@ -17,6 +17,62 @@ function formatDebugClock(date) {
   return `${String(hour12).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")} ${meridiem}`;
 }
 
+function createStatusSpan(text, className) {
+  const span = document.createElement("span");
+  span.className = className;
+  span.textContent = text;
+  return span;
+}
+
+function formatStatusClock(deltaMs) {
+  const totalSeconds = Math.floor(Math.abs(deltaMs) / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(Math.max(0, minutes)).padStart(2, "0")}m ${String(Math.max(0, seconds)).padStart(2, "0")}s`;
+}
+
+function appendActivityStatusLine(container, result, lastPlayedLabel, heuristicPauseMs) {
+  const statusLine = document.createElement("div");
+  statusLine.className = "activity-status-line";
+
+  if (!result || result.state === "unknown") {
+    statusLine.appendChild(createStatusSpan("Est. next activity", "activity-status-info"));
+    statusLine.appendChild(createStatusSpan(" · Unknown", "activity-status-muted"));
+    statusLine.appendChild(createStatusSpan(` · Last played ${lastPlayedLabel}`, "activity-status-muted"));
+
+    if (Number.isFinite(heuristicPauseMs) && heuristicPauseMs > 0) {
+      statusLine.appendChild(createStatusSpan(` · heuristic: ${formatStatusClock(heuristicPauseMs)}`, "activity-status-heuristic"));
+    }
+
+    container.appendChild(statusLine);
+    return;
+  }
+
+  const now = Date.now();
+
+  if (result.state === "before_due") {
+    const timeUntilStart = result.predictedStart - now;
+    statusLine.appendChild(createStatusSpan("Est. next activity", "activity-status-info"));
+    statusLine.appendChild(createStatusSpan(` · ~${formatStatusClock(timeUntilStart)}`, "activity-status-info"));
+  } else if (result.state === "expected_game") {
+    const timeElapsedSincePredictedStart = now - result.predictedStart;
+    statusLine.appendChild(createStatusSpan("Likely playing", "activity-status-warning"));
+    statusLine.appendChild(createStatusSpan(` · ${formatStatusClock(timeElapsedSincePredictedStart)} elapsed`, "activity-status-warning"));
+  } else {
+    const timeElapsedSincePredictedEnd = now - result.predictedEnd;
+    statusLine.appendChild(createStatusSpan("Next game overdue", "activity-status-danger"));
+    statusLine.appendChild(createStatusSpan(` · ${formatStatusClock(timeElapsedSincePredictedEnd)}`, "activity-status-danger"));
+  }
+
+  statusLine.appendChild(createStatusSpan(` · Last played ${lastPlayedLabel}`, "activity-status-muted"));
+
+  if (Number.isFinite(heuristicPauseMs) && heuristicPauseMs > 0) {
+    statusLine.appendChild(createStatusSpan(` · heuristic: ${formatStatusClock(heuristicPauseMs)}`, "activity-status-heuristic"));
+  }
+
+  container.appendChild(statusLine);
+}
+
 export function renderLeaderboardRows(leaderboardBody, players) {
   console.log(`[renderLeaderboardRows] START: ${players.length} players to render`);
 
@@ -97,9 +153,10 @@ export function renderLeaderboardRows(leaderboardBody, players) {
       RANKED_SESSION_GAP_THRESHOLD_MS,
       MIN_VALID_MATCH_DURATION_MS
     );
-    const summaryText = formatActivityEstimate(prediction);
+
     const debugSummary = document.createElement("div");
     debugSummary.className = "debug-next-activity-summary";
+    const summaryText = formatActivityEstimate(prediction);
     debugSummary.textContent = summaryText;
     nextActivitySubtitle.append(debugSummary);
 
@@ -349,13 +406,9 @@ export function updateLeaderboardRelativeTimes() {
     const heuristicPauseMs = result && result.state !== "unknown"
       ? computeAvgPauseMs(times, RANKED_SESSION_GAP_THRESHOLD_MS, MIN_VALID_MATCH_DURATION_MS)
       : null;
-    const statusText = formatActivityEstimateCompact(result, lastPlayedLabel, heuristicPauseMs);
 
     el.innerHTML = "";
-    const statusLine = document.createElement("div");
-    statusLine.className = "activity-status-line";
-    statusLine.textContent = statusText;
-    el.append(statusLine);
+    appendActivityStatusLine(el, result, lastPlayedLabel, heuristicPauseMs);
 
     const debugBattleLines = Array.isArray(times)
       ? times

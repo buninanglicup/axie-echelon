@@ -156,12 +156,12 @@ export function predictNextActivity(recentRankedBattles, avgMatchDurationMs, ses
 // Renders predictNextActivity()'s result. This is the verbose format used for
 // fallback/non-live displays. The compact formatter is used in Live Mode.
 export function formatActivityEstimate(result) {
-  if (!result || result.state === "unknown") return "Est. next activity: Unknown";
+  if (!result || result.state === "unknown") return "Est. next activity · Unknown";
 
   const now = Date.now();
 
   if (result.state === "before_due") {
-    return `Est. next activity: ~${msToClock(result.predictedStart - now)}`;
+    return `Est. next activity · ~${msToClock(result.predictedStart - now)}`;
   }
   if (result.state === "expected_game") {
     return `Likely playing · ${msToClock(now - result.predictedStart)} elapsed`;
@@ -174,7 +174,7 @@ export function formatActivityEstimate(result) {
 // with "Last played X ago" and the underlying pause heuristic for single-line status display.
 // lastPlayedLabel should be the human-readable format like "57s ago" or "10m ago"
 export function formatActivityEstimateCompact(result, lastPlayedLabel = "—", heuristicPauseMs = null) {
-  let prediction = "Unknown";
+  let prediction = "Est. next activity · Unknown";
 
   if (result && result.state !== "unknown") {
     const now = Date.now();
@@ -182,7 +182,7 @@ export function formatActivityEstimateCompact(result, lastPlayedLabel = "—", h
     if (result.state === "before_due") {
       // Prediction is in the future
       const timeUntilPredictedStart = result.predictedStart - now;
-      prediction = `Next game ~${msToClock(timeUntilPredictedStart)}`;
+      prediction = `Est. next activity · ~${msToClock(timeUntilPredictedStart)}`;
     } else if (result.state === "expected_game") {
       // Predicted start has passed, waiting for the game to complete or be observed
       const timeElapsedSincePredictedStart = now - result.predictedStart;
@@ -192,8 +192,6 @@ export function formatActivityEstimateCompact(result, lastPlayedLabel = "—", h
       const timeElapsedSincePredictedEnd = now - result.predictedEnd;
       prediction = `Next game overdue · ${msToClock(timeElapsedSincePredictedEnd)}`;
     }
-  } else {
-    prediction = "Next game unknown";
   }
 
   const heuristicSuffix = Number.isFinite(heuristicPauseMs) && heuristicPauseMs > 0

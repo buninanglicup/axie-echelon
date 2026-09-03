@@ -1,4 +1,4 @@
-# Axie Morph Viewer: Current Project Handoff
+# Axie Echelon: Current Project Handoff
 
 **Last verified:** 2026-08-27
 
@@ -6,13 +6,23 @@ This is the canonical current-status document. `PHASE1_SPLIT_SUMMARY.md` records
 
 ## Purpose and Current State
 
-Axie Morph Viewer is a local Axie Infinity leaderboard and Axie lookup application. It displays ranked players, recent ranked-battle activity, current teams, rune metadata, and morphed Axie previews. It also supports Axie ID and Ronin-address lookup.
+Axie Echelon is a local Axie Infinity leaderboard monitoring and battle-activity analysis application. It displays ranked players, recent ranked-battle activity, current teams, rune metadata, and morphed Axie previews. It also supports Axie ID and Ronin-address lookup.
+
+The activity display is heuristic-based. It observes completed ranked battles and estimates likely next activity from historical session timing; it does not directly confirm that a player is currently in a live match.
 
 The project is an MVP with the Phase 1 server/frontend split implemented and build-verified. The main unresolved product issue is live-mode page reload behavior; the application has not yet had a complete browser smoke test after the split.
 
 ### Era terminology
 
 An Origins season contains four eras. Sky Mavis names the numeric era selector `milestone` in its API. This project uses `eraMilestone` internally. The external query parameter and response field remain `milestone` for API compatibility; they all represent the same numeric era selector, where `1` = Rare, `2` = Epic, `3` = Mystic, and `4` = Final.
+
+### Runtime terminology
+
+- **Application**: Axie Echelon, the leaderboard monitoring dashboard.
+- **Tracker instance**: One running copy of the application.
+- **Tracker profile**: The configuration selected by one tracker instance.
+- **Leaderboard window**: The rank range displayed by a profile.
+- **Activity estimate**: A heuristic prediction based on recent completed battles.
 
 ## Technology and Architecture
 
@@ -50,7 +60,8 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
   - `npm run dev`
   - frontend `127.0.0.1:5173`
   - backend `127.0.0.1:8787`
-- One unified development process using `.env`; the former multi-tracker setup was retired after Phase 1.
+- Profile-driven multi-tracker development using `.env`; each instance selects a numbered `TRACKER_PROFILE` and receives isolated runtime settings.
+- Five predefined PowerShell launch scripts for local multi-window testing; the profile resolver itself supports additional contiguous profile numbers.
 - The leaderboard currently shows one fixed window from `VITE_LEADERBOARD_LIMIT` and `VITE_LEADERBOARD_OFFSET`; Phase 2 pagination is the next priority.
 
 ## Backend Routes
@@ -123,6 +134,9 @@ An Axie is considered collectible when it has at least one verified collectible 
 - `src/server/leaderboard/enrichmentCache.js`: on-demand enrichment state model.
 - `src/server/shared/profileCache.js`: cached profile/address resolution.
 - `.env.example`: shared local configuration template; copy it to `.env` and never commit secrets.
+- `start-all-trackers.ps1`: launches the five predefined local tracker instances.
+- `start-tracker1.ps1` through `start-tracker5.ps1`: select one numbered tracker profile and start the development process.
+- `stop-all-trackers.ps1`: broad local cleanup helper that stops all Node.js processes; use with care.
 - `docs/planning/leaderboard-roadmap.md`: planned pagination and future leaderboard direction.
 - `docs/planning/cache-and-polling-strategy.md`: cache/polling design notes.
 
