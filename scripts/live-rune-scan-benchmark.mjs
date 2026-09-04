@@ -36,4 +36,7 @@ while (true) {
   if (["complete", "failed", "cancelled"].includes(job.status)) break;
   await new Promise((resolve) => setTimeout(resolve, 200));
 }
-console.log(`Finished in ${Date.now() - startedAt}ms`);
+const finalJob = getRuneScanJob(started.jobId);
+console.log(`Finished in ${Date.now() - startedAt}ms with status=${finalJob.status}`);
+console.log(`Final progress: ${finalJob.processedCount}/${finalJob.totalCandidates ?? "?"}, ${finalJob.matches.length} matches`);
+if (finalJob.error) console.log(`Error: ${finalJob.error.code} - ${finalJob.error.message}`);

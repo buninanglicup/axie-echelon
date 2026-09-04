@@ -44,8 +44,9 @@ The real Season 18 capture was generated locally at
 ignored by Git because it contains real player data and must not be committed.
 
 Remaining handoff tasks:
-1. Optionally run `node scripts/live-rune-scan-benchmark.mjs 3 <runeId>` to
-   measure current live latency.
+1. Tune the live scan after the first benchmark baseline: milestone `3` with
+  Bloodlust reached `700/1000` candidates and 27 matches before the 300-second
+  watchdog stopped it with `RUNE_SCAN_TIMEOUT`.
 2. Review the ignored real capture locally if actual data-shape inspection is
    needed.
 3. Tune batch size, pause, or concurrency only after measuring live results.
