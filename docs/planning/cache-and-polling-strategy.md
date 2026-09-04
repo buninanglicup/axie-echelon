@@ -1,342 +1,202 @@
-# Cache and Polling Strategy — Live Battle Tracking Optimization
+# Cache and Polling Strategy — Leaderboard Feature
+
+## Revision note (2026-09-03)
+
+This is a rewrite, not a patch, of the previous draft. The previous draft
+referenced `server.js - line 1683+` and `server.js - line 1070+` — those line
+numbers predate the Phase 1 backend split and no longer correspond to
+anything; the code now lives in `src/server/leaderboard/leaderboardCaches.js`
+and related files. This revision also adds the candidate-pool cache layer,
+which the previous draft didn't cover at all, and documents live-mode's
+actual cache behavior as confirmed from the current code rather than assumed.
 
 ## Overview
-This document explains the three-layer caching strategy and polling interval tuning for the leaderboard feature. The goal is to balance **freshness of battle time data** with **API rate-limit constraints**.
 
-## Use Case
-**Current (development):** Solo player using live mode to track when top-ranked players finish battles so they can decide who to challenge next. Battle times must be fresh (catch within 20-40 seconds), but repeated polling cannot exceed Skymavis API rate limits.
+This document explains the cache architecture and polling behavior for the
+leaderboard feature, covering both live-tracking (polling) use and non-live
+(paginated browsing) use. The goal is to balance data freshness against
+Skymavis API rate-limit constraints.
 
-**⚠️ Important Note for Deployment:** This configuration is optimized for single-user / development scenarios. When deployed for multiple concurrent players, you should reconsider:
+## Important: cache *settings* are shared between live and non-live mode
 
-- **Server page cache (30s):** Works great with 1-2 users. With 10+ concurrent users polling the same leaderboard page, a 30s cache delivers high reuse, but you may need to **increase TTL to 60-90s** for even better API efficiency while still catching battles within 1-2 polling intervals.
-- **Polling interval (20s):** Fine for solo testing but with many users, **consider extending to 30-60s** to reduce total API load, unless your rate-limit budget permits aggressive polling.
-- **Team cache (10 min):** Still good—per-player data is reused across requests. Consider **extending to 15-20 min** for multi-user scenarios to reduce battle-log API calls.
-- **Concurrency limit:** `BATTLELOG_FETCH_CONCURRENCY=4` is conservative for solo use but may throttle enrichment with many concurrent users. Test with `DEBUG_ON=true` to monitor queue depth.
+There is a common misconception worth stating plainly: live mode and non-live
+mode do **not** have separate cache configurations. Every TTL constant below
+(`TEAM_CACHE_TTL_MS`, `LEADERBOARD_PAGE_CACHE_TTL_MS`, `RANK_CANDIDATE_CACHE_TTL_MS`,
+etc.) is a single global value used by both modes. What actually differs is a
+**behavioral branch**, confirmed in `leaderboardLegacyRoutes.js`:
 
-Recalibrate these values based on:
-1. Number of concurrent users
-2. Skymavis API rate-limit budget
-3. Acceptable stale-data window (currently 20-40s, may need to relax to 1-2 min)
-4. Measurement of cache hit rates in production
-
-## Three-Layer Cache Architecture
-
-### Layer 1: Browser Cache (sessionStorage)
-- **TTL:** 30 seconds
-- **Key:** `leaderboard_cache_${milestone}_${limit}_${offset}`
-- **Content:** Entire enriched leaderboard page (200 players + team data)
-- **When hit:** ~10-20ms response, no backend call
-- **When miss:** Calls backend, page is re-cached for 30s
-
-**Configuration:**
-```javascript
-// src/main.js
-const LEADERBOARD_STORAGE_TTL_MS = 30 * 1000; // 30 seconds
+```js
+if (liveMode) {
+  // Bypasses getCachedPage() — always fetches fresh from Skymavis.
+  const payload = await fetchAndEnrichLeaderboard(limit, offset, eraMilestone, true);
+  setCachedPage(cacheKey, payload); // still WRITES into the same shared cache
+  return response.json(payload);
+}
+// non-live: reads from cache first, stale-while-revalidate via schedulePageRefresh()
 ```
 
-**Use case:** Avoid hammering the backend within a browser session. Survives page reload (within same tab + 30s window).
+Live mode skips the page-cache *read* (it always wants fresh data) but still
+*writes* its fresh result into the same `pageCache` map that non-live mode
+reads from, under the same key format (`leaderboard_${milestone}_${limit}_${offset}`).
+If live and non-live requests ever land on the same limit/offset within the
+same TTL window, one can serve the other's cached payload. This is existing
+behavior, not something introduced by the pagination work below.
 
----
+## Four-layer cache architecture **[layer 4 is new]**
 
-### Layer 2: Server Page Cache (in-memory)
-- **TTL:** 30 seconds
-- **Key:** `leaderboard_${milestone}_${limit}_${offset}`
-- **Content:** Entire enriched page (shared across all clients)
-- **When hit:** ~50-100ms response + scheduled background refresh
-- **When miss:** Calls Skymavis + enriches with battle logs (1-2 sec)
+### Layer 1: Browser cache (sessionStorage)
 
-**Configuration:**
-```javascript
-// server.js
-const LEADERBOARD_PAGE_CACHE_TTL_MS = Number(process.env.LEADERBOARD_PAGE_CACHE_TTL_MS || 30000); // 30s
-```
+- **TTL:** `LEADERBOARD_STORAGE_TTL_MS`, 30s default.
+- **Key:** `leaderboard_cache_${milestone}_${limit}_${offset}` (`getLeaderboardStorageKey()` in `src/leaderboard/leaderboardState.js`).
+- **Scope:** the legacy eager leaderboard view only.
+- **Use case:** avoid re-hitting the backend within a browser session for the
+  legacy route. Not used by the pool/team endpoints.
 
-**Use case:** Multiple clients can share one cached page. Implements "stale-while-revalidate" pattern: serve cached data immediately while refreshing in background.
+### Layer 2: Server page cache (in-memory)
 
----
+- **TTL:** `LEADERBOARD_PAGE_CACHE_TTL_MS`, 30s default.
+- **Key:** `leaderboard_${milestone}_${limit}_${offset}`.
+- **Location:** `pageCache` Map in `leaderboardCaches.js`; read/write logic in
+  `leaderboardLegacyRoutes.js`.
+- **Scope:** the legacy `/api/leaderboard` route only (live mode included, per
+  the write-but-not-read behavior above).
+- **Pattern:** stale-while-revalidate via `schedulePageRefresh()` — serve
+  cached data immediately, refresh in background, for non-live requests.
 
-### Layer 3: Team Cache (in-memory)
-- **TTL:** 10 minutes
-- **Refresh threshold:** 50% of TTL (5 minutes) — marks cache as "stale" but still usable
-- **Key:** Per-player (userID)
-- **Content:** Player's current 3-axie team, runes, lastRankedBattleTime
-- **When hit:** Instant (~1ms)
-- **When stale:** Background refresh, no blocking
+### Layer 3: Team cache (in-memory)
 
-**Configuration:**
-```javascript
-// server.js
-const TEAM_CACHE_TTL_MS = Number(process.env.TEAM_CACHE_TTL_MS || 600000); // 10 min
-const TEAM_CACHE_REFRESH_THRESHOLD = Number(process.env.TEAM_CACHE_REFRESH_THRESHOLD || 0.5); // 50%
-```
+- **TTL:** `TEAM_CACHE_TTL_MS`, 10 min default. Refresh threshold:
+  `TEAM_CACHE_REFRESH_THRESHOLD`, 50% of TTL — marks the entry "stale" but
+  still usable while a background refresh runs.
+- **Key:** per-player (`clientId`/`userID`).
+- **Location:** `teamCache` Map in `leaderboardCaches.js`.
+- **Scope:** shared across the legacy route, the pool/team endpoints, and rune
+  scanning — a player's team data is reused everywhere it's needed, regardless
+  of which feature triggered the fetch.
+- **Use case:** teams rarely change mid-session; this is the single biggest
+  saver of battle-log API calls.
 
-**Use case:** Teams are stable (rarely swapped mid-session). Caching 10 min prevents redundant battle-log API calls. Same team data is reused across normal leaderboard views, rune filters, and pagination.
+### Layer 4: Rank candidate pool cache (in-memory) **[NEW]**
 
----
+- **TTL:** `RANK_CANDIDATE_CACHE_TTL_MS`, 3 min default for non-live pool and
+  rune scanning.
+- **Key:** `${eraMilestone}_${maxRank}` (e.g. `"4_1000"`).
+- **Content:** the raw, unenriched rank/name/MMR list for ranks `1..maxRank` —
+  cheap fields only, no team/battle-log data.
+- **Location:** `rankCandidateCache` Map in `leaderboardCandidates.js`,
+  populated by `fetchRankCandidates()`; read by both
+  `leaderboardPoolRoutes.js` (`/api/leaderboard/pool`) and
+  `leaderboardRuneRoutes.js` (rune scanning).
+- **Why this cache matters more than it looks:** it's keyed by **era only**,
+  not by any per-user filter state. Once one request (of any kind — a plain
+  rank browse, a name search, a rune scan) populates this cache for an era,
+  every other request for that era during the TTL window is a free hit,
+  regardless of what filters that later request has active. This is the
+  cache that makes "always fetch the full 1000-player pool, filter
+  client-side" cheap in aggregate — see `leaderboard-roadmap.md`, "Fetch
+  strategy" section, for the full reasoning.
+- **Cost on a miss:** upstream's `season-leaderboards` endpoint caps at 100
+  players per request, so a cold fetch for `maxRank=1000` costs **10
+  sequential upstream calls**. This is the direct cost of raising
+  `LEADERBOARD_MAX_RANK` from 35 to 1000.
+### TTL rationale
 
-## Polling Strategy
+The 3-minute default reduces how often the 10-call cost is paid when rebuilding
+the 1000-player pool. This constant is not read by any live-mode code path
+(live mode uses the Layer 2 page cache, not this one), so it has no effect on
+live-tracking freshness. A deployment can override it when a different
+non-live freshness/cost tradeoff is needed.
 
-### Available Intervals
-```html
-<!-- index.html -->
-<option value="10">10s</option>
-<option value="20">20s</option>   <!-- New: sweet spot for battle tracking -->
-<option value="30" selected>30s</option>
-<option value="60">60s</option>
-```
+## Live mode: does not use this document's optimizations
 
-### Recommended: 20s Polling + 30s Cache
+To be explicit, since it's a common point of confusion: live mode's polling
+loop calls the legacy `/api/leaderboard?liveMode=true` route, which only
+touches Layer 2 (page cache, bypassed on read) and Layer 3 (team cache, used
+normally). It never calls `/api/leaderboard/pool` and never touches Layer 4.
+The 1000-player pool cache and its recommended longer TTL are entirely a
+non-live-mode concern.
 
-**Why 20s is optimal:**
+## Polling strategy (live mode only)
+
+*(unchanged from prior draft — applies only to live-tracking polling, not to
+the non-live pagination work)*
+
+### Recommended: 20s polling + 30s cache
+
 ```
 t=0s    → Fetch from Skymavis (cache miss)
-         ├─ Fresh battle times captured
-         └─ Stored for 30s
-
-t=20s   → Serve from cache (hit!)
-         ├─ Data is 20s old (still relevant)
-         └─ ~10ms response
-
+t=20s   → Serve from cache (hit!) — data is 20s old
 t=30s   → Cache expires
-
-t=40s   → Fetch again (cache miss)
-         ├─ NEW battle times caught!
-         ├─ Captures matches finished between t=20-40s
-         └─ This is your key value: catch battles within ~40s window
-
-Pattern: ~50% cache hit rate
-         ~120-140 API calls/hour (vs ~180-200 with 10s polling)
+t=40s   → Fetch again — captures matches finished between t=20-40s
 ```
-
-### Trade-offs by Interval
 
 | Interval | Cache Hit Rate | Battle Update Window | API Calls/Hour | Risk |
-|----------|---|---|---|---|
-| 10s | ~40% | 10s | 180-200 | ⚠️ High (rate limits) |
-| **20s** | ~50% | 20-40s | 120-140 | ✅ **Optimal** |
-| 30s | 40-50% | 30-60s | 80-100 | ✅ Good |
-| 60s | 70%+ | 60s | 40-50 | 🟢 Safe but stale |
+|---|---|---|---|---|
+| 10s | ~40% | 10s | 180-200 | High (rate limits) |
+| **20s** | ~50% | 20-40s | 120-140 | Optimal |
+| 30s | 40-50% | 30-60s | 80-100 | Good |
+| 60s | 70%+ | 60s | 40-50 | Safe but stale |
 
----
+## Data freshness guide
 
-## Data Freshness Guide
-
-### Must be fresh (short cache):
-- `lastRankedBattleTime` — **30s cache TTL** via page cache miss
-- `rank` / `mmr` — updates after each battle, **30s cache OK**
-- `winRate` — updates per battle, **30s cache OK**
+### Must be fresh (short cache, live mode):
+- `lastRankedBattleTime` — 30s TTL via page-cache miss.
+- `rank` / `mmr` / `winRate` — 30s cache acceptable.
 
 ### Can be stale (long cache):
-- `team` (fighters, runes, genes) — **10 min cache, rarely changes**
-- `name` — never changes in session, **very long cache safe**
-- `roninAddress` / `profileUrl` — derived once, **never changes**
+- `team` (fighters, runes, genes) — 10 min, rarely changes.
+- `name` — effectively static for a session.
+- Rank-order data for the non-live 1000-player pool — 3–5 min acceptable, see
+  Layer 4 above.
 
----
+## Environment variable tuning
 
-## Implementation Details
-
-### Browser Cache
-```javascript
-// src/main.js - line 15
-const LEADERBOARD_STORAGE_TTL_MS = 30 * 1000;
-
-function loadLeaderboardPageFromStorage(limit, offset, milestone) {
-  // Check TTL, return payload if fresh, else null
-}
-
-function saveLeaderboardPageToStorage(limit, offset, milestone, payload) {
-  // Store with timestamp
-}
 ```
-
-### Server Cache
-```javascript
-// server.js - line 1683+
-const LEADERBOARD_PAGE_CACHE_TTL_MS = 30000; // 30s
-
-const pageCache = new Map();
-
-function getCachedPage(key) {
-  // Return cached payload if within TTL, else null
-}
-
-function setCachedPage(key, payload) {
-  // Store with timestamp
-}
-
-// Stale-while-revalidate pattern:
-// 1. If cache hit: return immediately, schedule background refresh
-// 2. If cache miss: fetch fresh, cache it, return
-```
-
-### Team Cache
-```javascript
-// server.js - line 1070+
-const TEAM_CACHE_TTL_MS = 600000; // 10 min
-const TEAM_CACHE_REFRESH_THRESHOLD = 0.5; // 50%
-
-function getCachedTeam(clientId) {
-  // Return team if within TTL, else null
-}
-
-function isTeamCacheStale(clientId) {
-  // Return true if past 50% of TTL (5 min)
-  // Used to trigger background refresh without blocking
-}
-```
-
----
-
-## Environment Variable Tuning
-
-Override defaults in `.env`:
-
-```bash
-# Browser cache TTL (ms)
-# Too long: miss real-time updates
-# Too short: more backend calls
+# Browser cache TTL (ms) — legacy route only
 LEADERBOARD_STORAGE_TTL_MS=30000
 
-# Server page cache TTL (ms)
-# Too long: share stale pages across clients
-# Too short: more upstream Skymavis calls
+# Server page cache TTL (ms) — legacy route only, both live and non-live
 LEADERBOARD_PAGE_CACHE_TTL_MS=30000
 
-# Team cache TTL (ms)
-# Too long: miss team/rune changes
-# Too short: more battle-log API calls
+# Team cache TTL (ms) — shared across all features
 TEAM_CACHE_TTL_MS=600000
-
-# When to mark team cache as "stale" (fraction of TTL)
-# 0.5 = at 50% (5 min into 10 min), triggers background refresh
 TEAM_CACHE_REFRESH_THRESHOLD=0.5
 
+# Rank candidate pool cache TTL (ms) — non-live pool + rune scanning only
+# Recommended: raise from the 30000 default for non-live pagination use.
+RANK_CANDIDATE_CACHE_TTL_MS=180000   # example: 3 minutes
+
 # Concurrency limit for battle-log fetches (shared globally)
-# Too high: rate-limit 429 errors
-# Too low: slow enrichment
 BATTLELOG_FETCH_CONCURRENCY=4
-
-# Polling interval (set in UI dropdown, not env)
-# 10s, 20s, 30s, 60s
-# Recommended: 20s for live battle tracking
 ```
 
----
+## Monitoring cache health
 
-## Monitoring Cache Health
+With `DEBUG_ON=true`, watch for:
 
-### With DEBUG_ON enabled:
-```powershell
-$env:DEBUG_ON='true'
-node server.js
 ```
-
-Watch console for:
-```
-[getCachedPage] HIT: leaderboard_3_200_0
-[getCachedPage] MISS: leaderboard_3_200_0
-[getCachedPage] EXPIRED: leaderboard_3_200_0
+[fetchRankCandidates] cache HIT for 4_1000
+[fetchRankCandidates] fetched 1000 candidates for 4_1000
+[getCachedPage] HIT: leaderboard_4_50_0
 [getCachedTeam] HIT: returning cached team for <userID>
-[getCachedTeam] MISS: no cache entry for <userID>
-[fetchBattleLogsForClientDeduped] REUSING in-flight fetch for <userID>
 ```
 
-### Cache hit rate calculation:
-```
-Hits per hour / Total polls per hour = Hit rate
+## Scaling for multiple concurrent users
 
-Example with 20s polling:
-- Polls per hour: 3600 / 20 = 180 polls
-- Expected hits with 30s cache: ~90 polls (50%)
-- Estimated API cost: 90 cache misses = 90 fresh fetches
-```
-
----
-
-## Troubleshooting
-
-### Problem: "Battles feel stale, not seeing updates within 20s"
-**Solution:** Ensure polling interval is 20s or less, and cache TTL is 30s.
-
-### Problem: "Rate limit 429 errors"
-**Solution:**
-1. Increase cache TTL (longer = fewer misses)
-2. Decrease polling interval (wait longer between polls)
-3. Reduce BATTLELOG_FETCH_CONCURRENCY
-4. Consider extending TEAM_CACHE_TTL_MS if teams rarely change
-
-### Problem: "Page cache says hit but data looks stale"
-**Solution:** Stale-while-revalidate is working as designed. Cache is hit, but refresh is scheduled in background. Check server logs with DEBUG_ON for background refresh status.
-
----
-
-## Scaling for Multiple Concurrent Users
-
-**Current tuning is optimized for solo development.** If deploying for multiple players, adjust based on observed metrics:
-
-### Single User (Current)
-```
-20s polling + 30s cache = ~50% hit rate = 90 API calls/hour
-```
-
-### 5 Concurrent Users (Small group)
-```
-Recommendation:
-  - Increase LEADERBOARD_PAGE_CACHE_TTL_MS to 60s
-  - Keep polling at 20-30s (users pick different intervals)
-  - Server cache gets 4-5 clients sharing same cached page
-  - Expected: ~200-250 API calls/hour (vs 450 with no cache)
-Rationale: Multiple users benefit from shared page cache.
-Longer TTL (60s) reduces Skymavis call frequency while still catching
-most battles within 1-2 polling cycles.
-```
-
-### 10+ Concurrent Users (Multi-player deployment)
-```
-Recommendation:
-  - Increase LEADERBOARD_PAGE_CACHE_TTL_MS to 90s
-  - Recommend polling 30-60s in UI (safer default)
-  - Increase TEAM_CACHE_TTL_MS to 15min
-  - Increase BATTLELOG_FETCH_CONCURRENCY to 8-10
-  - Add Redis or similar for shared server cache (current: in-memory only)
-Rationale: More users = better cache hit rates.
-90s cache with 10 users = very high reuse. Battle updates may lag
-to 1-2 min, but API load becomes manageable. Consider persistent
-cache if server restarts are frequent.
-```
-
-### Monitoring for Multi-User Deployment
-
-Enable DEBUG_ON and track these metrics hourly:
-```
-- Cache hit rate: (HIT logs) / (HIT + MISS logs)
-- 429 rate-limit errors from Skymavis
-- Average response time for cache hit vs miss
-- Battle-log fetch queue depth (watch for bottlenecks)
-- Total API calls to Skymavis per hour
-```
-
-Example log parsing:
-```powershell
-# Extract cache stats
-Select-String '\[getCachedPage\] (HIT|MISS)' server.log | Group-Object { $_.Matches[0].Groups[1].Value } | ForEach-Object { "$($_.Name): $($_.Count)" }
-
-# Count 429 errors
-(Select-String '429' server.log).Count
-
-# Monitor concurrency queue
-Select-String 'acquireBattleLogSlot|releaseBattleLogSlot' server.log | tail -20
-```
-
----
+*(unchanged from prior draft — applies to Layers 1–3; Layer 4's era-only
+keying already scales well across concurrent users by design, since all
+users browsing the same era share one cache entry regardless of their
+individual filter state)*
 
 ## Summary
 
-- **Browser cache (30s):** Instant local responses
-- **Server cache (30s):** Shared across clients, stale-while-revalidate
-- **Team cache (10 min):** Reused across requests, marked stale at 5min for background refresh
-- **Polling (20s):** ~50% cache hit rate, catches battles within 20-40s
-- **Current scenario:** Solo player, live battle tracking
-- **For deployment:** Adjust TTLs, polling, and concurrency based on user count and API budget
-
-This configuration balances freshness with API efficiency for the current use case. For multi-user deployment, extend cache TTLs and reduce polling aggressiveness to maintain API rate-limit compliance.
+- **Browser cache (30s):** legacy route only, instant local responses.
+- **Server page cache (30s):** legacy route only, shared across clients,
+  stale-while-revalidate. Live mode writes but doesn't read.
+- **Team cache (10 min):** shared across every feature that needs per-player
+  team data.
+- **Rank candidate pool cache (recommend 3–5 min):** non-live pagination and
+  rune scanning only, keyed by era, shared across all users and all filter
+  types for that era. Never touched by live mode.
+- **Polling (20s, live mode only):** ~50% cache hit rate on the page cache,
+  catches battles within 20–40s.

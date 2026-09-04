@@ -1,10 +1,28 @@
 // Upstream Skymavis hard limit. Requests above this value fail.
 export const SEASON_LEADERBOARD_API_MAX_LIMIT = 100;
-// Product decision: deepest rank the app will ever inspect.
+// Product decision: deepest rank the app will ever inspect. Must match the
+// frontend copy of this same constant in src/leaderboard/leaderboardState.js
+// -- see docs/planning/leaderboard-roadmap.md, "Rank ceiling fix", for why
+// these two are declared separately and how they drifted apart before.
 export const LEADERBOARD_MAX_RANK = 1000;
-export const BATTLE_LOGS_MIN_LIMIT = 1;
-export const BATTLE_LOGS_MAX_LIMIT = 20;
-export const RANK_CANDIDATE_CACHE_TTL_MS = Number(process.env.RANK_CANDIDATE_CACHE_TTL_MS || 30000);
+
+// Documented Skymavis battle-logs `limit` range: min 5, max 100
+export const BATTLE_LOGS_MIN_LIMIT = 5;
+export const BATTLE_LOGS_MAX_LIMIT = 100;
+
+// Self-imposed safety cap on /api/leaderboard's `limit` query param -- not a
+// reflection of any real upstream constraint, just a guard against an
+// unbounded enrichment fan-out. Also previously present, also lost in the
+// same recovery (docs/history/track-a-summary.txt).
+export const MAX_LEADERBOARD_REQUEST_SIZE = 100; // not sure what to do with this one yet, but it was in the old codebase and I don't want to lose it. maybe needs to be deleted
+
+// 3 min default. Longer than the other leaderboard TTLs deliberately: this
+// cache is never read by live mode (see cache-and-polling-strategy.md,
+// "Layer 4"), and rank order below the top handful of players doesn't shift
+// meaningfully within a few minutes of non-live browsing. A longer TTL
+// directly reduces how often a cache miss pays the 10-upstream-call cost of
+// rebuilding a 1000-player pool.
+export const RANK_CANDIDATE_CACHE_TTL_MS = Number(process.env.RANK_CANDIDATE_CACHE_TTL_MS || 180000);
 export const TEAM_CACHE_TTL_MS = Number(process.env.TEAM_CACHE_TTL_MS || 600000);
 export const TEAM_COMPOSITION_CACHE_TTL_MS = Number(process.env.TEAM_COMPOSITION_CACHE_TTL_MS || 900000);
 export const TEAM_CACHE_REFRESH_THRESHOLD = Number(process.env.TEAM_CACHE_REFRESH_THRESHOLD || 0.5);

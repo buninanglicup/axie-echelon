@@ -97,6 +97,13 @@ export function getLeaderboardStorageKey(limit, offset, milestone) {
 // ===== Mutable state (see file-level comment on why this is one object) =====
 export const leaderboardState = {
   leaderboardData: [],
+  // Full 1..LEADERBOARD_MAX_RANK candidate pool for non-live pagination
+  // (Phase 3). Separate from leaderboardData, which stays the legacy
+  // route's single fixed window used by live mode -- see
+  // docs/planning/leaderboard-roadmap.md, "Fetch strategy".
+  leaderboardPool: [],
+  leaderboardPoolLoaded: false,
+  leaderboardPoolFetchPromise: null, // in-flight dedup guard
   currentEraMilestone: DEFAULT_ERA_MILESTONE,
   activeBattleWindowMinutes: null,
   rankMin: null,

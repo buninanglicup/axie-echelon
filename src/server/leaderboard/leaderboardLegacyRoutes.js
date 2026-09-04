@@ -3,6 +3,7 @@ import { DEBUG_ON } from "../shared/env.js";
 import { getCachedPage, setCachedPage } from "./leaderboardCaches.js";
 import { fetchAndEnrichLeaderboard, schedulePageRefresh } from "./leaderboardEnrichment.js";
 import { resolveEraMilestone } from "../seasonRoutes.js";
+import { MAX_LEADERBOARD_REQUEST_SIZE } from "./leaderboardConstants.js";
 
 const router = express.Router();
 
@@ -10,7 +11,7 @@ const router = express.Router();
 // pool/team endpoints is complete.
 router.get("/api/leaderboard", async (request, response) => {
   try {
-    const limit = Math.max(1, Number(request.query.limit) || 20);
+    const limit = Math.min(MAX_LEADERBOARD_REQUEST_SIZE, Math.max(1, Number(request.query.limit) || 20));
     const offset = Math.max(0, Number(request.query.offset) || 0);
     const eraMilestone = resolveEraMilestone(request);
     const liveMode = (request.query.liveMode || "false").toLowerCase() === "true";

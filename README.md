@@ -93,7 +93,7 @@ For profile-based tuning, keep the values in `.env` as profile-scoped overrides 
   - `http://127.0.0.1:8787/api/leaderboard?limit=3&offset=0&milestone=3`
 - If the page loads but the API is unreachable, the backend process is not running or is exiting early.
 
-The app now runs as one unified process. Until the planned Phase 2 pagination pipeline is integrated, `VITE_LEADERBOARD_LIMIT` and `VITE_LEADERBOARD_OFFSET` select one fixed leaderboard window; ranks outside that window are not available in the UI. See [the leaderboard roadmap](docs/planning/leaderboard-roadmap.md) for the next implementation priority.
+The app now runs as one unified process. Until the Phase 3 candidate-pool and pagination pipeline is integrated, `VITE_LEADERBOARD_LIMIT` and `VITE_LEADERBOARD_OFFSET` select one fixed leaderboard window; ranks outside that window are not available in the UI. See [the leaderboard roadmap](docs/planning/leaderboard-roadmap.md) for the current implementation breakdown.
 
 The current multi-tracker workflow is intentionally profile-based instead of hard-coded process duplication. It keeps each local tracker isolated by `TRACKER_PROFILE`, preserves clean dev-time testing across multiple rank windows, and avoids the stale identity assumptions that were previously causing profile collisions.
 

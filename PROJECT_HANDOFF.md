@@ -1,6 +1,6 @@
 # Axie Echelon: Current Project Handoff
 
-**Last verified:** 2026-08-27
+**Last verified:** 2026-09-04
 
 This is the canonical current-status document. `PHASE1_SPLIT_SUMMARY.md` records the historical refactor, while `HANDOFF.md` and `PROJECT_STATUS.md` are older overlapping notes.
 
@@ -62,7 +62,7 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
   - backend `127.0.0.1:8787`
 - Profile-driven multi-tracker development using `.env`; each instance selects a numbered `TRACKER_PROFILE` and receives isolated runtime settings.
 - Five predefined PowerShell launch scripts for local multi-window testing; the profile resolver itself supports additional contiguous profile numbers.
-- The leaderboard currently shows one fixed window from `VITE_LEADERBOARD_LIMIT` and `VITE_LEADERBOARD_OFFSET`; Phase 2 pagination is the next priority.
+- Phase 3 candidate-pool implementation is in progress: 3a (backend ceiling/cache constants) and 3b (full-pool loading) are implemented; 3c (client-side filtering), 3d (pagination), and 3e (narrow-then-enrich rune/body-part filtering) remain.
 
 ## Backend Routes
 

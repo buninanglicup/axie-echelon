@@ -282,6 +282,56 @@ async function fetchJsonWithRetry(url, attempts = 8) {
   throw lastError || new Error("Request failed.");
 }
 
+// ===== Candidate pool fetch (Phase 3, non-live pagination) =====
+// Fetches the full 1..LEADERBOARD_MAX_RANK candidate pool once per era.
+// Deliberately always requests the full ceiling regardless of any active
+// rank/name/rune filter -- see "Fetch strategy" in
+// docs/planning/leaderboard-roadmap.md for why. Not yet wired into
+// rendering (that's 3c/3d); this only populates leaderboardState.leaderboardPool.
+let leaderboardPoolFetchMilestone = null;
+
+async function fetchLeaderboardPool() {
+  // Dedup: if a fetch for this era is already in flight, reuse it instead
+  // of firing a second request (e.g. init and an era-change racing).
+  const milestone = leaderboardState.currentEraMilestone;
+  if (
+    leaderboardState.leaderboardPoolFetchPromise &&
+    leaderboardPoolFetchMilestone === milestone
+  ) {
+    return leaderboardState.leaderboardPoolFetchPromise;
+  }
+
+  const url = `/api/leaderboard/pool?rankMax=${LEADERBOARD_MAX_RANK}&milestone=${milestone}`;
+
+  const fetchPromise = (async () => {
+    try {
+      console.log("Fetching leaderboard pool from:", url);
+      const response = await fetchJsonWithRetry(url);
+      if (!response.ok) {
+        console.error(`Leaderboard pool fetch failed: ${response.status}`);
+        return;
+      }
+      const data = await response.json();
+      if (leaderboardState.currentEraMilestone !== milestone) return;
+      const players = Array.isArray(data.players) ? data.players : [];
+      leaderboardState.leaderboardPool = players;
+      leaderboardState.leaderboardPoolLoaded = true;
+      console.log(`Leaderboard pool loaded: ${players.length} players for milestone ${milestone}`);
+    } catch (error) {
+      console.error("Leaderboard pool fetch error:", error);
+    } finally {
+      if (leaderboardState.leaderboardPoolFetchPromise === fetchPromise) {
+        leaderboardState.leaderboardPoolFetchPromise = null;
+        leaderboardPoolFetchMilestone = null;
+      }
+    }
+  })();
+
+  leaderboardPoolFetchMilestone = milestone;
+  leaderboardState.leaderboardPoolFetchPromise = fetchPromise;
+  return fetchPromise;
+}
+
 // ===== Hydration (fetch + render) =====
 async function hydrateLeaderboard() {
   const leaderboardBody = document.querySelector("#leaderboard-body");
@@ -443,6 +493,8 @@ async function syncConfiguredEra() {
     leaderboardState.currentEraMilestone = String(data.milestone);
     updateEraTabs(leaderboardState.currentEraMilestone);
     if (seasonSelector) seasonSelector.value = String(data.seasonId);
+    leaderboardState.leaderboardPoolLoaded = false;
+    fetchLeaderboardPool();
     console.log(
       `[syncConfiguredEra] Resolved ${data.seasonName} - ${data.eraName} (API milestone=${leaderboardState.currentEraMilestone})`
     );
@@ -454,6 +506,8 @@ async function syncConfiguredEra() {
     );
     leaderboardState.currentEraMilestone = "3";
     updateEraTabs(leaderboardState.currentEraMilestone);
+    leaderboardState.leaderboardPoolLoaded = false;
+    fetchLeaderboardPool();
     return previousEraMilestone !== leaderboardState.currentEraMilestone;
   }
 }
@@ -725,6 +779,8 @@ export function initLeaderboardView() {
       if (!milestone) return;
       leaderboardState.currentEraMilestone = milestone;
       updateEraTabs(milestone);
+      leaderboardState.leaderboardPoolLoaded = false;
+      fetchLeaderboardPool();
       hydrateLeaderboard();
     });
   }

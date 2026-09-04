@@ -22,6 +22,14 @@ router.get("/api/leaderboard/pool", async (request, response) => {
         rank: player.topRank || player.rank,
         name: player.name || player.userID,
         mmr: player.vstar || player.rating,
+        // NOT YET IMPLEMENTED: win_rate, daily_change, and recent_form do not exist
+        // on the real Skymavis season-leaderboards response (confirmed against a
+        // live payload -- see docs/planning/leaderboard-roadmap.md). These fields
+        // have always evaluated to null / "-" / [] for every player. Left in place,
+        // clearly marked, as a known future feature rather than removed, since
+        // comparable leaderboard tools do support this and it's worth adding once a
+        // real data source (per-player call, or a different upstream field) is
+        // identified.
         winRate: player.win_rate !== null && player.win_rate !== undefined ? player.win_rate * 100 : null,
         dailyChange: player.daily_change || "-",
         recentForm: Array.isArray(player.recent_form) ? player.recent_form : [],
