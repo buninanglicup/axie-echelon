@@ -123,7 +123,8 @@ export const leaderboardState = {
   runeCatalog: [],
   runeCatalogLoaded: false,
   activeRuneId: null,
-  runeFilterActive: false
+  runeFilterActive: false,
+  playerNameQuery: ""
 };
 
 // Live-mode only: retain the last successful battle timestamp per player and

@@ -267,9 +267,9 @@ validated and committed independently:
 - **3e — Rune/body-part narrowing:** apply cheap rank/name filters first, then
   enrich or scan only the surviving candidates and keep the intersection.
 
-Current progress: **3a complete; 3b complete; 3c next.** The visible table
-still uses the legacy eager route until 3c/3d establish the non-live pool
-consumer and pagination path.
+Current progress: **3a complete; 3b complete; 3c in progress; 3d next.**
+The non-live table now consumes the loaded pool for rank/name filtering and
+rendering; pagination remains the next step.
 
 ### Phase 4 — Progressive enrichment and status-driven rendering
 

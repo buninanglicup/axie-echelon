@@ -3,7 +3,7 @@
 // `leaderboardData`, `rankMin`, `liveModeEnabled`) are now properties of the
 // imported `leaderboardState` object -- see leaderboardState.js for why.
 import { renderLeaderboardRows, updateLeaderboardRelativeTimes } from "./leaderboardRenderer.js";
-import { applyLeaderboardFilters } from "./leaderboardFilters.js";
+import { applyLeaderboardFilters, applyRankFilter } from "./leaderboardFilters.js";
 import { createRuneFilterController } from "./leaderboardRuneFilter.js";
 import {
   leaderboardState,
@@ -136,6 +136,41 @@ function renderFilteredLeaderboard() {
   updateActiveFilters();
 }
 
+// ===== Non-live pool filtering (Phase 3c) =====
+// Rank range and player-name substring filtering run together over the full
+// cached candidate pool. Rune/body-part filtering is a later narrow-then-enrich
+// step and is intentionally not part of this cheap predicate pass.
+function applyNameFilter(players) {
+  const query = (leaderboardState.playerNameQuery || "").trim().toLowerCase();
+  if (!query) return players;
+  return (players || []).filter((player) => {
+    const name = String(player?.name || player?.userID || "").toLowerCase();
+    return name.includes(query);
+  });
+}
+
+function applyPoolFilters(players) {
+  return applyNameFilter(applyRankFilter(players));
+}
+
+function renderFilteredPool() {
+  if (leaderboardState.runeFilterActive || leaderboardState.liveModeEnabled) return;
+  if (!leaderboardState.leaderboardPoolLoaded) return;
+  const leaderboardBody = document.querySelector("#leaderboard-body");
+  if (!leaderboardBody) return;
+  renderLeaderboardRows(leaderboardBody, applyPoolFilters(leaderboardState.leaderboardPool));
+  updateActiveFilters();
+}
+
+// Keep filter handlers independent of the active data source.
+function renderFilteredView() {
+  if (leaderboardState.liveModeEnabled) {
+    renderFilteredLeaderboard();
+  } else {
+    renderFilteredPool();
+  }
+}
+
 let clearRuneFilter = () => {};
 
 function updateActiveFilters() {
@@ -186,7 +221,7 @@ function updateActiveFilters() {
     clearButton.addEventListener("click", () => {
       tag.clear();
       updateLeaderboardFilterLabels();
-      renderFilteredLeaderboard();
+      renderFilteredView();
     });
     tagElement.append(clearButton);
     activeFilters.append(tagElement);
@@ -253,7 +288,7 @@ function updateLiveModeControls() {
     lastKnownGoodBattleTime.clear();
   }
 
-  renderFilteredLeaderboard();
+  renderFilteredView();
 }
 
 // Vite and the backend start in parallel under `npm run dev`. The frontend
@@ -287,7 +322,7 @@ async function fetchJsonWithRetry(url, attempts = 8) {
 // Deliberately always requests the full ceiling regardless of any active
 // rank/name/rune filter -- see "Fetch strategy" in
 // docs/planning/leaderboard-roadmap.md for why. Not yet wired into
-// rendering (that's 3c/3d); this only populates leaderboardState.leaderboardPool.
+// pagination (that's 3d); 3c consumes it for non-live filtering and rendering.
 let leaderboardPoolFetchMilestone = null;
 
 async function fetchLeaderboardPool() {
@@ -317,6 +352,7 @@ async function fetchLeaderboardPool() {
       leaderboardState.leaderboardPool = players;
       leaderboardState.leaderboardPoolLoaded = true;
       console.log(`Leaderboard pool loaded: ${players.length} players for milestone ${milestone}`);
+      renderFilteredPool();
     } catch (error) {
       console.error("Leaderboard pool fetch error:", error);
     } finally {
@@ -529,7 +565,7 @@ export function initLeaderboardView() {
   });
   clearRuneFilter = () => {
     runeFilterController.clearRuneFilter();
-    renderFilteredLeaderboard();
+    renderFilteredView();
   };
   runeFilterController.init();
 
@@ -572,7 +608,7 @@ export function initLeaderboardView() {
         }
       }
       updateRankFilterLabels();
-      renderFilteredLeaderboard();
+      renderFilteredView();
     });
 
     rankMinInput.addEventListener("blur", () => {
@@ -623,7 +659,7 @@ export function initLeaderboardView() {
         }
       }
       updateRankFilterLabels();
-      renderFilteredLeaderboard();
+      renderFilteredView();
     });
 
     rankMaxInput.addEventListener("blur", () => {
@@ -642,7 +678,7 @@ export function initLeaderboardView() {
       if (rankMinInput) rankMinInput.value = "1";
       if (rankMaxInput) rankMaxInput.value = "100";
       updateRankFilterLabels();
-      renderFilteredLeaderboard();
+      renderFilteredView();
     });
   }
 
@@ -666,7 +702,7 @@ export function initLeaderboardView() {
       }
 
       updateLeaderboardFilterLabels();
-      renderFilteredLeaderboard();
+      renderFilteredView();
     };
 
     lastBattleFilter.addEventListener("input", updateBattleWindowFromSlider);
@@ -675,10 +711,19 @@ export function initLeaderboardView() {
     updateBattleWindowFromSlider();
   }
 
-  if (playerNameSearch && playerNameClear) {
+  if (playerNameSearch) {
+    playerNameSearch.addEventListener("input", () => {
+      leaderboardState.playerNameQuery = playerNameSearch.value;
+      renderFilteredView();
+    });
+  }
+
+  if (playerNameClear) {
     playerNameClear.addEventListener("click", () => {
       playerNameSearch.value = "";
+      leaderboardState.playerNameQuery = "";
       playerNameSearch.focus();
+      renderFilteredView();
     });
   }
 
@@ -689,9 +734,10 @@ export function initLeaderboardView() {
       if (rankMinInput) rankMinInput.value = "";
       if (rankMaxInput) rankMaxInput.value = "";
       if (playerNameSearch) playerNameSearch.value = "";
+      leaderboardState.playerNameQuery = "";
       clearRuneFilter();
       updateLeaderboardFilterLabels();
-      renderFilteredLeaderboard();
+      renderFilteredView();
     });
   }
 
@@ -781,7 +827,7 @@ export function initLeaderboardView() {
       updateEraTabs(milestone);
       leaderboardState.leaderboardPoolLoaded = false;
       fetchLeaderboardPool();
-      hydrateLeaderboard();
+      if (leaderboardState.liveModeEnabled) hydrateLeaderboard();
     });
   }
 
@@ -809,13 +855,13 @@ export function initLeaderboardView() {
   // ===== END: Compact mode toggle =====
 
   async function startLeaderboardView() {
-    // Resolve the era before the first leaderboard request so the initial
-    // request does not depend on the fallback era value.
+    // Resolve the era before the first leaderboard request. Non-live mode
+    // renders from the candidate pool; live mode keeps the legacy route.
     await syncConfiguredEra();
-    await hydrateLeaderboard();
+    if (leaderboardState.liveModeEnabled) await hydrateLeaderboard();
     setInterval(async () => {
       const milestoneChanged = await syncConfiguredEra();
-      if (milestoneChanged) await hydrateLeaderboard();
+      if (milestoneChanged && leaderboardState.liveModeEnabled) await hydrateLeaderboard();
     }, SEASON_ERA_CHECK_INTERVAL_MS);
   }
 
