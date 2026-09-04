@@ -7,20 +7,24 @@
 // semaphore (see shared/concurrency.js) effective across all three callers.
 import { AXIE_ECHELON_API_KEY, DEBUG_ON, MAVIS_API_URL } from "../shared/env.js";
 import { withBattleLogSlot } from "../shared/concurrency.js";
+import { parseRetryAfterMs } from "../shared/httpRetry.js";
 import { getRuneMetadata } from "./runeCatalog.js";
 import { BATTLE_LOGS_MIN_LIMIT, BATTLE_LOGS_MAX_LIMIT } from "./leaderboardConstants.js";
 import {
   recordBattleLogFetch,
   recordBattleLogQueueWait,
   startBattleLogAttempt,
-  finishBattleLogAttempt
+  finishBattleLogAttempt,
+  recordRetryableResponse
 } from "./runeScanDiagnostics.js";
 
 const BATTLELOG_FETCH_ATTEMPTS = Number(process.env.BATTLELOG_FETCH_ATTEMPTS || 3);
 const BATTLELOG_FETCH_TIMEOUT_MS = Number(process.env.BATTLELOG_FETCH_TIMEOUT_MS || 3000);
 const BATTLELOG_FETCH_BACKOFF_MS = Number(process.env.BATTLELOG_FETCH_BACKOFF_MS || 500);
+const BATTLELOG_MAX_RETRY_DELAY_MS = Number(process.env.BATTLELOG_MAX_RETRY_DELAY_MS || 10_000);
+const BATTLELOG_MAX_TOTAL_RETRY_DELAY_MS = Number(process.env.BATTLELOG_MAX_TOTAL_RETRY_DELAY_MS || 20_000);
 
-async function fetchWithRetry(url, options = {}, attempt = 1) {
+async function fetchWithRetry(url, options = {}, attempt = 1, totalDelayMs = 0) {
   const attemptStartedAt = startBattleLogAttempt();
   try {
     const controller = new AbortController();
@@ -37,10 +41,14 @@ async function fetchWithRetry(url, options = {}, attempt = 1) {
     // Retry on transient errors
     if ([429, 500, 502, 503].includes(response.status)) {
       if (attempt < BATTLELOG_FETCH_ATTEMPTS) {
-        const delay = backoffWithJitter(attempt);
+        const retryAfterMs = parseRetryAfterMs(response.headers.get("retry-after"));
+        const plannedBackoffMs = backoffWithJitter(attempt);
+        const delay = Math.min(retryAfterMs ?? plannedBackoffMs, BATTLELOG_MAX_RETRY_DELAY_MS);
+        recordRetryableResponse(retryAfterMs, plannedBackoffMs);
+        if (totalDelayMs + delay > BATTLELOG_MAX_TOTAL_RETRY_DELAY_MS) return response;
         if (DEBUG_ON) console.log(`[fetchWithRetry] attempt ${attempt}/${BATTLELOG_FETCH_ATTEMPTS} got ${response.status}, retrying in ${delay}ms...`);
         await new Promise(r => setTimeout(r, delay));
-        return fetchWithRetry(url, options, attempt + 1);
+        return fetchWithRetry(url, options, attempt + 1, totalDelayMs + delay);
       }
     }
 
@@ -49,10 +57,11 @@ async function fetchWithRetry(url, options = {}, attempt = 1) {
     finishBattleLogAttempt(attemptStartedAt, false);
     if (error.name === 'AbortError' || error.message.includes('timeout')) {
       if (attempt < BATTLELOG_FETCH_ATTEMPTS) {
-        const delay = backoffWithJitter(attempt);
+        const delay = Math.min(backoffWithJitter(attempt), BATTLELOG_MAX_RETRY_DELAY_MS);
+        if (totalDelayMs + delay > BATTLELOG_MAX_TOTAL_RETRY_DELAY_MS) throw error;
         if (DEBUG_ON) console.log(`[fetchWithRetry] attempt ${attempt}/${BATTLELOG_FETCH_ATTEMPTS} timed out, retrying in ${delay}ms...`);
         await new Promise(r => setTimeout(r, delay));
-        return fetchWithRetry(url, options, attempt + 1);
+        return fetchWithRetry(url, options, attempt + 1, totalDelayMs + delay);
       }
     }
     throw error;

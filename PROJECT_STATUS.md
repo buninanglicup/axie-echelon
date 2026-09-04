@@ -38,19 +38,28 @@ Completed in the current rune-scan milestone:
 - Sanitized fixture-backed tests, manual capture tooling, and live benchmark
   tooling. The full explicit suite passes 31 tests and the frontend build
   passes.
+- Opt-in rune-scan diagnostics measure candidate-pool time, battle-log
+  attempts/retries, upstream latency, concurrency, and shared queue wait.
+- Battle-log retries now honor `Retry-After` with bounded per-request retry
+  delay and cumulative retry sleep.
 
 The real Season 18 capture was generated locally at
 `api-responses/rune-scan-fixture-capture.json` (approximately 3.8 MB). It is
 ignored by Git because it contains real player data and must not be committed.
 
 Remaining handoff tasks:
-1. Tune the live scan after the first benchmark baseline: milestone `3` with
-  Bloodlust reached `700/1000` candidates and 27 matches before the 300-second
-  watchdog stopped it with `RUNE_SCAN_TIMEOUT`.
-2. Review the ignored real capture locally if actual data-shape inspection is
+1. Compare the Retry-After-aware live baseline against the prior behavior:
+  the prior run reached `800/1000` with 898 retries; the updated run reached
+  `600/1000` with 305 retries. Both reached battle-log concurrency 4 and
+  showed near-zero shared queue wait. The updated run observed `309/309`
+  retryable responses with `Retry-After`, and 308 requested more delay than
+  the old backoff.
+2. Measure whether lower battle-log concurrency improves completed candidates
+  per minute; do not judge by raw request count alone.
+3. Review the ignored real capture locally if actual data-shape inspection is
    needed.
-3. Tune batch size, pause, or concurrency only after measuring live results.
-4. If changing GitHub accounts, authenticate the new account for the current
+4. Tune batch size, pause, or concurrency only after measuring live results.
+5. If changing GitHub accounts, authenticate the new account for the current
    remote or update the remote to the new repository:
    `https://github.com/buninanglicup/axie-echelon.git`.
 

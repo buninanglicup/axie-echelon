@@ -73,5 +73,10 @@ if (RUNE_SCAN_DIAGNOSTICS_ENABLED) {
     `Battle-log queue wait: avg ${diagnostics.battleLogAvgQueueWaitMs === null ? "n/a" : Math.round(diagnostics.battleLogAvgQueueWaitMs)}ms, ` +
       `max ${diagnostics.battleLogMaxQueueWaitMs ?? "n/a"}ms`
   );
+  console.log(
+    `Retry-After: ${diagnostics.retryAfterPresentCount}/${diagnostics.retryableStatusCount} retryable responses, ` +
+      `avg ${diagnostics.retryAfterAvgMs === null ? "n/a" : Math.round(diagnostics.retryAfterAvgMs)}ms, ` +
+      `${diagnostics.retryAfterExceedsPlannedBackoffCount} longer than planned backoff`
+  );
   console.log("Battle-log upstream latency excludes time waiting in the shared priority queue.");
 }

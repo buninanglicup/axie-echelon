@@ -13,7 +13,11 @@ function createState() {
     battleLogLatencyMs: [],
     battleLogQueueWaitMs: [],
     battleLogActive: 0,
-    battleLogMaxActive: 0
+    battleLogMaxActive: 0,
+    retryableStatusCount: 0,
+    retryAfterPresentCount: 0,
+    retryAfterMs: [],
+    retryAfterExceedsPlannedBackoffCount: 0
   };
 }
 
@@ -65,6 +69,15 @@ export function finishBattleLogAttempt(startedAt, success) {
   else state.battleLogFailures += 1;
 }
 
+export function recordRetryableResponse(retryAfterMs, plannedBackoffMs) {
+  if (!enabled) return;
+  state.retryableStatusCount += 1;
+  if (retryAfterMs === null) return;
+  state.retryAfterPresentCount += 1;
+  state.retryAfterMs.push(retryAfterMs);
+  if (retryAfterMs > plannedBackoffMs) state.retryAfterExceedsPlannedBackoffCount += 1;
+}
+
 function average(values) {
   return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
 }
@@ -90,6 +103,11 @@ export function getRuneScanDiagnosticsSnapshot() {
     battleLogMaxLatencyMs: latencyMs.length ? Math.max(...latencyMs) : null,
     battleLogAvgQueueWaitMs: average(state.battleLogQueueWaitMs),
     battleLogMaxQueueWaitMs: state.battleLogQueueWaitMs.length ? Math.max(...state.battleLogQueueWaitMs) : null,
-    battleLogMaxActive: state.battleLogMaxActive
+    battleLogMaxActive: state.battleLogMaxActive,
+    retryableStatusCount: state.retryableStatusCount,
+    retryAfterPresentCount: state.retryAfterPresentCount,
+    retryAfterAvgMs: average(state.retryAfterMs),
+    retryAfterMaxMs: state.retryAfterMs.length ? Math.max(...state.retryAfterMs) : null,
+    retryAfterExceedsPlannedBackoffCount: state.retryAfterExceedsPlannedBackoffCount
   };
 }
