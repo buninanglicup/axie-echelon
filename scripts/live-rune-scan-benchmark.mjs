@@ -15,6 +15,11 @@
 import "dotenv/config";
 import { startRuneScanJob, getRuneScanJob } from "../src/server/leaderboard/runeScanJobs.js";
 import { LEADERBOARD_MAX_RANK } from "../src/server/leaderboard/leaderboardConstants.js";
+import {
+  RUNE_SCAN_DIAGNOSTICS_ENABLED,
+  resetRuneScanDiagnostics,
+  getRuneScanDiagnosticsSnapshot
+} from "../src/server/leaderboard/runeScanDiagnostics.js";
 
 const eraMilestone = process.argv[2];
 const runeId = process.argv[3];
@@ -23,6 +28,7 @@ if (!eraMilestone || !runeId) {
   process.exit(1);
 }
 
+resetRuneScanDiagnostics();
 const startedAt = Date.now();
 const started = startRuneScanJob({ runeIds: [runeId], eraMilestone, rankMin: 1, rankMax: LEADERBOARD_MAX_RANK });
 console.log(`Started ${started.jobId} (${started.status})`);
@@ -37,6 +43,35 @@ while (true) {
   await new Promise((resolve) => setTimeout(resolve, 200));
 }
 const finalJob = getRuneScanJob(started.jobId);
-console.log(`Finished in ${Date.now() - startedAt}ms with status=${finalJob.status}`);
+const finishedAt = Date.now();
+console.log(`Finished in ${finishedAt - startedAt}ms with status=${finalJob.status}`);
 console.log(`Final progress: ${finalJob.processedCount}/${finalJob.totalCandidates ?? "?"}, ${finalJob.matches.length} matches`);
 if (finalJob.error) console.log(`Error: ${finalJob.error.code} - ${finalJob.error.message}`);
+
+if (RUNE_SCAN_DIAGNOSTICS_ENABLED) {
+  const diagnostics = getRuneScanDiagnosticsSnapshot();
+  const schedulingMs = diagnostics.scanStartedAt === null ? null : diagnostics.scanStartedAt - startedAt;
+  const postCandidatePoolMs = diagnostics.candidatePoolDurationMs === null
+    ? null
+    : finishedAt - startedAt - schedulingMs - diagnostics.candidatePoolDurationMs;
+  console.log("--- Rune scan diagnostics ---");
+  console.log(`Job scheduling before scan: ${schedulingMs ?? "n/a"}ms`);
+  console.log(
+    `Candidate pool: ${diagnostics.candidatePoolDurationMs ?? "n/a"}ms, ` +
+      `${diagnostics.candidatePoolRequests} upstream request(s), ` +
+      `${diagnostics.candidatePoolCacheHits} cache hit(s)`
+  );
+  console.log(`Post-candidate-pool elapsed: ${postCandidatePoolMs ?? "n/a"}ms (includes batch pauses and polling delay)`);
+  console.log(
+    `Battle logs: ${diagnostics.battleLogFetches} fetch call(s), ` +
+      `${diagnostics.battleLogAttempts} attempt(s), ` +
+      `${diagnostics.battleLogRetryAttempts} retry attempt(s), ` +
+      `avg ${diagnostics.battleLogAvgLatencyMs === null ? "n/a" : Math.round(diagnostics.battleLogAvgLatencyMs)}ms, ` +
+      `max active ${diagnostics.battleLogMaxActive}`
+  );
+  console.log(
+    `Battle-log queue wait: avg ${diagnostics.battleLogAvgQueueWaitMs === null ? "n/a" : Math.round(diagnostics.battleLogAvgQueueWaitMs)}ms, ` +
+      `max ${diagnostics.battleLogMaxQueueWaitMs ?? "n/a"}ms`
+  );
+  console.log("Battle-log upstream latency excludes time waiting in the shared priority queue.");
+}

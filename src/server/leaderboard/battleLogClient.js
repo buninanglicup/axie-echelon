@@ -9,12 +9,19 @@ import { AXIE_ECHELON_API_KEY, DEBUG_ON, MAVIS_API_URL } from "../shared/env.js"
 import { withBattleLogSlot } from "../shared/concurrency.js";
 import { getRuneMetadata } from "./runeCatalog.js";
 import { BATTLE_LOGS_MIN_LIMIT, BATTLE_LOGS_MAX_LIMIT } from "./leaderboardConstants.js";
+import {
+  recordBattleLogFetch,
+  recordBattleLogQueueWait,
+  startBattleLogAttempt,
+  finishBattleLogAttempt
+} from "./runeScanDiagnostics.js";
 
 const BATTLELOG_FETCH_ATTEMPTS = Number(process.env.BATTLELOG_FETCH_ATTEMPTS || 3);
 const BATTLELOG_FETCH_TIMEOUT_MS = Number(process.env.BATTLELOG_FETCH_TIMEOUT_MS || 3000);
 const BATTLELOG_FETCH_BACKOFF_MS = Number(process.env.BATTLELOG_FETCH_BACKOFF_MS || 500);
 
 async function fetchWithRetry(url, options = {}, attempt = 1) {
+  const attemptStartedAt = startBattleLogAttempt();
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), BATTLELOG_FETCH_TIMEOUT_MS);
@@ -25,6 +32,7 @@ async function fetchWithRetry(url, options = {}, attempt = 1) {
     });
 
     clearTimeout(timeoutId);
+    finishBattleLogAttempt(attemptStartedAt, response.ok);
 
     // Retry on transient errors
     if ([429, 500, 502, 503].includes(response.status)) {
@@ -38,6 +46,7 @@ async function fetchWithRetry(url, options = {}, attempt = 1) {
 
     return response;
   } catch (error) {
+    finishBattleLogAttempt(attemptStartedAt, false);
     if (error.name === 'AbortError' || error.message.includes('timeout')) {
       if (attempt < BATTLELOG_FETCH_ATTEMPTS) {
         const delay = backoffWithJitter(attempt);
@@ -110,6 +119,7 @@ function extractBattleStartTimestamp(battle) {
 }
 
 export async function fetchBattleLogsForClient(clientId, limit = 20, priority = "high") {
+  recordBattleLogFetch();
   try {
     // ===== BATTLE-LOGS API =====
     // Endpoint: GET https://api-gateway.skymavis.com/origin/v2/community/users/:client_id/battle-logs?limit=N
@@ -143,11 +153,14 @@ export async function fetchBattleLogsForClient(clientId, limit = 20, priority = 
     const url = `${MAVIS_API_URL}/origin/v2/community/users/${clientId}/battle-logs?limit=${clampedLimit}`;
     if (DEBUG_ON) console.log(`[fetchBattleLogsForClient] Fetching: ${url} (priority=${priority})`);
 
+    const queuedAt = Date.now();
     const response = await withBattleLogSlot(
-      () =>
-        fetchWithRetry(url, {
+      () => {
+        recordBattleLogQueueWait(Date.now() - queuedAt);
+        return fetchWithRetry(url, {
           headers: { "x-api-key": AXIE_ECHELON_API_KEY }
-        }),
+        });
+      },
       priority
     );
 

@@ -2,6 +2,7 @@
 import { AXIE_ECHELON_API_KEY, DEBUG_ON, MAVIS_API_URL } from "../shared/env.js";
 import { fetchWithRetry, parseRetryAfterMs } from "../shared/httpRetry.js";
 import { RANK_CANDIDATE_CACHE_TTL_MS, SEASON_LEADERBOARD_API_MAX_LIMIT } from "./leaderboardConstants.js";
+import { recordCandidatePoolRequest, recordCandidatePoolCacheHit } from "./runeScanDiagnostics.js";
 
 export const rankCandidateCache = new Map();
 const inFlightChunkFetches = new Map();
@@ -26,6 +27,7 @@ async function fetchCandidateChunk(eraMilestone, offset) {
   const cached = rankCandidateCache.get(key);
   if (cached && Date.now() - cached.timestamp < RANK_CANDIDATE_CACHE_TTL_MS) {
     if (DEBUG_ON) console.log(`[fetchCandidateChunk] cache HIT for ${key}`);
+    recordCandidatePoolCacheHit();
     return { items: cached.items, isLastPage: cached.isLastPage };
   }
 
@@ -33,6 +35,7 @@ async function fetchCandidateChunk(eraMilestone, offset) {
 
   const promise = (async () => {
     const url = `${MAVIS_API_URL}/origins/v2/season-leaderboards?limit=${SEASON_LEADERBOARD_API_MAX_LIMIT}&offset=${offset}&milestone=${eraMilestone}`;
+    recordCandidatePoolRequest();
     const res = await fetchWithRetry(
       url,
       { headers: { "x-api-key": AXIE_ECHELON_API_KEY } },

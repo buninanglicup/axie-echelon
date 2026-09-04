@@ -37,6 +37,7 @@ import {
   RUNE_SCAN_ENRICHMENT_BATCH_SIZE,
   RUNE_SCAN_BATCH_PAUSE_MS
 } from "./leaderboardConstants.js";
+import { markRuneScanStart, markCandidatePoolEnd } from "./runeScanDiagnostics.js";
 
 // True if any fighter on the team currently has any selected rune equipped.
 function teamHasRune(team, runeIds) {
@@ -79,7 +80,9 @@ export async function scanLeaderboardForRune(
   eraMilestone,
   { rankMin = 1, rankMax = LEADERBOARD_MAX_RANK, name = "", onProgress } = {}
 ) {
+  markRuneScanStart();
   const candidates = await fetchRankCandidates(eraMilestone, LEADERBOARD_MAX_RANK);
+  markCandidatePoolEnd();
 
   const nameQuery = String(name || "").trim().toLowerCase();
   const narrowedCandidates = candidates.filter((player) => {
