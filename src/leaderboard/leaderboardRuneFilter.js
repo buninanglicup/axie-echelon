@@ -14,6 +14,7 @@ import {
 import { getPageItems } from "../pagination.js";
 
 const RUNE_RESCAN_DEBOUNCE_MS = 350;
+const RUNE_SCAN_POLL_INTERVAL_MS = 1500;
 
 export function createRuneFilterController({ renderRows, updateActiveFilters, getLeaderboardBody, onClear, onApply }) {
   let selectedRunes = [];
@@ -21,6 +22,8 @@ export function createRuneFilterController({ renderRows, updateActiveFilters, ge
   let rescanDebounceTimer = null;
   let lastScanMatches = [];
   let runeResultsPage = 1;
+  let activeJobId = null;
+  let pollTimer = null;
 
   async function loadRuneCatalogIfNeeded() {
     if (leaderboardState.runeCatalogLoaded) return;
@@ -102,7 +105,7 @@ export function createRuneFilterController({ renderRows, updateActiveFilters, ge
     }
   }
 
-  function buildRuneScanUrl() {
+  function buildRuneScanParams() {
     const params = new URLSearchParams();
     params.set("milestone", leaderboardState.currentEraMilestone);
     for (const rune of selectedRunes) params.append("runeId", rune.id);
@@ -111,7 +114,7 @@ export function createRuneFilterController({ renderRows, updateActiveFilters, ge
     if (rankMax) params.set("rankMax", String(rankMax));
     const trimmedName = (playerNameQuery || "").trim();
     if (trimmedName) params.set("name", trimmedName);
-    return `/api/leaderboard/rune/${encodeURIComponent(selectedRunes[0].id)}?${params.toString()}`;
+    return params;
   }
 
   function hideRunePager() {
@@ -151,9 +154,94 @@ export function createRuneFilterController({ renderRows, updateActiveFilters, ge
     updateActiveFilters();
   }
 
-  async function runRuneScan({ isRescan = false } = {}) {
+  function stopPolling() {
+    if (pollTimer !== null) {
+      clearTimeout(pollTimer);
+      pollTimer = null;
+    }
+  }
+
+  function cancelJob(jobId) {
+    if (!jobId) return;
+    fetch(`/api/leaderboard/rune-scan/${encodeURIComponent(jobId)}`, { method: "DELETE" }).catch((error) => {
+      console.warn(`Failed to cancel rune scan job ${jobId}`, error);
+    });
+  }
+
+  function statusTextForJob(job) {
+    const runeNames = selectedRunes.map((rune) => rune.name).join(", ");
+    const totalLabel = job.totalCandidates ?? (job.rankMax - job.rankMin + 1);
+    if (job.status === "queued") return `Queued to scan top ${totalLabel} ranked players for "${runeNames}"...`;
+    if (job.status === "running") {
+      const progress = job.totalCandidates ? `${job.processedCount}/${job.totalCandidates} checked` : `${job.processedCount} checked`;
+      return `Scanning top ${totalLabel} ranked players for "${runeNames}"... ${progress}, ${job.matches.length} found so far.`;
+    }
+    if (job.status === "complete") return `${job.matches.length} player(s) running any selected rune within top ${totalLabel}.`;
+    if (job.status === "cancelled") return `Scan for "${runeNames}" was cancelled.`;
+    return `Failed to scan for the selected runes.`;
+  }
+
+  function errorTextForJob(job) {
+    if (job.error?.code === "RUNE_SCAN_TIMEOUT") return `The rune scan took too long and was stopped. Try narrowing the rank range.`;
+    if (job.error?.code === "LEADERBOARD_UPSTREAM_UNAVAILABLE") return `The leaderboard data source is temporarily unavailable -- try again shortly.`;
+    return `Failed to scan for the selected runes.`;
+  }
+
+  function applyJobUpdate(job, generation) {
+    if (generation !== scanGeneration || !leaderboardState.runeFilterActive) return;
+    lastScanMatches = Array.isArray(job.matches) ? job.matches : [];
+    if (runeFilterStatus) {
+      runeFilterStatus.hidden = false;
+      runeFilterStatus.textContent = statusTextForJob(job);
+    }
+    renderRuneResultsPage();
+
+    if (job.status === "queued" || job.status === "running") {
+      pollTimer = setTimeout(() => pollJob(job.jobId, generation), RUNE_SCAN_POLL_INTERVAL_MS);
+      return;
+    }
+
+    activeJobId = null;
+    if (job.status === "failed") {
+      const message = errorTextForJob(job);
+      if (runeFilterStatus) runeFilterStatus.textContent = message;
+      if (lastScanMatches.length === 0) {
+        const body = getLeaderboardBody();
+        if (body) body.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:1rem; color:#f33;">${message}</td></tr>`;
+      }
+    }
+  }
+
+  async function pollJob(jobId, generation) {
+    if (generation !== scanGeneration || !leaderboardState.runeFilterActive) return;
+    try {
+      const response = await fetch(`/api/leaderboard/rune-scan/${encodeURIComponent(jobId)}`);
+      if (generation !== scanGeneration || !leaderboardState.runeFilterActive) return;
+      if (response.status === 404) {
+        activeJobId = null;
+        startScan({ isRescan: true });
+        return;
+      }
+      if (!response.ok) throw new Error(`Rune scan poll failed: ${response.status}`);
+      applyJobUpdate(await response.json(), generation);
+    } catch (error) {
+      if (generation !== scanGeneration || !leaderboardState.runeFilterActive) return;
+      console.error("Rune scan poll error:", error);
+      if (runeFilterStatus) runeFilterStatus.textContent = "Lost connection while scanning -- retrying...";
+      pollTimer = setTimeout(() => pollJob(jobId, generation), RUNE_SCAN_POLL_INTERVAL_MS);
+    }
+  }
+
+  async function startScan({ isRescan = false } = {}) {
     const generation = ++scanGeneration;
     if (onApply) onApply();
+
+    stopPolling();
+    cancelJob(activeJobId);
+    activeJobId = null;
+
+    lastScanMatches = [];
+    runeResultsPage = 1;
     const runeNames = selectedRunes.map((rune) => rune.name).join(", ");
     if (runeFilterStatus) {
       runeFilterStatus.hidden = false;
@@ -164,7 +252,9 @@ export function createRuneFilterController({ renderRows, updateActiveFilters, ge
     hideRunePager();
 
     try {
-      const response = await fetch(buildRuneScanUrl());
+      const params = buildRuneScanParams();
+      const response = await fetch(`/api/leaderboard/rune-scan?${params.toString()}`, { method: "POST" });
+      if (generation !== scanGeneration || !leaderboardState.runeFilterActive) return;
       if (!response.ok) {
         let code = null;
         let message = null;
@@ -175,27 +265,21 @@ export function createRuneFilterController({ renderRows, updateActiveFilters, ge
         } catch {
           // Use the status-based fallback below when the response is not JSON.
         }
-        const error = new Error(message || `Rune filter request failed: ${response.status}`);
+        const error = new Error(message || `Rune scan request failed: ${response.status}`);
         error.code = code;
         error.retryAfterSeconds = Number(response.headers.get("retry-after")) || null;
         throw error;
       }
-      const data = await response.json();
+      const job = await response.json();
       if (generation !== scanGeneration || !leaderboardState.runeFilterActive) return;
-
-      lastScanMatches = Array.isArray(data.players) ? data.players : [];
-      runeResultsPage = 1;
-      if (runeFilterStatus) {
-        runeFilterStatus.textContent = `${lastScanMatches.length} player(s) running any selected rune within top ${data.scannedRanks || LEADERBOARD_MAX_RANK}.`;
-      }
-      renderRuneResultsPage();
+      activeJobId = job.jobId;
+      applyJobUpdate(job, generation);
     } catch (error) {
       console.error("Rune filter error:", error);
       if (generation !== scanGeneration) return;
-      const statusText =
-        error.code === "LEADERBOARD_UPSTREAM_UNAVAILABLE"
-          ? `The leaderboard data source is temporarily unavailable${error.retryAfterSeconds ? ` -- try again in about ${error.retryAfterSeconds}s` : ""}.`
-          : `Failed to scan for the selected runes.`;
+      const statusText = error.code === "LEADERBOARD_UPSTREAM_UNAVAILABLE"
+        ? `The leaderboard data source is temporarily unavailable -- try again shortly.`
+        : `Failed to start scan for the selected runes.`;
       if (runeFilterStatus) runeFilterStatus.textContent = statusText;
       if (leaderboardBody) {
         leaderboardBody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:1rem; color:#f33;">${statusText}</td></tr>`;
@@ -215,14 +299,14 @@ export function createRuneFilterController({ renderRows, updateActiveFilters, ge
     if (runeFilterClear) runeFilterClear.hidden = false;
     renderSelectedRuneChips();
     clearTimeout(rescanDebounceTimer);
-    await runRuneScan();
+    await startScan();
   }
 
   function rescanIfActive() {
     if (!leaderboardState.runeFilterActive || selectedRunes.length === 0) return;
     clearTimeout(rescanDebounceTimer);
     rescanDebounceTimer = setTimeout(() => {
-      runRuneScan({ isRescan: true });
+      startScan({ isRescan: true });
     }, RUNE_RESCAN_DEBOUNCE_MS);
   }
 
@@ -237,10 +321,14 @@ export function createRuneFilterController({ renderRows, updateActiveFilters, ge
       return;
     }
     leaderboardState.runeFilterActive = true;
-    runRuneScan({ isRescan: true });
+    startScan({ isRescan: true });
   }
 
   function clearRuneFilter() {
+    scanGeneration += 1;
+    stopPolling();
+    cancelJob(activeJobId);
+    activeJobId = null;
     selectedRunes = [];
     leaderboardState.selectedRunes = [];
     lastScanMatches = [];
