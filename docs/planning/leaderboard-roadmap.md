@@ -278,6 +278,9 @@ selected rune results are paginated client-side. Non-live visible rows also
 progressively request team data so the existing morph renderer can populate
 the three Axie previews. The gene fallback and starter name-only behavior are
 leaderboard-preview behavior only; the separate Morph Viewer is unaffected.
+The rune selector supports multiple selected runes as removable chips; the
+selected IDs are scanned together with OR semantics, while typing remains
+catalog search only. Removing one chip reruns the composed leaderboard filter.
 Remaining verification is manual validation of morph completeness for real
 ranked-battle payloads.
 

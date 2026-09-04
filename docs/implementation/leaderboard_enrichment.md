@@ -2,6 +2,19 @@
 
 This document records the current leaderboard enrichment behavior, the changes made to stabilize top-player team previews, and the test configuration used during debugging. Its rendering rules apply only to the leaderboard's team-preview column; the separate Morph Viewer is not affected.
 
+The leaderboard rune control is a searchable multi-select. Typing searches the
+existing rune catalog but does not filter results until a suggestion is
+selected. Selected runes appear as removable image/name chips, duplicate IDs
+are ignored, and multiple selected runes use OR semantics: a player matches if
+their team has any selected rune. This control is leaderboard-only; the
+separate Morph Viewer is unchanged.
+
+Current limitation: the multi-select UI and repeated-rune route contract are
+implemented, but end-to-end manual verification is still outstanding because
+the running app has reported no results after a rune selection. Restart the
+backend after source changes before retesting; if the issue remains, inspect
+the browser request and backend response together.
+
 **See also:** [Cache and Polling Strategy](../planning/cache-and-polling-strategy.md) — comprehensive guide to the three-layer cache architecture, polling optimization, and tuning recommendations for live battle tracking.
 
 ## Current goal

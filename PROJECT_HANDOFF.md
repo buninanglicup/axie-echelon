@@ -64,6 +64,7 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
 - Five predefined PowerShell launch scripts for local multi-window testing; the profile resolver itself supports additional contiguous profile numbers.
 - Phase 3 candidate-pool implementation: 3a (backend ceiling/cache constants), 3b (full-pool loading), 3c (client-side filtering), 3d (pagination), and 3e rune narrowing are implemented. Non-live visible rows progressively request team data and reuse the existing morph renderer. Body-part filtering remains future work because its catalog, route, and predicate are not implemented. Morph completeness still requires manual verification against real ranked-battle payloads.
 - Leaderboard morph field behavior is documented in `docs/implementation/leaderboard_enrichment.md`: collectible Axies prefer `genes_metamorph`, non-collectible Ronin Axies use `genes`, anomalous collectible nulls fall back to `genes`, and starter Axies are currently name-only pending a starter-specific renderer. These rules apply only to leaderboard team previews; the separate Morph Viewer is unchanged.
+- The leaderboard Rune Filter is a searchable multi-select. It stores stable rune IDs, displays removable image/name chips, prevents duplicates, and applies OR semantics across selected runes. Typing only searches the catalog; selecting or removing a chip updates leaderboard results. The Morph Viewer is not affected.
 
 ## Backend Routes
 
@@ -90,8 +91,8 @@ An Axie is considered collectible when it has at least one verified collectible 
 
 - Live-mode page reload bug remains unresolved. It resets live mode, compact mode, and other in-memory UI state. Possible areas include browser/Vite HMR behavior, extensions, or runtime/network handling; the root cause is not established.
 - Live activity filtering excludes players whose current battle-time fetch fails because their timestamp is intentionally `null`. This is a deliberate accuracy policy but remains a product decision: show them as unavailable versus exclude them.
-- The frontend still uses the legacy eager `/api/leaderboard` route. The pool plus on-demand team endpoints exist but are not yet integrated into the main leaderboard UI.
-- Rune-scan output is not paginated and is limited to ranks 1-200.
+- Rune multi-select currently has an unresolved end-to-end verification issue: selecting a rune can leave the leaderboard with no results. The UI, repeated-ID route contract, and OR scanner logic are implemented, but the running backend must be restarted after source changes and the real response path still needs investigation if the issue persists.
+- Rune-scan output is paginated client-side and scans the configured top-1000 candidate pool.
 - Frontend and backend each define the rank scan ceiling; they must be kept synchronized manually.
 - Several related in-memory caches coexist during migration: legacy team cache, team-composition cache, enrichment cache, profile cache, page cache, and candidate cache.
 - Compact-mode preference is not persisted across a full page reload.

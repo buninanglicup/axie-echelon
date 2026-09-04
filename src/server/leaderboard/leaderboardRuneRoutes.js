@@ -18,14 +18,21 @@ router.get("/api/leaderboard/rune/:runeId", async (request, response) => {
     const requestedRankMax = Math.max(rankMin, Number(request.query.rankMax) || LEADERBOARD_MAX_RANK);
     const rankMax = Math.min(requestedRankMax, LEADERBOARD_MAX_RANK);
     const name = typeof request.query.name === "string" ? request.query.name.trim() : "";
+    const queryRuneIds = Array.isArray(request.query.runeId)
+      ? request.query.runeId
+      : request.query.runeId
+        ? [request.query.runeId]
+        : [];
+    const runeIds = [...new Set([runeId, ...queryRuneIds].map(String).map((value) => value.trim()).filter(Boolean))];
 
     if (DEBUG_ON) console.log(`[/api/leaderboard/rune] Scanning ranks ${rankMin}-${rankMax} for rune=${runeId} eraMilestone=${eraMilestone}`);
 
-    const players = await scanLeaderboardForRune(runeId, eraMilestone, { rankMin, rankMax, name });
+    const players = await scanLeaderboardForRune(runeIds, eraMilestone, { rankMin, rankMax, name });
 
     response.json({
       players,
       runeId,
+      runeIds,
       milestone: eraMilestone,
       rankMin,
       rankMax,

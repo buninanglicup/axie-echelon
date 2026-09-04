@@ -638,6 +638,53 @@ h1 {
   padding: 4px;
 }
 
+.selected-rune-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.selected-rune-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 3px 5px 3px 4px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 92, 111, 0.88);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.selected-rune-chip img {
+  border-radius: 5px;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+}
+
+.selected-rune-remove {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.2);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.selected-rune-remove:hover {
+  background: rgba(0, 0, 0, 0.38);
+}
+
 .rune-suggestion-item {
   width: 100%;
   display: flex;
@@ -1266,7 +1313,6 @@ select,
   border-radius: 7px;
   background: rgba(8, 20, 28, 0.9);
   box-shadow: none;
-  pointer-events: none;
   z-index: 3;
   animation: rune-fade-in 200ms ease-out;
   box-sizing: border-box;
@@ -1281,6 +1327,25 @@ select,
   object-fit: contain;
   border: 0;
   border-radius: 5px;
+}
+
+.rune-badge-tooltip {
+  position: absolute;
+  left: 28px;
+  top: 2px;
+  z-index: 10;
+  max-width: 180px;
+  padding: 5px 7px;
+  border: 1px solid rgba(125, 245, 196, 0.35);
+  border-radius: 5px;
+  background: rgba(4, 10, 16, 0.94);
+  color: #eafef5;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.35);
 }
 
 /* Text-based rune badge fallback (for runes without images) */

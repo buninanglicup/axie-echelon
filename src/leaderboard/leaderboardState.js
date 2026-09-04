@@ -124,6 +124,7 @@ export const leaderboardState = {
   runeCatalog: [],
   runeCatalogLoaded: false,
   activeRuneId: null,
+  selectedRunes: [],
   runeFilterActive: false,
   playerNameQuery: ""
 };
@@ -165,6 +166,7 @@ export const standardModeToggle = document.querySelector("#standard-mode-toggle"
 export const leaderboardTable = document.querySelector("#leaderboard-table");
 export const runeSearchInput = document.querySelector("#rune-search-input");
 export const runeSuggestions = document.querySelector("#rune-suggestions");
+export const selectedRuneChips = document.querySelector("#selected-rune-chips");
 export const runeFilterStatus = document.querySelector("#rune-filter-status");
 export const runeFilterClear = document.querySelector("#rune-filter-clear");
 export const pageControls = document.querySelector("#page-controls");

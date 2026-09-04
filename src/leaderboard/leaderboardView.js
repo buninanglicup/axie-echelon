@@ -265,7 +265,7 @@ function updateActiveFilters() {
   if (!activeFilters) return;
   activeFilters.replaceChildren();
   const tags = [];
-  const { rankMin, rankMax, activeRuneId } = leaderboardState;
+  const { rankMin, rankMax, selectedRunes } = leaderboardState;
 
   if (rankMin || rankMax) {
     tags.push({
@@ -279,10 +279,10 @@ function updateActiveFilters() {
     });
   }
 
-  if (activeRuneId) {
+  for (const rune of selectedRunes || []) {
     tags.push({
-      label: `Rune: ${runeSearchInput?.value || activeRuneId}`,
-      clear: clearRuneFilter
+      label: `Rune: ${rune.name}`,
+      clear: () => clearRuneFilter()
     });
   }
 

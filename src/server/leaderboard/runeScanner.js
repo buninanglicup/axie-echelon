@@ -32,16 +32,17 @@ import { fetchBattleLogsForClientDeduped } from "./battleLogClient.js";
 import { mapWithConcurrency, BATTLELOG_FETCH_CONCURRENCY } from "../shared/concurrency.js";
 import { LEADERBOARD_MAX_RANK } from "./leaderboardConstants.js";
 
-// True if any fighter on the team currently has runeId equipped.
-function teamHasRune(team, runeId) {
+// True if any fighter on the team currently has any selected rune equipped.
+function teamHasRune(team, runeIds) {
   if (!team || !Array.isArray(team.fighters)) return false;
+  const ids = new Set(Array.isArray(runeIds) ? runeIds : [runeIds]);
   return team.fighters.some(
-    (fighter) => Array.isArray(fighter.runes) && fighter.runes.includes(runeId)
+    (fighter) => Array.isArray(fighter.runes) && fighter.runes.some((runeId) => ids.has(runeId))
   );
 }
 
 export async function scanLeaderboardForRune(
-  runeId,
+  runeIds,
   eraMilestone,
   { rankMin = 1, rankMax = LEADERBOARD_MAX_RANK, name = "" } = {}
 ) {
@@ -73,7 +74,7 @@ export async function scanLeaderboardForRune(
         scheduleTeamRefresh(userID);
       }
 
-      if (!teamHasRune(team, runeId)) return null;
+      if (!teamHasRune(team, runeIds)) return null;
 
       return {
         rank: player.topRank || player.rank,
