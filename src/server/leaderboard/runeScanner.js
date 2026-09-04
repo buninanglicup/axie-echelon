@@ -26,11 +26,17 @@
 // NOTE: pagination of the OUTPUT (the filtered match list) is not yet
 // implemented here -- this still returns every match unpaginated, same as
 // before the split. That's Phase 2 work (see leaderboardConstants.js).
+// Enrichment is staged into bounded batches and queued at low priority so a
+// full-range scan does not monopolize shared battle-log capacity.
 import { fetchRankCandidates } from "./leaderboardCandidates.js";
 import { getCachedTeam, setCachedTeam, isTeamCacheStale, scheduleTeamRefresh } from "./leaderboardCaches.js";
 import { fetchBattleLogsForClientDeduped } from "./battleLogClient.js";
 import { mapWithConcurrency, BATTLELOG_FETCH_CONCURRENCY } from "../shared/concurrency.js";
-import { LEADERBOARD_MAX_RANK } from "./leaderboardConstants.js";
+import {
+  LEADERBOARD_MAX_RANK,
+  RUNE_SCAN_ENRICHMENT_BATCH_SIZE,
+  RUNE_SCAN_BATCH_PAUSE_MS
+} from "./leaderboardConstants.js";
 
 // True if any fighter on the team currently has any selected rune equipped.
 function teamHasRune(team, runeIds) {
@@ -39,6 +45,33 @@ function teamHasRune(team, runeIds) {
   return team.fighters.some(
     (fighter) => Array.isArray(fighter.runes) && fighter.runes.some((runeId) => ids.has(runeId))
   );
+}
+
+async function enrichCandidateForRune(player, runeIds) {
+  const userID = player.userID;
+  if (!userID) return null;
+
+  let team = getCachedTeam(userID);
+  if (!team) {
+    team = await fetchBattleLogsForClientDeduped(userID, 20, "low");
+    if (team) setCachedTeam(userID, team);
+  } else if (isTeamCacheStale(userID)) {
+    scheduleTeamRefresh(userID);
+  }
+
+  if (!teamHasRune(team, runeIds)) return null;
+
+  return {
+    rank: player.topRank || player.rank,
+    name: player.name || userID,
+    mmr: player.vstar || player.rating,
+    winRate: player.win_rate !== null && player.win_rate !== undefined ? player.win_rate * 100 : null,
+    dailyChange: player.daily_change || "-",
+    recentForm: Array.isArray(player.recent_form) ? player.recent_form : [],
+    team,
+    lastRankedBattleTime: team?.lastRankedBattleTime || null,
+    userID
+  };
 }
 
 export async function scanLeaderboardForRune(
@@ -60,38 +93,21 @@ export async function scanLeaderboardForRune(
     return true;
   });
 
-  const results = await mapWithConcurrency(
-    narrowedCandidates,
-    async (player) => {
-      const userID = player.userID;
-      if (!userID) return null;
+  const matches = [];
+  for (let start = 0; start < narrowedCandidates.length; start += RUNE_SCAN_ENRICHMENT_BATCH_SIZE) {
+    const batch = narrowedCandidates.slice(start, start + RUNE_SCAN_ENRICHMENT_BATCH_SIZE);
+    const batchResults = await mapWithConcurrency(
+      batch,
+      (player) => enrichCandidateForRune(player, runeIds),
+      BATTLELOG_FETCH_CONCURRENCY
+    );
+    matches.push(...batchResults.filter(Boolean));
 
-      let team = getCachedTeam(userID);
-      if (!team) {
-        team = await fetchBattleLogsForClientDeduped(userID, 20);
-        if (team) setCachedTeam(userID, team);
-      } else if (isTeamCacheStale(userID)) {
-        scheduleTeamRefresh(userID);
-      }
+    const isLastBatch = start + RUNE_SCAN_ENRICHMENT_BATCH_SIZE >= narrowedCandidates.length;
+    if (!isLastBatch && RUNE_SCAN_BATCH_PAUSE_MS > 0) {
+      await new Promise((resolve) => setTimeout(resolve, RUNE_SCAN_BATCH_PAUSE_MS));
+    }
+  }
 
-      if (!teamHasRune(team, runeIds)) return null;
-
-      return {
-        rank: player.topRank || player.rank,
-        name: player.name || userID,
-        mmr: player.vstar || player.rating,
-        winRate: player.win_rate !== null && player.win_rate !== undefined ? player.win_rate * 100 : null,
-        dailyChange: player.daily_change || "-",
-        recentForm: Array.isArray(player.recent_form) ? player.recent_form : [],
-        team,
-        lastRankedBattleTime: team?.lastRankedBattleTime || null,
-        userID
-      };
-    },
-    BATTLELOG_FETCH_CONCURRENCY
-  );
-
-  return results
-    .filter(Boolean)
-    .sort((a, b) => (Number(a.rank) || Infinity) - (Number(b.rank) || Infinity));
+  return matches.sort((a, b) => (Number(a.rank) || Infinity) - (Number(b.rank) || Infinity));
 }

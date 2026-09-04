@@ -4,6 +4,7 @@ import { LEADERBOARD_MAX_RANK } from "./leaderboardConstants.js";
 import { runeRegistry } from "./runeCatalog.js";
 import { scanLeaderboardForRune } from "./runeScanner.js";
 import { resolveEraMilestone } from "../seasonRoutes.js";
+import { CandidatePoolUnavailableError } from "./leaderboardCandidates.js";
 
 const router = express.Router();
 
@@ -11,7 +12,7 @@ router.get("/api/leaderboard/rune/:runeId", async (request, response) => {
   try {
     const runeId = String(request.params.runeId || "").trim();
     if (!runeId) {
-      return response.status(400).json({ error: "runeId is required." });
+      return response.status(400).json({ error: "runeId is required.", code: "RUNE_ID_REQUIRED" });
     }
     const eraMilestone = resolveEraMilestone(request);
     const rankMin = Math.max(1, Number(request.query.rankMin) || 1);
@@ -41,7 +42,15 @@ router.get("/api/leaderboard/rune/:runeId", async (request, response) => {
     });
   } catch (error) {
     console.error("[/api/leaderboard/rune] Error:", error.message);
-    response.status(500).json({ error: "Failed to scan leaderboard for rune." });
+    if (error instanceof CandidatePoolUnavailableError || error.code === "LEADERBOARD_UPSTREAM_UNAVAILABLE") {
+      response.set("Retry-After", String(error.retryAfterSeconds ?? 5));
+      response.status(503).json({
+        error: "Leaderboard upstream is temporarily unavailable.",
+        code: "LEADERBOARD_UPSTREAM_UNAVAILABLE"
+      });
+      return;
+    }
+    response.status(500).json({ error: "Failed to scan leaderboard for rune.", code: "RUNE_SCAN_FAILED" });
   }
 });
 

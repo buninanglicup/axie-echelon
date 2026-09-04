@@ -165,7 +165,21 @@ export function createRuneFilterController({ renderRows, updateActiveFilters, ge
 
     try {
       const response = await fetch(buildRuneScanUrl());
-      if (!response.ok) throw new Error(`Rune filter request failed: ${response.status}`);
+      if (!response.ok) {
+        let code = null;
+        let message = null;
+        try {
+          const errorBody = await response.json();
+          code = errorBody.code || null;
+          message = errorBody.error || null;
+        } catch {
+          // Use the status-based fallback below when the response is not JSON.
+        }
+        const error = new Error(message || `Rune filter request failed: ${response.status}`);
+        error.code = code;
+        error.retryAfterSeconds = Number(response.headers.get("retry-after")) || null;
+        throw error;
+      }
       const data = await response.json();
       if (generation !== scanGeneration || !leaderboardState.runeFilterActive) return;
 
@@ -178,10 +192,13 @@ export function createRuneFilterController({ renderRows, updateActiveFilters, ge
     } catch (error) {
       console.error("Rune filter error:", error);
       if (generation !== scanGeneration) return;
-      if (runeFilterStatus) runeFilterStatus.textContent = `Failed to scan for the selected runes.`;
+      const statusText =
+        error.code === "LEADERBOARD_UPSTREAM_UNAVAILABLE"
+          ? `The leaderboard data source is temporarily unavailable${error.retryAfterSeconds ? ` -- try again in about ${error.retryAfterSeconds}s` : ""}.`
+          : `Failed to scan for the selected runes.`;
+      if (runeFilterStatus) runeFilterStatus.textContent = statusText;
       if (leaderboardBody) {
-        leaderboardBody.innerHTML =
-          '<tr><td colspan="4" style="text-align:center; padding:1rem; color:#f33;">Error loading rune filter results</td></tr>';
+        leaderboardBody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:1rem; color:#f33;">${statusText}</td></tr>`;
       }
     }
   }

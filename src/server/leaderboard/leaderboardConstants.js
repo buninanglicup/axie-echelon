@@ -43,3 +43,6 @@ export const MIN_VALID_MATCH_DURATION_MS = 60_000;
 // precise. See leaderboardState.js's staleness threshold for where the
 // frontend's actual polling interval IS used dynamically.
 export const AVG_MATCH_DURATION_CACHE_TTL_MS = 60_000;
+
+export const RUNE_SCAN_ENRICHMENT_BATCH_SIZE = Number(process.env.RUNE_SCAN_ENRICHMENT_BATCH_SIZE || 100);
+export const RUNE_SCAN_BATCH_PAUSE_MS = Number(process.env.RUNE_SCAN_BATCH_PAUSE_MS || 250);
