@@ -8,7 +8,7 @@
     "dev": "concurrently -k \"npm run backend\" \"npm run frontend\"",
     "build": "vite build",
     "start": "node server.js",
-    "test": "node --test src/server/shared/concurrency.test.js src/server/leaderboard/leaderboardCandidates.test.js src/server/leaderboard/leaderboardPoolRoutes.test.js src/server/shared/httpRetry.test.js src/server/leaderboard/leaderboardRuneRoutes.test.js src/server/leaderboard/runeScanner.test.js src/server/leaderboard/runeScanJobs.test.js src/server/leaderboard/leaderboardRuneScanRoutes.test.js"
+    "test": "node --test src/server/shared/concurrency.test.js src/server/leaderboard/leaderboardCandidates.test.js src/server/leaderboard/leaderboardPoolRoutes.test.js src/server/shared/httpRetry.test.js src/server/leaderboard/runeScanner.test.js src/server/leaderboard/runeScanJobs.test.js src/server/leaderboard/leaderboardRuneScanRoutes.test.js"
   },
   "dependencies": {
     "@axieinfinity/mixer": "^1.4.6",

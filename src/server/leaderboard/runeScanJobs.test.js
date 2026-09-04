@@ -204,3 +204,34 @@ test("watchdog force-fails a scan that never settles", async () => {
   assert.ok(failed, "watchdog did not fail the hung job");
   assert.equal(failed.error.code, "RUNE_SCAN_TIMEOUT");
 });
+
+test("a candidate-pool outage fails the job with the upstream-unavailable code", async () => {
+  globalThis.fetch = async () =>
+    new Response("unavailable", { status: 503, headers: { "retry-after": "0" } });
+
+  const started = startRuneScanJob({
+    runeIds: ["rune-x"],
+    eraMilestone: "pool-unavailable-test",
+    rankMin: 1,
+    rankMax: 4
+  });
+
+  const failed = await waitForStatus(started.jobId, [JOB_STATUS.COMPLETE, JOB_STATUS.FAILED]);
+  assert.equal(failed.status, JOB_STATUS.FAILED);
+  assert.equal(failed.error.code, "LEADERBOARD_UPSTREAM_UNAVAILABLE");
+});
+
+test("a non-JSON candidate response fails the job with the generic scan-failed code", async () => {
+  globalThis.fetch = async () => new Response("not json", { status: 200 });
+
+  const started = startRuneScanJob({
+    runeIds: ["rune-x"],
+    eraMilestone: "generic-failure-test",
+    rankMin: 1,
+    rankMax: 4
+  });
+
+  const failed = await waitForStatus(started.jobId, [JOB_STATUS.COMPLETE, JOB_STATUS.FAILED]);
+  assert.equal(failed.status, JOB_STATUS.FAILED);
+  assert.equal(failed.error.code, "RUNE_SCAN_FAILED");
+});
