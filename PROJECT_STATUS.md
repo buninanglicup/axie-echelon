@@ -54,12 +54,17 @@ Remaining handoff tasks:
   showed near-zero shared queue wait. The updated run observed `309/309`
   retryable responses with `Retry-After`, and 308 requested more delay than
   the old backoff.
-2. Measure whether lower battle-log concurrency improves completed candidates
-  per minute; do not judge by raw request count alone.
-3. Review the ignored real capture locally if actual data-shape inspection is
+2. Concurrency A/B is complete: concurrency `4` reached `600/1000` in the
+  Retry-After-aware run, while concurrency `2` reached `500/1000`. Concurrency
+  `2` reduced retries (`151` versus `305`) but also reduced completed
+  candidates per minute, so the application should keep the default at `4`.
+3. Decide whether the product should allow scans beyond the 300-second
+  watchdog or expose a terminal partial-result state; do not extend the
+  watchdog without an explicit product decision.
+4. Review the ignored real capture locally if actual data-shape inspection is
    needed.
-4. Tune batch size, pause, or concurrency only after measuring live results.
-5. If changing GitHub accounts, authenticate the new account for the current
+5. Tune batch size, pause, or concurrency only after measuring live results.
+6. If changing GitHub accounts, authenticate the new account for the current
    remote or update the remote to the new repository:
    `https://github.com/buninanglicup/axie-echelon.git`.
 
