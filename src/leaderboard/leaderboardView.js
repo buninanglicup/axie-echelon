@@ -44,8 +44,12 @@ import {
   standardModeToggle,
   leaderboardTable,
   runeSearchInput,
+  leaderboardCount,
+  MAXIMUM_PLAYERS_DISPLAYED_PER_PAGE,
+  pageControls,
 } from "./leaderboardState.js";
 import { formatRelativeTime, predictNextActivity, formatActivityEstimate } from "../shared/formatting.js";
+import { getPageItems } from "../pagination.js";
 
 // ===== sessionStorage leaderboard page cache ======
 function loadLeaderboardPageFromStorage(limit, offset, milestone) {
@@ -128,7 +132,15 @@ function updateEraTabs(milestone) {
   }
 }
 
+function hidePoolPager() {
+  leaderboardState.currentPage = 1;
+  if (!pageControls) return;
+  pageControls.hidden = true;
+  pageControls.replaceChildren();
+}
+
 function renderFilteredLeaderboard() {
+  hidePoolPager();
   if (leaderboardState.runeFilterActive) return;
   const leaderboardBody = document.querySelector("#leaderboard-body");
   if (!leaderboardBody) return;
@@ -154,12 +166,77 @@ function applyPoolFilters(players) {
 }
 
 function renderFilteredPool() {
-  if (leaderboardState.runeFilterActive || leaderboardState.liveModeEnabled) return;
-  if (!leaderboardState.leaderboardPoolLoaded) return;
+  if (leaderboardState.runeFilterActive || leaderboardState.liveModeEnabled) {
+    hidePoolPager();
+    return;
+  }
+  if (!leaderboardState.leaderboardPoolLoaded) {
+    hidePoolPager();
+    return;
+  }
   const leaderboardBody = document.querySelector("#leaderboard-body");
   if (!leaderboardBody) return;
-  renderLeaderboardRows(leaderboardBody, applyPoolFilters(leaderboardState.leaderboardPool));
+
+  const filteredPlayers = applyPoolFilters(leaderboardState.leaderboardPool);
+  const pageInfo = getPageItems(
+    filteredPlayers,
+    leaderboardState.currentPage,
+    MAXIMUM_PLAYERS_DISPLAYED_PER_PAGE
+  );
+  leaderboardState.currentPage = pageInfo.page;
+
+  renderLeaderboardRows(leaderboardBody, pageInfo.items);
+  if (leaderboardCount) {
+    const shownStart = pageInfo.totalItems === 0 ? 0 : pageInfo.startIndex + 1;
+    const shownEnd = pageInfo.startIndex + pageInfo.items.length;
+    leaderboardCount.textContent = `Showing ${shownStart}-${shownEnd} of ${pageInfo.totalItems} entries`;
+  }
+  renderPoolPager(pageInfo);
   updateActiveFilters();
+}
+
+function renderPoolPager({ page, totalPages }) {
+  if (!pageControls) return;
+  if (totalPages <= 1) {
+    hidePoolPager();
+    return;
+  }
+
+  pageControls.hidden = false;
+  pageControls.replaceChildren();
+
+  const goToPage = (pageNumber) => {
+    leaderboardState.currentPage = pageNumber;
+    renderFilteredPool();
+  };
+
+  const previousButton = document.createElement("button");
+  previousButton.type = "button";
+  previousButton.textContent = "‹";
+  previousButton.setAttribute("aria-label", "Previous page");
+  previousButton.disabled = page <= 1;
+  previousButton.addEventListener("click", () => goToPage(Math.max(1, page - 1)));
+  pageControls.append(previousButton);
+
+  for (let pageNumber = 1; pageNumber <= totalPages; pageNumber += 1) {
+    const pageButton = document.createElement("button");
+    pageButton.type = "button";
+    pageButton.textContent = String(pageNumber);
+    if (pageNumber === page) {
+      pageButton.classList.add("active");
+      pageButton.setAttribute("aria-current", "page");
+    }
+    pageButton.addEventListener("click", () => goToPage(pageNumber));
+    pageControls.append(pageButton);
+  }
+
+  const nextButton = document.createElement("button");
+  nextButton.type = "button";
+  nextButton.textContent = "›";
+  nextButton.setAttribute("aria-label", "Next page");
+  nextButton.disabled = page >= totalPages;
+  nextButton.addEventListener("click", () => goToPage(Math.min(totalPages, page + 1)));
+  pageControls.append(nextButton);
 }
 
 // Keep filter handlers independent of the active data source.
@@ -169,6 +246,11 @@ function renderFilteredView() {
   } else {
     renderFilteredPool();
   }
+}
+
+function resetPageAndRenderFilteredView() {
+  leaderboardState.currentPage = 1;
+  renderFilteredView();
 }
 
 let clearRuneFilter = () => {};
@@ -221,7 +303,7 @@ function updateActiveFilters() {
     clearButton.addEventListener("click", () => {
       tag.clear();
       updateLeaderboardFilterLabels();
-      renderFilteredView();
+      resetPageAndRenderFilteredView();
     });
     tagElement.append(clearButton);
     activeFilters.append(tagElement);
@@ -530,6 +612,7 @@ async function syncConfiguredEra() {
     updateEraTabs(leaderboardState.currentEraMilestone);
     if (seasonSelector) seasonSelector.value = String(data.seasonId);
     leaderboardState.leaderboardPoolLoaded = false;
+    leaderboardState.currentPage = 1;
     fetchLeaderboardPool();
     console.log(
       `[syncConfiguredEra] Resolved ${data.seasonName} - ${data.eraName} (API milestone=${leaderboardState.currentEraMilestone})`
@@ -543,6 +626,7 @@ async function syncConfiguredEra() {
     leaderboardState.currentEraMilestone = "3";
     updateEraTabs(leaderboardState.currentEraMilestone);
     leaderboardState.leaderboardPoolLoaded = false;
+    leaderboardState.currentPage = 1;
     fetchLeaderboardPool();
     return previousEraMilestone !== leaderboardState.currentEraMilestone;
   }
@@ -561,7 +645,8 @@ export function initLeaderboardView() {
     renderRows: renderLeaderboardRows,
     updateActiveFilters,
     getLeaderboardBody: () => document.querySelector("#leaderboard-body"),
-    onClear: () => clearRuneFilter()
+    onClear: () => clearRuneFilter(),
+    onApply: hidePoolPager
   });
   clearRuneFilter = () => {
     runeFilterController.clearRuneFilter();
@@ -608,7 +693,7 @@ export function initLeaderboardView() {
         }
       }
       updateRankFilterLabels();
-      renderFilteredView();
+      resetPageAndRenderFilteredView();
     });
 
     rankMinInput.addEventListener("blur", () => {
@@ -659,7 +744,7 @@ export function initLeaderboardView() {
         }
       }
       updateRankFilterLabels();
-      renderFilteredView();
+      resetPageAndRenderFilteredView();
     });
 
     rankMaxInput.addEventListener("blur", () => {
@@ -678,7 +763,7 @@ export function initLeaderboardView() {
       if (rankMinInput) rankMinInput.value = "1";
       if (rankMaxInput) rankMaxInput.value = "100";
       updateRankFilterLabels();
-      renderFilteredView();
+      resetPageAndRenderFilteredView();
     });
   }
 
@@ -714,7 +799,7 @@ export function initLeaderboardView() {
   if (playerNameSearch) {
     playerNameSearch.addEventListener("input", () => {
       leaderboardState.playerNameQuery = playerNameSearch.value;
-      renderFilteredView();
+      resetPageAndRenderFilteredView();
     });
   }
 
@@ -723,7 +808,7 @@ export function initLeaderboardView() {
       playerNameSearch.value = "";
       leaderboardState.playerNameQuery = "";
       playerNameSearch.focus();
-      renderFilteredView();
+      resetPageAndRenderFilteredView();
     });
   }
 
@@ -737,7 +822,7 @@ export function initLeaderboardView() {
       leaderboardState.playerNameQuery = "";
       clearRuneFilter();
       updateLeaderboardFilterLabels();
-      renderFilteredView();
+      resetPageAndRenderFilteredView();
     });
   }
 
@@ -826,6 +911,7 @@ export function initLeaderboardView() {
       leaderboardState.currentEraMilestone = milestone;
       updateEraTabs(milestone);
       leaderboardState.leaderboardPoolLoaded = false;
+      leaderboardState.currentPage = 1;
       fetchLeaderboardPool();
       if (leaderboardState.liveModeEnabled) hydrateLeaderboard();
     });

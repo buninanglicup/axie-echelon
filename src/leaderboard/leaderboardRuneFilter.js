@@ -2,7 +2,7 @@
 // view through callbacks to avoid circular imports.
 import { LEADERBOARD_MAX_RANK, leaderboardState, runeSearchInput, runeSuggestions, runeFilterStatus, runeFilterClear } from "./leaderboardState.js";
 
-export function createRuneFilterController({ renderRows, updateActiveFilters, getLeaderboardBody, onClear }) {
+export function createRuneFilterController({ renderRows, updateActiveFilters, getLeaderboardBody, onClear, onApply }) {
   async function loadRuneCatalogIfNeeded() {
     if (leaderboardState.runeCatalogLoaded) return;
     try {
@@ -54,6 +54,7 @@ export function createRuneFilterController({ renderRows, updateActiveFilters, ge
   async function applyRuneFilter(rune) {
     leaderboardState.activeRuneId = rune.id;
     leaderboardState.runeFilterActive = true;
+    if (onApply) onApply();
 
     if (runeSearchInput) runeSearchInput.value = rune.name;
     if (runeSuggestions) runeSuggestions.hidden = true;

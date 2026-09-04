@@ -104,6 +104,7 @@ export const leaderboardState = {
   leaderboardPool: [],
   leaderboardPoolLoaded: false,
   leaderboardPoolFetchPromise: null, // in-flight dedup guard
+  currentPage: 1, // Non-live pool pagination only; live mode remains unpaginated.
   currentEraMilestone: DEFAULT_ERA_MILESTONE,
   activeBattleWindowMinutes: null,
   rankMin: null,
@@ -166,3 +167,4 @@ export const runeSearchInput = document.querySelector("#rune-search-input");
 export const runeSuggestions = document.querySelector("#rune-suggestions");
 export const runeFilterStatus = document.querySelector("#rune-filter-status");
 export const runeFilterClear = document.querySelector("#rune-filter-clear");
+export const pageControls = document.querySelector("#page-controls");
