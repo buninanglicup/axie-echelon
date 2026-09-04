@@ -41,6 +41,7 @@ export const JOB_STATUS = Object.freeze({
   QUEUED: "queued",
   RUNNING: "running",
   COMPLETE: "complete",
+  PARTIAL: "partial",
   FAILED: "failed",
   CANCELLED: "cancelled"
 });
@@ -154,6 +155,12 @@ function runJob(job) {
     })
     .catch((error) => {
       if (error instanceof RuneScanCancelledError) return; // status already set by cancel path
+      if (error instanceof RuneScanWatchdogTimeoutError) {
+        job.status = JOB_STATUS.PARTIAL;
+        job.error = { message: error.message, code: error.code || "RUNE_SCAN_TIMEOUT" };
+        job.updatedAt = Date.now();
+        return;
+      }
       if (DEBUG_ON) console.error(`[runeScanJobs] job ${job.jobId} failed: ${error.message}`);
       job.status = JOB_STATUS.FAILED;
       job.error = { message: error.message, code: error.code || "RUNE_SCAN_FAILED" };
@@ -252,7 +259,10 @@ function sweepStaleJobs() {
   const now = Date.now();
   for (const [jobId, job] of runeScanJobStore) {
     const isFinished =
-      job.status === JOB_STATUS.COMPLETE || job.status === JOB_STATUS.FAILED || job.status === JOB_STATUS.CANCELLED;
+      job.status === JOB_STATUS.COMPLETE ||
+      job.status === JOB_STATUS.PARTIAL ||
+      job.status === JOB_STATUS.FAILED ||
+      job.status === JOB_STATUS.CANCELLED;
 
     if (isFinished) {
       if (now - job.updatedAt > JOB_RESULT_TTL_MS) runeScanJobStore.delete(jobId);

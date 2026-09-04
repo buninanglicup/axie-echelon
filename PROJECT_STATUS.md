@@ -36,8 +36,11 @@ Completed in the current rune-scan milestone:
 - Candidate-pool retries, canonical chunk caching, and battle-log priority
   starvation prevention.
 - Sanitized fixture-backed tests, manual capture tooling, and live benchmark
-  tooling. The full explicit suite passes 31 tests and the frontend build
+  tooling. The full explicit suite passes 32 tests and the frontend build
   passes.
+- Watchdog-limited scans now finish as terminal `partial` jobs, preserving
+  accumulated matches and progress while clearly reporting incomplete
+  coverage. Partial jobs are not resumable yet.
 - Opt-in rune-scan diagnostics measure candidate-pool time, battle-log
   attempts/retries, upstream latency, concurrency, and shared queue wait.
 - Battle-log retries now honor `Retry-After` with bounded per-request retry
@@ -58,9 +61,9 @@ Remaining handoff tasks:
   Retry-After-aware run, while concurrency `2` reached `500/1000`. Concurrency
   `2` reduced retries (`151` versus `305`) but also reduced completed
   candidates per minute, so the application should keep the default at `4`.
-3. Decide whether the product should allow scans beyond the 300-second
-  watchdog or expose a terminal partial-result state; do not extend the
-  watchdog without an explicit product decision.
+3. Design resumability for terminal partial jobs if full coverage after a
+  timeout is required; the current behavior intentionally starts a fresh scan
+  on a later request.
 4. Review the ignored real capture locally if actual data-shape inspection is
    needed.
 5. Tune batch size, pause, or concurrency only after measuring live results.

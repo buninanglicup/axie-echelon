@@ -177,6 +177,10 @@ export function createRuneFilterController({ renderRows, updateActiveFilters, ge
       return `Scanning top ${totalLabel} ranked players for "${runeNames}"... ${progress}, ${job.matches.length} found so far.`;
     }
     if (job.status === "complete") return `${job.matches.length} player(s) running any selected rune within top ${totalLabel}.`;
+    if (job.status === "partial") {
+      const progress = job.totalCandidates ? `${job.processedCount}/${job.totalCandidates}` : `${job.processedCount}`;
+      return `Scan for "${runeNames}" timed out after checking ${progress} players -- showing ${job.matches.length} match(es) found so far. Coverage is incomplete.`;
+    }
     if (job.status === "cancelled") return `Scan for "${runeNames}" was cancelled.`;
     return `Failed to scan for the selected runes.`;
   }

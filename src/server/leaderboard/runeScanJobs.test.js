@@ -174,7 +174,7 @@ test("cancelling a running job stops it at the next batch boundary, keeping prio
   assert.equal(getRuneScanJob(started.jobId).status, JOB_STATUS.CANCELLED);
 });
 
-test("watchdog force-fails a scan that never settles", async () => {
+test("watchdog produces a partial result when a scan never settles", async () => {
   process.env.RUNE_SCAN_JOB_MAX_DURATION_MS = "50";
   const {
     startRuneScanJob: startWithShortWatchdog,
@@ -191,18 +191,66 @@ test("watchdog force-fails a scan that never settles", async () => {
     rankMax: 4
   });
   const deadline = Date.now() + 2000;
-  let failed;
+  let partial;
   while (Date.now() < deadline) {
     const current = getWithShortWatchdog(started.jobId);
-    if (current.status === watchdogStatuses.FAILED) {
-      failed = current;
+    if (current.status === watchdogStatuses.PARTIAL) {
+      partial = current;
       break;
     }
     await new Promise((resolve) => setTimeout(resolve, 5));
   }
 
-  assert.ok(failed, "watchdog did not fail the hung job");
-  assert.equal(failed.error.code, "RUNE_SCAN_TIMEOUT");
+  assert.ok(partial, "watchdog did not produce a partial job");
+  assert.equal(partial.error.code, "RUNE_SCAN_TIMEOUT");
+  assert.equal(partial.processedCount, 0);
+  assert.equal(partial.totalCandidates, null);
+});
+
+test("watchdog preserves completed batches and ignores a late batch", async () => {
+  process.env.RUNE_SCAN_JOB_MAX_DURATION_MS = "50";
+  const {
+    startRuneScanJob: startPartial,
+    getRuneScanJob: getPartial,
+    JOB_STATUS: partialStatuses
+  } = await import(`./runeScanJobs.js?partial-batch-test=${Date.now()}`);
+  let releaseSecondBatch;
+  const secondBatchGate = new Promise((resolve) => {
+    releaseSecondBatch = resolve;
+  });
+
+  globalThis.fetch = async (url) => {
+    const target = new URL(url);
+    if (target.pathname.includes("season-leaderboards")) return candidateResponse(4, 1);
+    if (target.pathname.includes("battle-logs")) {
+      const userID = target.pathname.split("/").at(-2);
+      if (Number(userID.split("-")[1]) > 2) await secondBatchGate;
+      return battleLogResponse(userID, "rune-x");
+    }
+    throw new Error(`Unexpected fetch: ${url}`);
+  };
+
+  const started = startPartial({ runeIds: ["rune-x"], eraMilestone: "partial-batch-test", rankMin: 1, rankMax: 4 });
+  const deadline = Date.now() + 2000;
+  let partial;
+  while (Date.now() < deadline) {
+    const current = getPartial(started.jobId);
+    if (current.status === partialStatuses.PARTIAL) {
+      partial = current;
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+
+  assert.ok(partial, "watchdog did not produce a partial job");
+  assert.deepEqual(partial.matches.map((match) => match.rank), [1, 2]);
+  assert.equal(partial.processedCount, 2);
+  assert.equal(partial.totalCandidates, 4);
+  releaseSecondBatch();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const settled = getPartial(started.jobId);
+  assert.equal(settled.status, partialStatuses.PARTIAL);
+  assert.deepEqual(settled.matches.map((match) => match.rank), [1, 2]);
 });
 
 test("a candidate-pool outage fails the job with the upstream-unavailable code", async () => {
