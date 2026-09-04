@@ -285,8 +285,13 @@ Manual verification confirms the rune path works for top-30 and top-100 scans,
 including multiple selected runes. Top-1000 scans currently hit upstream Sky
 Mavis HTTP 429 rate limits during the ten-request candidate-pool fetch. The
 current product ceiling remains 1000; retry/backoff and resilient
-candidate-chunk caching are the next rate-limit work. Remaining verification
-also includes morph completeness for real ranked-battle payloads.
+candidate-chunk caching are now implemented. Candidate data is cached in
+canonical 100-row chunks keyed by era and offset, allowing top-30, top-100,
+and top-1000 requests to reuse the same upstream responses. Transient 429,
+500, 502, and 503 responses use bounded retry/backoff with Retry-After
+support; unrecoverable candidate-pool failures return HTTP 503 from the pool
+route. Remaining verification also includes morph completeness for real
+ranked-battle payloads and live upstream behavior after a backend restart.
 
 ### Phase 4 — Progressive enrichment and status-driven rendering
 

@@ -1,6 +1,6 @@
 import express from "express";
 import { LEADERBOARD_MAX_RANK } from "./leaderboardConstants.js";
-import { fetchRankCandidates } from "./leaderboardCandidates.js";
+import { CandidatePoolUnavailableError, fetchRankCandidates } from "./leaderboardCandidates.js";
 import { resolveEraMilestone } from "../seasonRoutes.js";
 
 const router = express.Router();
@@ -40,6 +40,10 @@ router.get("/api/leaderboard/pool", async (request, response) => {
     response.json({ players, rankMin, rankMax, milestone: eraMilestone, poolMaxRank: LEADERBOARD_MAX_RANK });
   } catch (error) {
     console.error("[/api/leaderboard/pool] Error:", error.message);
+    if (error instanceof CandidatePoolUnavailableError || error.code === "LEADERBOARD_UPSTREAM_UNAVAILABLE") {
+      response.status(503).json({ error: "Leaderboard upstream is temporarily unavailable." });
+      return;
+    }
     response.status(500).json({ error: "Failed to fetch leaderboard pool." });
   }
 });
