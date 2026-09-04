@@ -281,8 +281,12 @@ leaderboard-preview behavior only; the separate Morph Viewer is unaffected.
 The rune selector supports multiple selected runes as removable chips; the
 selected IDs are scanned together with OR semantics, while typing remains
 catalog search only. Removing one chip reruns the composed leaderboard filter.
-Remaining verification is manual validation of morph completeness for real
-ranked-battle payloads.
+Manual verification confirms the rune path works for top-30 and top-100 scans,
+including multiple selected runes. Top-1000 scans currently hit upstream Sky
+Mavis HTTP 429 rate limits during the ten-request candidate-pool fetch. The
+current product ceiling remains 1000; retry/backoff and resilient
+candidate-chunk caching are the next rate-limit work. Remaining verification
+also includes morph completeness for real ranked-battle payloads.
 
 ### Phase 4 — Progressive enrichment and status-driven rendering
 

@@ -9,11 +9,13 @@ are ignored, and multiple selected runes use OR semantics: a player matches if
 their team has any selected rune. This control is leaderboard-only; the
 separate Morph Viewer is unchanged.
 
-Current limitation: the multi-select UI and repeated-rune route contract are
-implemented, but end-to-end manual verification is still outstanding because
-the running app has reported no results after a rune selection. Restart the
-backend after source changes before retesting; if the issue remains, inspect
-the browser request and backend response together.
+Current status: the multi-select UI, repeated-rune route contract, and OR
+matching are working. Manual testing confirmed successful results for top-30
+and top-100 scans, including multiple selected runes. A top-1000 scan currently
+fails when Sky Mavis returns HTTP 429 while the candidate pool is being fetched
+in multiple upstream requests. This is a rate-limit/request-volume limitation,
+not a confirmed rune-ID or team-matching failure. Retry/backoff and resilient
+candidate-chunk caching remain future work.
 
 **See also:** [Cache and Polling Strategy](../planning/cache-and-polling-strategy.md) — comprehensive guide to the three-layer cache architecture, polling optimization, and tuning recommendations for live battle tracking.
 

@@ -91,7 +91,7 @@ An Axie is considered collectible when it has at least one verified collectible 
 
 - Live-mode page reload bug remains unresolved. It resets live mode, compact mode, and other in-memory UI state. Possible areas include browser/Vite HMR behavior, extensions, or runtime/network handling; the root cause is not established.
 - Live activity filtering excludes players whose current battle-time fetch fails because their timestamp is intentionally `null`. This is a deliberate accuracy policy but remains a product decision: show them as unavailable versus exclude them.
-- Rune multi-select currently has an unresolved end-to-end verification issue: selecting a rune can leave the leaderboard with no results. The UI, repeated-ID route contract, and OR scanner logic are implemented, but the running backend must be restarted after source changes and the real response path still needs investigation if the issue persists.
+- Rune multi-select and OR matching are working. Top-30 and top-100 scans return results, including multiple selected runes. Top-1000 scans are currently blocked by upstream Sky Mavis HTTP 429 rate limiting during the multi-request candidate-pool fetch. Only one local app instance was running during confirmation. Retry/backoff and more resilient candidate-pool caching remain future work.
 - Rune-scan output is paginated client-side and scans the configured top-1000 candidate pool.
 - Frontend and backend each define the rank scan ceiling; they must be kept synchronized manually.
 - Several related in-memory caches coexist during migration: legacy team cache, team-composition cache, enrichment cache, profile cache, page cache, and candidate cache.
