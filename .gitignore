@@ -23,6 +23,7 @@ commit msg.txt
 api-responses/
 
 # Local validation artefacts and scratch files
+PROJECT_STRUCTURE.txt
 GetBattleLogsByUserID.json
 GetSeasonLeaderboardResponse.json
 ListFighterConfigofUser.json

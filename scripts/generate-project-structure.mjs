@@ -7,7 +7,7 @@
  *
  *   - The complete folder/file structure
  *   - A GitHub URL for every file
- *   - The current Git branch
+ *   - The current Git branch and commit
  *
  * HOW TO USE
  * ----------
@@ -28,6 +28,7 @@
  *
  *   - Your GitHub repository from the "origin" remote
  *   - Your current Git branch
+ *   - The exact current commit SHA for immutable file URLs
  *
  * IGNORED
  * -------
@@ -110,6 +111,18 @@ function getCurrentBranch() {
   return branch;
 }
 
+function getCurrentCommit() {
+  const commit = runGit("git rev-parse HEAD");
+
+  if (!/^[0-9a-f]{40}$/i.test(commit)) {
+    throw new Error(
+      "Could not determine a full 40-character Git commit SHA. Commit the current work before generating the structure."
+    );
+  }
+
+  return commit;
+}
+
 function getEntries(directory) {
   return fs
     .readdirSync(directory, { withFileTypes: true })
@@ -127,7 +140,7 @@ function getEntries(directory) {
     });
 }
 
-function getGitHubFileUrl(relativePath, githubUrl, branch) {
+function getGitHubFileUrl(relativePath, githubUrl, commit) {
   const encodedPath = relativePath
     .split(path.sep)
     .map(encodeURIComponent)
@@ -136,7 +149,7 @@ function getGitHubFileUrl(relativePath, githubUrl, branch) {
   return (
     githubUrl +
     "/blob/" +
-    encodeURIComponent(branch) +
+    commit +
     "/" +
     encodedPath
   );
@@ -147,7 +160,7 @@ function renderDirectory(
   relativeDirectory,
   prefix,
   githubUrl,
-  branch
+  commit
 ) {
   const entries = getEntries(directory);
   const lines = [];
@@ -177,7 +190,7 @@ function renderDirectory(
         relativePath,
         prefix + childPrefix,
         githubUrl,
-        branch
+        commit
       );
 
       lines.push(...children);
@@ -192,7 +205,7 @@ function renderDirectory(
           getGitHubFileUrl(
             relativePath,
             githubUrl,
-            branch
+            commit
           )
       );
     }
@@ -204,6 +217,7 @@ function renderDirectory(
 function main() {
   const githubUrl = getGitHubRepository();
   const branch = getCurrentBranch();
+  const commit = getCurrentCommit();
   const projectName = path.basename(ROOT);
 
   const tree = renderDirectory(
@@ -211,7 +225,7 @@ function main() {
     "",
     "",
     githubUrl,
-    branch
+    commit
   );
 
   const output = [
@@ -239,6 +253,7 @@ function main() {
   console.log("");
   console.log("Repository: " + githubUrl);
   console.log("Branch:     " + branch);
+  console.log("Commit:     " + commit);
   console.log("Output:     " + OUTPUT_FILE);
   console.log("");
 }
