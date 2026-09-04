@@ -11,12 +11,13 @@ function chunkCacheKey(eraMilestone, offset) {
 }
 
 export class CandidatePoolUnavailableError extends Error {
-  constructor(message, { status, offset } = {}) {
+  constructor(message, { status, offset, retryAfterSeconds } = {}) {
     super(message);
     this.name = "CandidatePoolUnavailableError";
     this.code = "LEADERBOARD_UPSTREAM_UNAVAILABLE";
     this.upstreamStatus = status;
     this.failedOffset = offset;
+    this.retryAfterSeconds = retryAfterSeconds ?? null;
   }
 }
 
@@ -39,9 +40,13 @@ async function fetchCandidateChunk(eraMilestone, offset) {
     );
 
     if (!res.ok) {
+      const retryAfterHeader = res.headers.get("retry-after");
+      const retryAfterSeconds = retryAfterHeader && /^\d+$/.test(retryAfterHeader.trim())
+        ? Number(retryAfterHeader.trim())
+        : null;
       throw new CandidatePoolUnavailableError(
         `Rank candidate fetch failed at offset ${offset}: ${res.status}`,
-        { status: res.status, offset }
+        { status: res.status, offset, retryAfterSeconds }
       );
     }
 

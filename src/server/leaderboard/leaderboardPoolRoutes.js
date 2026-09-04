@@ -41,6 +41,7 @@ router.get("/api/leaderboard/pool", async (request, response) => {
   } catch (error) {
     console.error("[/api/leaderboard/pool] Error:", error.message);
     if (error instanceof CandidatePoolUnavailableError || error.code === "LEADERBOARD_UPSTREAM_UNAVAILABLE") {
+      response.set("Retry-After", String(error.retryAfterSeconds ?? 5));
       response.status(503).json({ error: "Leaderboard upstream is temporarily unavailable." });
       return;
     }

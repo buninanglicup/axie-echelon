@@ -167,9 +167,9 @@ return players.filter((player) => {
 - Acceptable for normal tracking, not ideal for detecting mid-session team swaps
 
 #### D. Rune Filter Scan Range
-- Scans only ranks 1-200 (hardcoded `MAX_LEADERBOARD_SCAN_RANK`)
-- Honors Skymavis API constraint: 100 rows per request (requires 2 upstream calls to cover 200)
-- Does NOT scan beyond rank 200
+- Scans ranks 1-1000 (`LEADERBOARD_MAX_RANK`)
+- Honors Skymavis API constraint: 100 rows per request (requires up to 10 upstream calls to cover 1000)
+- Uses the shared canonical 100-row chunk cache with the leaderboard pool route
 
 #### E. Enrichment Cache Failures
 - If battle log fetch fails, cached failure persists for 30s (`FAILED_ENRICHMENT_CACHE_TTL_MS`)
@@ -275,7 +275,7 @@ Render filtered players in DOM
 ### Rune Filter
 - **GET /api/leaderboard/rune/:runeId**
   - Params: `milestone` (optional)
-  - Returns: All matching players in ranks 1-200
+  - Returns: All matching players in ranks 1-1000
 
 ### Rune Catalog
 - **GET /api/runes**
@@ -288,8 +288,8 @@ Render filtered players in DOM
 1. **Dual Cache Paths:** teamCache and enrichmentCache both exist during Phase 1 migration
    - Should unify once Phase 3 retires legacy eager-enrichment
 
-2. **Overlapping Rank Candidate Caches:** Rune scan (rank 1-200) and leaderboard pool (rank 1-250) have separate cache keys
-   - Ranks 1-200 fetched twice under different keys (redundant)
+2. **Rank Candidate Cache:** Resolved by canonical era-plus-offset chunk keys shared by rune scans and leaderboard pool requests
+  - Top-30, top-100, and top-1000 requests reuse the same upstream chunks
 
 3. **Compact Mode State:** Not persisted across reloads
    - Could use localStorage to preserve user preference
@@ -344,7 +344,7 @@ Render filtered players in DOM
 3. Investigate Firefox extension interference
 
 ### Priority 3 (Nice-to-Have)
-1. Extend rune filter beyond rank 200
+1. Improve rune-filter performance and enrichment feedback for the existing 1000-rank scan
 2. Historical team tracking (not just current team)
 3. Player comparison tool
 4. Export tracking data to CSV
