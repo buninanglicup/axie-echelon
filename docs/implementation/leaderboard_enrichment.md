@@ -1,6 +1,6 @@
 # Leaderboard enrichment — design, fixes, and testing
 
-This document records the current leaderboard enrichment behavior, the changes made to stabilize top-player team previews, and the test configuration used during debugging.
+This document records the current leaderboard enrichment behavior, the changes made to stabilize top-player team previews, and the test configuration used during debugging. Its rendering rules apply only to the leaderboard's team-preview column; the separate Morph Viewer is not affected.
 
 **See also:** [Cache and Polling Strategy](../planning/cache-and-polling-strategy.md) — comprehensive guide to the three-layer cache architecture, polling optimization, and tuning recommendations for live battle tracking.
 
@@ -9,9 +9,29 @@ Fetch the Skymavis leaderboard and enrich each row with the player's most recent
 
 ## Desired leaderboard behavior
 - The leaderboard `Team` column should display the three fighters used in the player's last ranked battle.
-- Each fighter should be shown as a morphed Axie preview thumbnail, using `genes_metamorph` when available.
+- Each fighter should be shown as an Axie preview thumbnail. Collectible Axies use `genes_metamorph` when available; non-collectible Ronin Axies use `genes`; collectible Axies with an anomalously missing `genes_metamorph` value defensively fall back to `genes`.
+- Starter Axies are currently name-only: their `genes` value is not sent to the mixer because the current web mixer cannot render the fixed starter body-part data reliably. Starter rendering is future work.
 - This view should present the actual morphed Axie appearance, not just text labels or IDs.
 - If the team preview cannot be generated, fallback to a text placeholder.
+
+### Gene field behavior
+
+These rules apply only to leaderboard team previews. Morph Viewer rendering and
+its existing Axie lookup data contract remain unchanged.
+
+The leaderboard battle-log payload exposes both `genes` and
+`genes_metamorph`. These cases are intentionally distinct:
+
+1. A collectible Axie is expected to have a non-null `genes_metamorph` value;
+  that value is preferred because it represents the morphed appearance.
+2. A non-collectible Ronin Axie normally has no `genes_metamorph`; its regular
+  `genes` value is used for rendering.
+3. Some collectible Axies have been observed with an unexpected null
+  `genes_metamorph` value in the API response. Their regular `genes` value is
+  used as a defensive data-quality fallback.
+4. Starter Axies have `axieType: "starter"` and are currently rendered as
+  name-only labels. Their `genes` value is reserved for a future
+  starter-specific rendering path.
 
 ## What changed
 ### 1. Cache successful team extractions

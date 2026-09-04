@@ -63,6 +63,7 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
 - Profile-driven multi-tracker development using `.env`; each instance selects a numbered `TRACKER_PROFILE` and receives isolated runtime settings.
 - Five predefined PowerShell launch scripts for local multi-window testing; the profile resolver itself supports additional contiguous profile numbers.
 - Phase 3 candidate-pool implementation: 3a (backend ceiling/cache constants), 3b (full-pool loading), 3c (client-side filtering), 3d (pagination), and 3e rune narrowing are implemented. Non-live visible rows progressively request team data and reuse the existing morph renderer. Body-part filtering remains future work because its catalog, route, and predicate are not implemented. Morph completeness still requires manual verification against real ranked-battle payloads.
+- Leaderboard morph field behavior is documented in `docs/implementation/leaderboard_enrichment.md`: collectible Axies prefer `genes_metamorph`, non-collectible Ronin Axies use `genes`, anomalous collectible nulls fall back to `genes`, and starter Axies are currently name-only pending a starter-specific renderer. These rules apply only to leaderboard team previews; the separate Morph Viewer is unchanged.
 
 ## Backend Routes
 

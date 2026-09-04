@@ -234,6 +234,8 @@ export function renderLeaderboardRows(leaderboardBody, players) {
         }
 
         const axieID = fighter.axieID || "?";
+        const isStarterAxie = fighter.axieType === "starter";
+        const axieLabel = isStarterAxie ? (fighter.name || "Starter Axie") : `#${axieID}`;
         console.log(`[renderLeaderboardRows] Row ${rowIndex}, Slot ${slotIndex}: Starting render for Axie #${axieID}`);
 
         const axieWrapper = document.createElement("div");
@@ -250,10 +252,22 @@ export function renderLeaderboardRows(leaderboardBody, players) {
         morphContainer.style.height = "100%";
         axieWrapper.append(morphContainer);
 
-        const genes = fighter.genes_metamorph;
-        if (genes) {
+        // CASE 1: collectible Axies should provide genes_metamorph, which
+        // represents the morphed appearance and must take precedence.
+        // CASE 2: non-collectible Ronin Axies have no metamorph genes, so use
+        // their standard genes instead.
+        // CASE 3: collectible Axies are expected to provide genes_metamorph,
+        // but observed API responses have occasionally returned null. Use
+        // standard genes as a defensive fallback for that data-quality case.
+        // CASE 4: starter Axies are intentionally name-only for now. Their
+        // genes are not sent to the mixer until starter rendering is added.
+        const genes = fighter.genes_metamorph || fighter.genes;
+        if (isStarterAxie) {
+          morphContainer.classList.add("empty");
+        } else if (genes) {
           morphContainer.classList.add("is-loading");
-          console.log(`[renderLeaderboardRows] Row ${rowIndex}, Slot ${slotIndex}, Axie #${axieID}: Calling renderMorphedAxieCached`);
+          const geneSource = fighter.genes_metamorph ? "genes_metamorph" : "genes fallback";
+          console.log(`[renderLeaderboardRows] Row ${rowIndex}, Slot ${slotIndex}, Axie #${axieID}: Rendering with ${geneSource}`);
 
           renderMorphedAxieCached(morphContainer, genes, {
             snapshot: true,
@@ -266,7 +280,7 @@ export function renderLeaderboardRows(leaderboardBody, players) {
                 `[renderLeaderboardRows] Row ${rowIndex}, Slot ${slotIndex}, Axie #${axieID}: Render failed`,
                 error
               );
-              morphContainer.innerHTML = `<div style="color: #aaa;">#${axieID}</div>`;
+              morphContainer.innerHTML = `<div style="color: #aaa;">${axieLabel}</div>`;
             })
             .finally(() => {
               morphContainer.classList.remove("is-loading");
@@ -274,9 +288,9 @@ export function renderLeaderboardRows(leaderboardBody, players) {
             });
         } else {
           morphContainer.classList.add("empty");
-          morphContainer.textContent = `#${axieID} (no morph)`;
+          if (!isStarterAxie) morphContainer.textContent = `${axieLabel} (no morph)`;
           console.warn(
-            `[renderLeaderboardRows] Row ${rowIndex}, Slot ${slotIndex}: Missing genes_metamorph for Axie #${axieID}`
+            `[renderLeaderboardRows] Row ${rowIndex}, Slot ${slotIndex}: No renderable genes for Axie #${axieID}`
           );
         }
 
@@ -307,16 +321,24 @@ export function renderLeaderboardRows(leaderboardBody, players) {
           }
         }
 
-        const marketplaceUrl = `https://app.axieinfinity.com/marketplace/axies/${axieID}/`;
-        const idLink = document.createElement("a");
-        idLink.className = "axie-id";
-        idLink.href = marketplaceUrl;
-        idLink.target = "_blank";
-        idLink.rel = "noopener noreferrer";
-        idLink.setAttribute("aria-label", `View Axie #${axieID} on the Axie Marketplace, opens in a new tab`);
-        idLink.title = `View Axie #${axieID} on the marketplace (opens in new tab)`;
-        idLink.textContent = `#${axieID} ↗`;
-        previewItem.append(idLink);
+        if (isStarterAxie) {
+          const starterLabel = document.createElement("span");
+          starterLabel.className = "axie-id";
+          starterLabel.textContent = axieLabel;
+          starterLabel.setAttribute("aria-label", `${axieLabel}, starter Axie`);
+          previewItem.append(starterLabel);
+        } else {
+          const marketplaceUrl = `https://app.axieinfinity.com/marketplace/axies/${axieID}/`;
+          const idLink = document.createElement("a");
+          idLink.className = "axie-id";
+          idLink.href = marketplaceUrl;
+          idLink.target = "_blank";
+          idLink.rel = "noopener noreferrer";
+          idLink.setAttribute("aria-label", `View Axie #${axieID} on the Axie Marketplace, opens in a new tab`);
+          idLink.title = `View Axie #${axieID} on the marketplace (opens in new tab)`;
+          idLink.textContent = `#${axieID} ↗`;
+          previewItem.append(idLink);
+        }
 
         previewGrid.append(previewItem);
       }

@@ -276,8 +276,10 @@ pagination. Rune selection narrows rank/name candidates before team
 enrichment, rescans are debounced when those cheap filters change, and the
 selected rune results are paginated client-side. Non-live visible rows also
 progressively request team data so the existing morph renderer can populate
-the three Axie previews. Remaining verification is manual validation of
-morph completeness for real ranked-battle payloads.
+the three Axie previews. The gene fallback and starter name-only behavior are
+leaderboard-preview behavior only; the separate Morph Viewer is unaffected.
+Remaining verification is manual validation of morph completeness for real
+ranked-battle payloads.
 
 ### Phase 4 — Progressive enrichment and status-driven rendering
 

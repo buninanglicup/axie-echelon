@@ -1,18 +1,18 @@
 ﻿# Axie Morph Viewer - Project Status & Documentation
 
-**Last Updated:** 2026-08-15
+**Last Updated:** 2026-09-04
 **Version:** Live Tracking Beta
 
 > Current architecture: one unified development app started with `npm run dev`.
-> The former three-process tracker setup was retired after Phase 1. Until Phase 2
-> pagination is integrated, the leaderboard shows only the fixed window selected
-> by `VITE_LEADERBOARD_LIMIT` and `VITE_LEADERBOARD_OFFSET`.
+> The former three-process tracker setup was retired after Phase 1. Non-live
+> leaderboard browsing now uses a cached top-1000 candidate pool with client-side
+> filtering, pagination, progressive team enrichment, and rune narrowing.
 
 ---
 
 ## 1. Project Overview
 
-A real-time leaderboard tracking system for monitoring top Axie Infinity players in one unified app. The app currently requests one fixed leaderboard window; real pagination is the next priority so ranks beyond that window are available without running duplicate processes.
+A real-time leaderboard tracking system for monitoring top Axie Infinity players in one unified app. Non-live browsing covers the cached top-1000 candidate pool; live mode continues to use its legacy polling route.
 
 ---
 
