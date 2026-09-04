@@ -1,3 +1,17 @@
+// Manual-only live benchmark for the async rune-scan job against real
+// Skymavis data. This complements the offline fixture tests and is not run
+// by npm test or CI. See docs/implementation/rune-scan-fixtures.md.
+//
+// Usage:
+//   node scripts/live-rune-scan-benchmark.mjs <eraMilestone> <runeId>
+//
+// Example:
+//   node scripts/live-rune-scan-benchmark.mjs 3 rune_dusk_40040_s18
+//
+// Requires AXIE_ECHELON_API_KEY in .env and consumes live API quota. It
+// prints progress such as `12000ms: 400/1000, 3 matches, running`, followed
+// by a final elapsed-time line. Do not use this script for CI assertions;
+// network latency and upstream rate limits make live timings variable.
 import "dotenv/config";
 import { startRuneScanJob, getRuneScanJob } from "../src/server/leaderboard/runeScanJobs.js";
 import { LEADERBOARD_MAX_RANK } from "../src/server/leaderboard/leaderboardConstants.js";

@@ -1,3 +1,21 @@
+// Manual, local-only capture of a real top-1000 rune-scan snapshot from
+// Skymavis, for inspecting real data shapes. This is not a source for the
+// committed synthetic fixture. See docs/implementation/rune-scan-fixtures.md
+// for the full fixture workflow.
+//
+// Usage:
+//   node scripts/capture-rune-scan-fixture.mjs <eraMilestone>
+//
+// Example:
+//   node scripts/capture-rune-scan-fixture.mjs season18
+//
+// Requires AXIE_ECHELON_API_KEY in .env. A full top-1000 capture makes up to
+// ten leaderboard calls plus one battle-log call per candidate, so it can
+// take a while and consume real API quota. Run it manually, never in CI.
+//
+// On success, the script prints the candidate/team counts and output path.
+// The output contains real player IDs, names, and team data and must never be
+// committed. It is written under api-responses/, which .gitignore excludes.
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import "dotenv/config";
@@ -33,7 +51,11 @@ async function main() {
   };
   mkdirSync(path.dirname(outputPath), { recursive: true });
   writeFileSync(outputPath, JSON.stringify(capture, null, 2));
-  console.log(`Wrote local-only capture to ${outputPath}`);
+  console.log(
+    `Wrote local-only capture to ${outputPath} ` +
+      `(${candidates.length} candidates, ${Object.keys(teams).length} teams, ` +
+      `${erroredUserIDs.length} errored). This file is git-ignored -- never commit it as-is.`
+  );
 }
 
 main().catch((error) => {

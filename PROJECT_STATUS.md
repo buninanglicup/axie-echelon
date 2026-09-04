@@ -14,6 +14,18 @@
 
 A real-time leaderboard tracking system for monitoring top Axie Infinity players in one unified app. Non-live browsing covers the cached top-1000 candidate pool; live mode continues to use its legacy polling route.
 
+### Current Rune Scan Architecture
+- Rune searches use asynchronous jobs with `POST`, `GET`, and `DELETE`
+  endpoints under `/api/leaderboard/rune-scan`.
+- Jobs preserve full top-1000 coverage, report explicit queued/running/complete/
+  failed/cancelled status, stream partial matches through polling, and support
+  best-effort cancellation.
+- Candidate fetching uses canonical cached chunks, retries transient upstream
+  failures, and low-priority battle-log work is protected from starvation.
+- Deterministic offline fixture tests live under
+  `src/server/leaderboard/__fixtures__/`; real captures and live benchmarks are
+  manual-only. See `docs/implementation/rune-scan-fixtures.md`.
+
 ---
 
 ## 2. Current Features
