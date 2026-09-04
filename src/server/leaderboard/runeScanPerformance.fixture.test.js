@@ -62,5 +62,26 @@ test("fixture job completes and a second scan reuses warm teams", async () => {
   const secondFinished = await waitForJob(second.jobId);
   assert.equal(secondFinished.status, JOB_STATUS.COMPLETE);
   const secondScanCalls = battleLogCalls.slice(callsAfterFirst);
-  assert.ok(secondScanCalls.every((userID) => !Object.hasOwn(fixture.teams, userID)));
+  const uncachedUserIDs = fixture.candidates
+    .map((candidate) => candidate.userID)
+    .filter((userID) => !Object.hasOwn(fixture.teams, userID));
+  assert.deepEqual([...new Set(secondScanCalls)].sort(), [...uncachedUserIDs].sort());
+});
+
+test("fixture distinguishes absent teams, failed fetches, and wrong-rune teams", async () => {
+  globalThis.fetch = createFixtureFetch(fixture);
+  const matches = await scanLeaderboardForRune(["rune-fixture-alpha"], fixture.eraMilestone, {
+    rankMin: 1,
+    rankMax: fixture.candidates.length
+  });
+  const matchedRanks = matches.map((match) => match.rank);
+
+  assert.deepEqual(matchedRanks, expectedRanks);
+  for (const rank of fixture.meta.absentTeamRanks) assert.ok(!matchedRanks.includes(rank));
+  assert.ok(!matchedRanks.includes(fixture.meta.erroredRank));
+  const betaRanks = Object.entries(fixture.teams)
+    .filter(([, team]) => team.fighters.some((fighter) => fighter.runes.includes("rune-fixture-beta")))
+    .map(([userID]) => fixture.candidates.find((candidate) => candidate.userID === userID).rank);
+  assert.deepEqual(betaRanks.sort((a, b) => a - b), [5, 17]);
+  assert.ok(betaRanks.every((rank) => !matchedRanks.includes(rank)));
 });

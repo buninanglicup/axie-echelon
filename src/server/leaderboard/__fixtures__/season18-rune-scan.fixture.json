@@ -35,14 +35,26 @@
     {"rank":24,"topRank":24,"userID":"user-fixture-24","name":"Fixture Player 24","vstar":3176,"rating":3176}
   ],
   "teams": {
+    "user-fixture-01":{"fighters":[{"axieID":1,"position":0,"runes":[]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"},
+    "user-fixture-02":{"fighters":[{"axieID":1,"position":0,"runes":[]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"},
     "user-fixture-03":{"fighters":[{"axieID":1,"position":0,"runes":["rune-fixture-alpha"]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"},
+    "user-fixture-04":{"fighters":[{"axieID":1,"position":0,"runes":[]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"},
     "user-fixture-05":{"fighters":[{"axieID":1,"position":0,"runes":["rune-fixture-beta"]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"},
     "user-fixture-06":{"fighters":[{"axieID":1,"position":0,"runes":["rune-fixture-alpha"]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"},
+    "user-fixture-08":{"fighters":[{"axieID":1,"position":0,"runes":[]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"},
     "user-fixture-09":{"fighters":[{"axieID":1,"position":0,"runes":["rune-fixture-alpha"]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"},
+    "user-fixture-10":{"fighters":[{"axieID":1,"position":0,"runes":[]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"},
+    "user-fixture-11":{"fighters":[{"axieID":1,"position":0,"runes":[]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"},
     "user-fixture-12":{"fighters":[{"axieID":1,"position":0,"runes":["rune-fixture-alpha"]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"},
+    "user-fixture-14":{"fighters":[{"axieID":1,"position":0,"runes":[]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"},
     "user-fixture-15":{"fighters":[{"axieID":1,"position":0,"runes":["rune-fixture-alpha"]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"},
+    "user-fixture-16":{"fighters":[{"axieID":1,"position":0,"runes":[]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"},
+    "user-fixture-17":{"fighters":[{"axieID":1,"position":0,"runes":["rune-fixture-beta"]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"},
     "user-fixture-18":{"fighters":[{"axieID":1,"position":0,"runes":["rune-fixture-alpha"]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"},
+    "user-fixture-20":{"fighters":[{"axieID":1,"position":0,"runes":[]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"},
     "user-fixture-21":{"fighters":[{"axieID":1,"position":0,"runes":["rune-fixture-alpha"]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"},
+    "user-fixture-22":{"fighters":[{"axieID":1,"position":0,"runes":[]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"},
+    "user-fixture-23":{"fighters":[{"axieID":1,"position":0,"runes":[]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"},
     "user-fixture-24":{"fighters":[{"axieID":1,"position":0,"runes":["rune-fixture-alpha"]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"}
   },
   "erroredUserIDs": ["user-fixture-13"]
