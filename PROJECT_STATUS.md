@@ -17,9 +17,10 @@ A real-time leaderboard tracking system for monitoring top Axie Infinity players
 ### Current Rune Scan Architecture
 - Rune searches use asynchronous jobs with `POST`, `GET`, and `DELETE`
   endpoints under `/api/leaderboard/rune-scan`.
-- Jobs preserve full top-1000 coverage, report explicit queued/running/complete/
-  failed/cancelled status, stream partial matches through polling, and support
-  best-effort cancellation.
+- Jobs preserve full top-1000 scan intent, report explicit queued/running/
+  complete/partial/failed/cancelled status, stream partial matches through
+  polling, and support best-effort cancellation. `complete` means full
+  coverage; `partial` means the watchdog stopped an incomplete scan.
 - Candidate fetching uses canonical cached chunks, retries transient upstream
   failures, and low-priority battle-log work is protected from starvation.
 - Deterministic offline fixture tests live under

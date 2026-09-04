@@ -49,7 +49,9 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
   - `lastRankedBattleTime` is read from the current live battle-log fetch and is never reused from an older timestamp when that fetch fails;
   - failed live fetches return `battleTimeFetchFailed: true` and may retain the last-known team composition.
 - Compact leaderboard mode for substantially denser rows.
-- Rune catalog and rune scanning across ranks 1-200.
+- Rune catalog and asynchronous rune scanning across the configured top-1000
+  rank range, with polling, partial results, cancellation, deduplication,
+  Retry-After-aware battle-log retries, and client-side result pagination.
 - Axie ID lookup and Ronin-address lookup with client/server pagination.
 - Collectible classification for Origin, MEO, Agamogenesis, Nightmare, Mystic, Shiny, Summer, Japan, and Xmas.
 - Ronin address lookup prefers marketplace GraphQL ownership results and falls back to the Origins user-fighters API when GraphQL returns no Axies.
@@ -71,7 +73,9 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
 - `GET /api/leaderboard`: legacy eager-enrichment leaderboard; `liveMode=true` bypasses the page cache and fetches fresh battle logs.
 - `GET /api/leaderboard/pool`: cheap rank/name/MMR candidate pool.
 - `GET /api/leaderboard/team/:userID`: on-demand enrichment status endpoint.
-- `GET /api/leaderboard/rune/:runeId`: rune scan with optional rank/name narrowing through the configured top-1000 candidate pool.
+- `POST /api/leaderboard/rune-scan`: start or deduplicate an asynchronous rune scan.
+- `GET /api/leaderboard/rune-scan/:jobId`: poll scan status and partial results.
+- `DELETE /api/leaderboard/rune-scan/:jobId`: request best-effort cancellation.
 - `GET /api/runes`: generated rune catalog.
 - `GET /api/axie/:id`: Axie lookup and normalization.
 - `GET /api/axie-detail/:id`: GraphQL Axie detail.
@@ -91,8 +95,8 @@ An Axie is considered collectible when it has at least one verified collectible 
 
 - Live-mode page reload bug remains unresolved. It resets live mode, compact mode, and other in-memory UI state. Possible areas include browser/Vite HMR behavior, extensions, or runtime/network handling; the root cause is not established.
 - Live activity filtering excludes players whose current battle-time fetch fails because their timestamp is intentionally `null`. This is a deliberate accuracy policy but remains a product decision: show them as unavailable versus exclude them.
-- Rune multi-select and OR matching are working. Top-30 and top-100 scans return results, including multiple selected runes. Top-1000 scans are currently blocked by upstream Sky Mavis HTTP 429 rate limiting during the multi-request candidate-pool fetch. Only one local app instance was running during confirmation. Retry/backoff and more resilient candidate-pool caching remain future work.
-- Rune-scan output is paginated client-side and scans the configured top-1000 candidate pool.
+- Rune multi-select and OR matching are working. Top-30 and top-100 scans return results, including multiple selected runes. Top-1000 scans can become `partial` when the 300-second watchdog expires because live battle-log retries honor upstream `Retry-After` delays. Diagnostics show candidate fetching is fast, battle-log enrichment is the bottleneck, and concurrency four currently outperforms two in candidates per minute.
+- Rune-scan output is paginated client-side and scans the configured top-1000 candidate pool. A `complete` job guarantees full requested coverage; a `partial` job explicitly does not. Partial jobs are not resumable yet.
 - Frontend and backend each define the rank scan ceiling; they must be kept synchronized manually.
 - Several related in-memory caches coexist during migration: legacy team cache, team-composition cache, enrichment cache, profile cache, page cache, and candidate cache.
 - Compact-mode preference is not persisted across a full page reload.
@@ -104,7 +108,10 @@ An Axie is considered collectible when it has at least one verified collectible 
 
 - `server.js` and `src/main.js` are now thin, but `leaderboardView.js` and several backend modules still contain substantial mixed UI/business-flow logic.
 - The legacy eager enrichment route and Phase 1 on-demand route coexist.
-- Battle-log retry/concurrency behavior is implemented manually and needs runtime stress testing.
+- Battle-log retry/concurrency behavior is implemented manually and has been
+  measured against live data. Retry-After-aware bounded retries are in place;
+  further tuning should compare completed candidates per minute and API retry
+  pressure rather than raw request count alone.
 - API keys must remain outside version control; `.env.example` should be maintained if onboarding is needed.
 
 ## Important Files
@@ -154,16 +161,22 @@ Open `http://127.0.0.1:5173`.
 Current verified checks:
 
 ```powershell
+npm test
 npm run build
 ```
 
-The Vite build succeeds. All current relative JavaScript import targets resolve, and the backend leaderboard module graph loads with Node. A browser smoke test is still required.
+The explicit suite passes 32 tests and the Vite build succeeds. All current
+relative JavaScript import targets resolve, and the backend leaderboard module
+graph loads with Node. A browser smoke test is still required.
 
 ## Recommended Next Steps
 
-1. Reproduce and diagnose the live-mode page reload with browser console and network logs.
-2. Run a complete browser smoke test for both lookup and leaderboard flows.
-3. Decide the intended UI behavior when a live battle-time fetch fails.
-4. Integrate `/api/leaderboard/pool` and `/api/leaderboard/team/:userID`, then retire eager enrichment.
-5. Consolidate cache ownership and unify the rank ceiling.
+1. Design resumability for terminal partial rune-scan jobs if full coverage
+  after a timeout is required.
+2. Review the ignored real capture locally if actual data-shape inspection is
+  needed; never commit it.
+3. Reproduce and diagnose the live-mode page reload with browser console and
+  network logs.
+4. Run a complete browser smoke test for both lookup and leaderboard flows.
+5. Decide the intended UI behavior when a live battle-time fetch fails.
 6. Add browser/API tests and consider code-splitting PIXI/Spine.
