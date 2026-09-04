@@ -82,3 +82,51 @@ test("a failing battle-log fetch does not drop other candidates' matches", async
   const matches = await scanLeaderboardForRune(["rune-x"], "resilience-test", { rankMin: 1, rankMax: 3 });
   assert.deepEqual(matches.map((match) => match.rank), [1, 3]);
 });
+
+test("invokes onProgress once per batch with correct counts and matches", async () => {
+  globalThis.fetch = async (url) => {
+    const target = new URL(url);
+    if (target.pathname.includes("season-leaderboards")) return candidateResponse(12, 1);
+    if (target.pathname.includes("battle-logs")) {
+      const userID = target.pathname.split("/").at(-2);
+      const rank = Number(userID.split("-")[1]);
+      return battleLogResponse(userID, rank % 4 === 0 ? "rune-x" : null);
+    }
+    throw new Error(`Unexpected fetch: ${url}`);
+  };
+
+  const progressCalls = [];
+  const accumulatedMatches = [];
+  const matches = await scanLeaderboardForRune(["rune-x"], "progress-test", {
+    rankMin: 1,
+    rankMax: 12,
+    onProgress: (batchMatches, processedCount, totalCandidates) => {
+      progressCalls.push({ processedCount, totalCandidates });
+      accumulatedMatches.push(...batchMatches);
+    }
+  });
+
+  assert.equal(progressCalls.length, 3);
+  assert.deepEqual(progressCalls.map((call) => call.totalCandidates), [12, 12, 12]);
+  assert.deepEqual(progressCalls.map((call) => call.processedCount), [5, 10, 12]);
+  assert.ok(progressCalls.every((call, index) => index === 0 || call.processedCount > progressCalls[index - 1].processedCount));
+  assert.deepEqual(
+    accumulatedMatches.map((match) => match.rank).sort((a, b) => a - b),
+    matches.map((match) => match.rank).sort((a, b) => a - b)
+  );
+});
+
+test("scanLeaderboardForRune works when onProgress is omitted", async () => {
+  globalThis.fetch = async (url) => {
+    const target = new URL(url);
+    if (target.pathname.includes("season-leaderboards")) return candidateResponse(3, 1);
+    if (target.pathname.includes("battle-logs")) {
+      const userID = target.pathname.split("/").at(-2);
+      return battleLogResponse(userID, "rune-x");
+    }
+    throw new Error(`Unexpected fetch: ${url}`);
+  };
+
+  const matches = await scanLeaderboardForRune(["rune-x"], "no-progress-test", { rankMin: 1, rankMax: 3 });
+  assert.deepEqual(matches.map((match) => match.rank), [1, 2, 3]);
+});

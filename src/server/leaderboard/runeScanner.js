@@ -77,7 +77,7 @@ async function enrichCandidateForRune(player, runeIds) {
 export async function scanLeaderboardForRune(
   runeIds,
   eraMilestone,
-  { rankMin = 1, rankMax = LEADERBOARD_MAX_RANK, name = "" } = {}
+  { rankMin = 1, rankMax = LEADERBOARD_MAX_RANK, name = "", onProgress } = {}
 ) {
   const candidates = await fetchRankCandidates(eraMilestone, LEADERBOARD_MAX_RANK);
 
@@ -101,7 +101,11 @@ export async function scanLeaderboardForRune(
       (player) => enrichCandidateForRune(player, runeIds),
       BATTLELOG_FETCH_CONCURRENCY
     );
-    matches.push(...batchResults.filter(Boolean));
+    const batchMatches = batchResults.filter(Boolean);
+    matches.push(...batchMatches);
+    if (typeof onProgress === "function") {
+      onProgress(batchMatches, Math.min(start + batch.length, narrowedCandidates.length), narrowedCandidates.length);
+    }
 
     const isLastBatch = start + RUNE_SCAN_ENRICHMENT_BATCH_SIZE >= narrowedCandidates.length;
     if (!isLastBatch && RUNE_SCAN_BATCH_PAUSE_MS > 0) {

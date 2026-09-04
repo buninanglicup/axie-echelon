@@ -30,6 +30,7 @@ import { allowedOrigin, port } from "./src/server/shared/env.js";
 import axieRoutes from "./src/server/axieRoutes.js";
 import seasonRoutes from "./src/server/seasonRoutes.js";
 import leaderboardRoutes from "./src/server/leaderboard/leaderboardRoutes.js";
+import leaderboardRuneScanRoutes from "./src/server/leaderboard/leaderboardRuneScanRoutes.js";
 
 console.log(`Starting server on port ${port} (${process.env.PORT ? 'PORT env override' : 'default port 8787'})`);
 
@@ -50,6 +51,7 @@ app.use(express.static(path.resolve(".")));
 app.use(axieRoutes);
 app.use(seasonRoutes);
 app.use(leaderboardRoutes);
+app.use(leaderboardRuneScanRoutes);
 
 // ========== SERVER INITIALIZATION ==========
 // Runes are loaded from the pre-generated static registry in src/data/runes.json.
