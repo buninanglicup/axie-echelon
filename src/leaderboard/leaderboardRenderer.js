@@ -295,14 +295,29 @@ export function renderLeaderboardRows(leaderboardBody, players) {
         }
 
         if (fighter.rune) {
+          const addRuneTooltip = (runeBadge) => {
+            const showTooltip = () => {
+              if (axieWrapper.querySelector(".rune-badge-tooltip")) return;
+              const tooltip = document.createElement("span");
+              tooltip.className = "rune-badge-tooltip";
+              tooltip.textContent = fighter.rune.name;
+              axieWrapper.append(tooltip);
+            };
+            const hideTooltip = () => axieWrapper.querySelector(".rune-badge-tooltip")?.remove();
+            runeBadge.addEventListener("mouseenter", showTooltip);
+            runeBadge.addEventListener("mouseleave", hideTooltip);
+            runeBadge.addEventListener("focus", showTooltip);
+            runeBadge.addEventListener("blur", hideTooltip);
+          };
+
           if (fighter.rune.imageUrl) {
             console.log(`[renderLeaderboardRows] Row ${rowIndex}, Slot ${slotIndex}, Axie #${axieID}: Adding rune badge ${fighter.rune.name}`);
             const runeBadge = document.createElement("img");
             runeBadge.className = "rune-badge";
             runeBadge.src = fighter.rune.imageUrl;
             runeBadge.alt = `Rune: ${fighter.rune.name}`;
-            runeBadge.title = fighter.rune.name;
             runeBadge.setAttribute("aria-label", `Rune: ${fighter.rune.name}`);
+            addRuneTooltip(runeBadge);
 
             runeBadge.addEventListener("error", () => {
               runeBadge.style.display = "none";
@@ -315,8 +330,8 @@ export function renderLeaderboardRows(leaderboardBody, players) {
             const runeBadge = document.createElement("div");
             runeBadge.className = "rune-badge rune-badge-text";
             runeBadge.textContent = "?";
-            runeBadge.title = fighter.rune.name;
             runeBadge.setAttribute("aria-label", `Rune: ${fighter.rune.name}`);
+            addRuneTooltip(runeBadge);
             axieWrapper.append(runeBadge);
           }
         }
