@@ -461,15 +461,15 @@ async function enrichVisiblePoolPage(pageItems, requestedPage, requestedMileston
       const data = await response.json();
       player.enrichmentAttempted = true;
 
-      if (data && data.team) {
-        player.team = data.team;
-      }
-
       if (
         leaderboardState.currentPage !== requestedPage ||
         leaderboardState.currentEraMilestone !== requestedMilestone
       ) {
         return;
+      }
+
+      if (data && data.team) {
+        player.team = data.team;
       }
     } catch (error) {
       console.warn(`Team enrichment failed for ${player.userID}`, error);
