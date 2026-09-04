@@ -1,0 +1,49 @@
+{
+  "eraMilestone": "season18-fixture",
+  "meta": {
+    "purpose": "Deterministic synthetic fixture for async rune-scan tests.",
+    "candidateCount": 24,
+    "matchRunes": ["rune-fixture-alpha"],
+    "nonMatchRunes": ["rune-fixture-beta"],
+    "absentTeamRanks": [7, 19],
+    "erroredRank": 13
+  },
+  "candidates": [
+    {"rank":1,"topRank":1,"userID":"user-fixture-01","name":"Fixture Player 01","vstar":3199,"rating":3199},
+    {"rank":2,"topRank":2,"userID":"user-fixture-02","name":"Fixture Player 02","vstar":3198,"rating":3198},
+    {"rank":3,"topRank":3,"userID":"user-fixture-03","name":"Fixture Player 03","vstar":3197,"rating":3197},
+    {"rank":4,"topRank":4,"userID":"user-fixture-04","name":"Fixture Player 04","vstar":3196,"rating":3196},
+    {"rank":5,"topRank":5,"userID":"user-fixture-05","name":"Fixture Player 05","vstar":3195,"rating":3195},
+    {"rank":6,"topRank":6,"userID":"user-fixture-06","name":"Fixture Player 06","vstar":3194,"rating":3194},
+    {"rank":7,"topRank":7,"userID":"user-fixture-07","name":"Fixture Player 07","vstar":3193,"rating":3193},
+    {"rank":8,"topRank":8,"userID":"user-fixture-08","name":"Fixture Player 08","vstar":3192,"rating":3192},
+    {"rank":9,"topRank":9,"userID":"user-fixture-09","name":"Fixture Player 09","vstar":3191,"rating":3191},
+    {"rank":10,"topRank":10,"userID":"user-fixture-10","name":"Fixture Player 10","vstar":3190,"rating":3190},
+    {"rank":11,"topRank":11,"userID":"user-fixture-11","name":"Fixture Player 11","vstar":3189,"rating":3189},
+    {"rank":12,"topRank":12,"userID":"user-fixture-12","name":"Fixture Player 12","vstar":3188,"rating":3188},
+    {"rank":13,"topRank":13,"userID":"user-fixture-13","name":"Fixture Player 13","vstar":3187,"rating":3187},
+    {"rank":14,"topRank":14,"userID":"user-fixture-14","name":"Fixture Player 14","vstar":3186,"rating":3186},
+    {"rank":15,"topRank":15,"userID":"user-fixture-15","name":"Fixture Player 15","vstar":3185,"rating":3185},
+    {"rank":16,"topRank":16,"userID":"user-fixture-16","name":"Fixture Player 16","vstar":3184,"rating":3184},
+    {"rank":17,"topRank":17,"userID":"user-fixture-17","name":"Fixture Player 17","vstar":3183,"rating":3183},
+    {"rank":18,"topRank":18,"userID":"user-fixture-18","name":"Fixture Player 18","vstar":3182,"rating":3182},
+    {"rank":19,"topRank":19,"userID":"user-fixture-19","name":"Fixture Player 19","vstar":3181,"rating":3181},
+    {"rank":20,"topRank":20,"userID":"user-fixture-20","name":"Fixture Player 20","vstar":3180,"rating":3180},
+    {"rank":21,"topRank":21,"userID":"user-fixture-21","name":"Fixture Player 21","vstar":3179,"rating":3179},
+    {"rank":22,"topRank":22,"userID":"user-fixture-22","name":"Fixture Player 22","vstar":3178,"rating":3178},
+    {"rank":23,"topRank":23,"userID":"user-fixture-23","name":"Fixture Player 23","vstar":3177,"rating":3177},
+    {"rank":24,"topRank":24,"userID":"user-fixture-24","name":"Fixture Player 24","vstar":3176,"rating":3176}
+  ],
+  "teams": {
+    "user-fixture-03":{"fighters":[{"axieID":1,"position":0,"runes":["rune-fixture-alpha"]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"},
+    "user-fixture-05":{"fighters":[{"axieID":1,"position":0,"runes":["rune-fixture-beta"]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"},
+    "user-fixture-06":{"fighters":[{"axieID":1,"position":0,"runes":["rune-fixture-alpha"]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"},
+    "user-fixture-09":{"fighters":[{"axieID":1,"position":0,"runes":["rune-fixture-alpha"]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"},
+    "user-fixture-12":{"fighters":[{"axieID":1,"position":0,"runes":["rune-fixture-alpha"]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"},
+    "user-fixture-15":{"fighters":[{"axieID":1,"position":0,"runes":["rune-fixture-alpha"]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"},
+    "user-fixture-18":{"fighters":[{"axieID":1,"position":0,"runes":["rune-fixture-alpha"]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"},
+    "user-fixture-21":{"fighters":[{"axieID":1,"position":0,"runes":["rune-fixture-alpha"]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"},
+    "user-fixture-24":{"fighters":[{"axieID":1,"position":0,"runes":["rune-fixture-alpha"]}],"startedAt":"2026-08-30T00:00:00.000Z","endedAt":"2026-08-30T00:05:00.000Z"}
+  },
+  "erroredUserIDs": ["user-fixture-13"]
+}
