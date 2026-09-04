@@ -26,6 +26,33 @@ A real-time leaderboard tracking system for monitoring top Axie Infinity players
   `src/server/leaderboard/__fixtures__/`; real captures and live benchmarks are
   manual-only. See `docs/implementation/rune-scan-fixtures.md`.
 
+### Handoff State (2026-09-04)
+
+Completed in the current rune-scan milestone:
+- Async top-1000 rune jobs with progress polling, partial matches,
+  cancellation, deduplication, heartbeat cleanup, and watchdog timeout.
+- Frontend migration to the async job API and retirement of the blocking sync
+  rune route.
+- Candidate-pool retries, canonical chunk caching, and battle-log priority
+  starvation prevention.
+- Sanitized fixture-backed tests, manual capture tooling, and live benchmark
+  tooling. The full explicit suite passes 31 tests and the frontend build
+  passes.
+
+The real Season 18 capture was generated locally at
+`api-responses/rune-scan-fixture-capture.json` (approximately 3.8 MB). It is
+ignored by Git because it contains real player data and must not be committed.
+
+Remaining handoff tasks:
+1. Optionally run `node scripts/live-rune-scan-benchmark.mjs 3 <runeId>` to
+   measure current live latency.
+2. Review the ignored real capture locally if actual data-shape inspection is
+   needed.
+3. Tune batch size, pause, or concurrency only after measuring live results.
+4. If changing GitHub accounts, authenticate the new account for the current
+   remote or update the remote to the new repository:
+   `https://github.com/buninanglicup/axie-echelon.git`.
+
 ---
 
 ## 2. Current Features
