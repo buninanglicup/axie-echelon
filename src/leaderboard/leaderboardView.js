@@ -804,7 +804,7 @@ export function initLeaderboardView() {
         const leaderboardView = document.querySelector("#leaderboard-view");
         if (leaderboardView) {
           leaderboardView.classList.remove("hidden");
-          await hydrateLeaderboard();
+          if (leaderboardState.liveModeEnabled) await hydrateLeaderboard();
         }
       } else if (nav === "meta") {
         const metaView = document.querySelector("#meta-view");
