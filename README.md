@@ -44,6 +44,9 @@ The reusable marketplace ownership function is `fetchAxiesOwnedByAddress(ownerAd
 - Run both the backend and frontend together with:
   - `npm run dev`
 - Copy `.env.example` to `.env` and add your local `AXIE_ECHELON_API_KEY` before starting.
+- Generate the local project structure snapshot by double-clicking
+  `generate-project-structure.cmd`, or run `node .\scripts\generate-project-structure.mjs`
+  from the project root.
 - The Vite frontend runs on `http://127.0.0.1:5173`.
 - The backend API runs on `http://127.0.0.1:8787`.
 - Open `http://127.0.0.1:5173` in your browser for the working dev app.
@@ -93,7 +96,7 @@ For profile-based tuning, keep the values in `.env` as profile-scoped overrides 
   - `http://127.0.0.1:8787/api/leaderboard?limit=3&offset=0&milestone=3`
 - If the page loads but the API is unreachable, the backend process is not running or is exiting early.
 
-The app now runs as one unified process. Until the Phase 3 candidate-pool and pagination pipeline is integrated, `VITE_LEADERBOARD_LIMIT` and `VITE_LEADERBOARD_OFFSET` select one fixed leaderboard window; ranks outside that window are not available in the UI. See [the leaderboard roadmap](docs/planning/leaderboard-roadmap.md) for the current implementation breakdown.
+The app now runs as one unified process. Non-live leaderboard browsing uses a cached top-1000 candidate pool with client-side rank/name pagination and progressive team enrichment. `VITE_LEADERBOARD_LIMIT` and `VITE_LEADERBOARD_OFFSET` remain relevant to the legacy/live leaderboard route. See [the leaderboard roadmap](docs/planning/leaderboard-roadmap.md) for the current implementation breakdown.
 
 The current multi-tracker workflow is intentionally profile-based instead of hard-coded process duplication. It keeps each local tracker isolated by `TRACKER_PROFILE`, preserves clean dev-time testing across multiple rank windows, and avoids the stale identity assumptions that were previously causing profile collisions.
 

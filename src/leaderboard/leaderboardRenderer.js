@@ -119,69 +119,70 @@ export function renderLeaderboardRows(leaderboardBody, players) {
 
     playerNameContainer.append(playerName);
 
-    const subtitle = document.createElement("div");
-    subtitle.className = "last-battle-subtitle";
-    const displayTimestamp = getLastBattleTimestamp(player);
-    const isCoastingOnCache =
-      leaderboardState.liveModeEnabled &&
-      player.battleTimeFetchFailed &&
-      Boolean(displayTimestamp);
+    if (leaderboardState.liveModeEnabled) {
+      const subtitle = document.createElement("div");
+      subtitle.className = "last-battle-subtitle";
+      const displayTimestamp = getLastBattleTimestamp(player);
+      const isCoastingOnCache = player.battleTimeFetchFailed && Boolean(displayTimestamp);
 
-    if (displayTimestamp) {
-      subtitle.dataset.lastRankedBattleTime = displayTimestamp;
-    }
-    subtitle.dataset.battleTimeFetchFailed = String(Boolean(player.battleTimeFetchFailed));
-    subtitle.textContent = formatRelativeTime(
-      displayTimestamp ? new Date(displayTimestamp) : null,
-      {
-        unavailableLabel: player.battleTimeFetchFailed ? "Can't fetch last battle" : "Played: —",
-        failedLabel: "Can't fetch last battle"
+      if (displayTimestamp) {
+        subtitle.dataset.lastRankedBattleTime = displayTimestamp;
       }
-    );
-    subtitle.classList.toggle("battle-time-unconfirmed", isCoastingOnCache);
-    playerNameContainer.append(subtitle);
+      subtitle.dataset.battleTimeFetchFailed = String(Boolean(player.battleTimeFetchFailed));
+      subtitle.textContent = formatRelativeTime(
+        displayTimestamp ? new Date(displayTimestamp) : null,
+        {
+          unavailableLabel: player.battleTimeFetchFailed ? "Can't fetch last battle" : "Played: —",
+          failedLabel: "Can't fetch last battle"
+        }
+      );
+      subtitle.classList.toggle("battle-time-unconfirmed", isCoastingOnCache);
+      playerNameContainer.append(subtitle);
+    }
 
     const nextActivitySubtitle = document.createElement("div");
     nextActivitySubtitle.className = "next-activity-subtitle";
-    if (Array.isArray(player.recentRankedBattles) && player.recentRankedBattles.length > 0) {
-      nextActivitySubtitle.dataset.recentRankedBattles = JSON.stringify(player.recentRankedBattles);
-    }
+    if (leaderboardState.liveModeEnabled) {
+      if (Array.isArray(player.recentRankedBattles) && player.recentRankedBattles.length > 0) {
+        nextActivitySubtitle.dataset.recentRankedBattles = JSON.stringify(player.recentRankedBattles);
+      }
 
-    const prediction = predictNextActivity(
-      player.recentRankedBattles || [],
-      leaderboardState.avgMatchDurationMs,
-      RANKED_SESSION_GAP_THRESHOLD_MS,
-      MIN_VALID_MATCH_DURATION_MS
-    );
+      const prediction = predictNextActivity(
+        player.recentRankedBattles || [],
+        leaderboardState.avgMatchDurationMs,
+        RANKED_SESSION_GAP_THRESHOLD_MS,
+        MIN_VALID_MATCH_DURATION_MS
+      );
 
-    const debugSummary = document.createElement("div");
-    debugSummary.className = "debug-next-activity-summary";
-    const summaryText = formatActivityEstimate(prediction);
-    debugSummary.textContent = summaryText;
-    nextActivitySubtitle.append(debugSummary);
+      const debugSummary = document.createElement("div");
+      debugSummary.className = "debug-next-activity-summary";
+      const summaryText = formatActivityEstimate(prediction);
+      debugSummary.textContent = summaryText;
+      nextActivitySubtitle.append(debugSummary);
 
-    const debugBattleLines = Array.isArray(player.recentRankedBattles)
-      ? player.recentRankedBattles
-          .slice(0, 4)
-          .map((battle, index) => {
-            const start = battle.startedAt ? new Date(battle.startedAt) : null;
-            const end = battle.endedAt ? new Date(battle.endedAt) : null;
-            const startLabel = formatDebugClock(start);
-            const endLabel = formatDebugClock(end);
-            const durationMs = start && end ? Math.max(0, end.getTime() - start.getTime()) : null;
-            const durationLabel = durationMs != null
-              ? `${Math.floor(durationMs / 60000)}m ${Math.floor((durationMs % 60000) / 1000)}s`
-              : "?";
-            const label = `G${index + 1}`;
-            return `${label} ${startLabel} → ${endLabel} • ${durationLabel}`;
-          })
-      : [];
+      const debugBattleLines = Array.isArray(player.recentRankedBattles)
+        ? player.recentRankedBattles
+            .slice(0, 4)
+            .map((battle, index) => {
+              const start = battle.startedAt ? new Date(battle.startedAt) : null;
+              const end = battle.endedAt ? new Date(battle.endedAt) : null;
+              const startLabel = formatDebugClock(start);
+              const endLabel = formatDebugClock(end);
+              const durationMs = start && end ? Math.max(0, end.getTime() - start.getTime()) : null;
+              const durationLabel = durationMs != null
+                ? `${Math.floor(durationMs / 60000)}m ${Math.floor((durationMs % 60000) / 1000)}s`
+                : "?";
+              const label = `G${index + 1}`;
+              return `${label} ${startLabel} → ${endLabel} • ${durationLabel}`;
+            })
+        : [];
 
-    if (debugBattleLines.length > 0) {
-      const debugTrace = document.createElement("div");
-      debugTrace.className = "debug-next-activity-trace";
-      debugTrace.textContent = debugBattleLines.join(" | ");
-      nextActivitySubtitle.append(debugTrace);
+      if (debugBattleLines.length > 0) {
+        const debugTrace = document.createElement("div");
+        debugTrace.className = "debug-next-activity-trace";
+        debugTrace.textContent = debugBattleLines.join(" | ");
+        nextActivitySubtitle.append(debugTrace);
+      }
     }
 
     playerNameContainer.append(nextActivitySubtitle);

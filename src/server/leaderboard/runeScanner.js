@@ -40,11 +40,27 @@ function teamHasRune(team, runeId) {
   );
 }
 
-export async function scanLeaderboardForRune(runeId, eraMilestone) {
+export async function scanLeaderboardForRune(
+  runeId,
+  eraMilestone,
+  { rankMin = 1, rankMax = LEADERBOARD_MAX_RANK, name = "" } = {}
+) {
   const candidates = await fetchRankCandidates(eraMilestone, LEADERBOARD_MAX_RANK);
 
+  const nameQuery = String(name || "").trim().toLowerCase();
+  const narrowedCandidates = candidates.filter((player) => {
+    const rank = Number(player.topRank || player.rank);
+    if (!Number.isFinite(rank) || rank <= 0) return false;
+    if (rank < rankMin || rank > rankMax) return false;
+    if (nameQuery) {
+      const playerName = String(player.name || player.userID || "").toLowerCase();
+      if (!playerName.includes(nameQuery)) return false;
+    }
+    return true;
+  });
+
   const results = await mapWithConcurrency(
-    candidates,
+    narrowedCandidates,
     async (player) => {
       const userID = player.userID;
       if (!userID) return null;

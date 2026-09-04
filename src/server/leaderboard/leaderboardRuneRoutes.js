@@ -14,15 +14,22 @@ router.get("/api/leaderboard/rune/:runeId", async (request, response) => {
       return response.status(400).json({ error: "runeId is required." });
     }
     const eraMilestone = resolveEraMilestone(request);
+    const rankMin = Math.max(1, Number(request.query.rankMin) || 1);
+    const requestedRankMax = Math.max(rankMin, Number(request.query.rankMax) || LEADERBOARD_MAX_RANK);
+    const rankMax = Math.min(requestedRankMax, LEADERBOARD_MAX_RANK);
+    const name = typeof request.query.name === "string" ? request.query.name.trim() : "";
 
-    if (DEBUG_ON) console.log(`[/api/leaderboard/rune] Scanning ranks 1-${LEADERBOARD_MAX_RANK} for rune=${runeId} eraMilestone=${eraMilestone}`);
+    if (DEBUG_ON) console.log(`[/api/leaderboard/rune] Scanning ranks ${rankMin}-${rankMax} for rune=${runeId} eraMilestone=${eraMilestone}`);
 
-    const players = await scanLeaderboardForRune(runeId, eraMilestone);
+    const players = await scanLeaderboardForRune(runeId, eraMilestone, { rankMin, rankMax, name });
 
     response.json({
       players,
       runeId,
       milestone: eraMilestone,
+      rankMin,
+      rankMax,
+      name,
       scannedRanks: LEADERBOARD_MAX_RANK
     });
   } catch (error) {

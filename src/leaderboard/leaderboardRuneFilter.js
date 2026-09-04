@@ -1,8 +1,26 @@
 // Rune catalog/search behavior. Rendering result rows is delegated to the
 // view through callbacks to avoid circular imports.
-import { LEADERBOARD_MAX_RANK, leaderboardState, runeSearchInput, runeSuggestions, runeFilterStatus, runeFilterClear } from "./leaderboardState.js";
+import {
+  LEADERBOARD_MAX_RANK,
+  leaderboardState,
+  runeSearchInput,
+  runeSuggestions,
+  runeFilterStatus,
+  runeFilterClear,
+  pageControls,
+  MAXIMUM_PLAYERS_DISPLAYED_PER_PAGE
+} from "./leaderboardState.js";
+import { getPageItems } from "../pagination.js";
+
+const RUNE_RESCAN_DEBOUNCE_MS = 350;
 
 export function createRuneFilterController({ renderRows, updateActiveFilters, getLeaderboardBody, onClear, onApply }) {
+  let selectedRune = null;
+  let scanGeneration = 0;
+  let rescanDebounceTimer = null;
+  let lastScanMatches = [];
+  let runeResultsPage = 1;
+
   async function loadRuneCatalogIfNeeded() {
     if (leaderboardState.runeCatalogLoaded) return;
     try {
@@ -51,40 +69,80 @@ export function createRuneFilterController({ renderRows, updateActiveFilters, ge
     runeSuggestions.hidden = false;
   }
 
-  async function applyRuneFilter(rune) {
-    leaderboardState.activeRuneId = rune.id;
-    leaderboardState.runeFilterActive = true;
-    if (onApply) onApply();
+  function buildRuneScanUrl(runeId) {
+    const params = new URLSearchParams();
+    params.set("milestone", leaderboardState.currentEraMilestone);
+    const { rankMin, rankMax, playerNameQuery } = leaderboardState;
+    if (rankMin) params.set("rankMin", String(rankMin));
+    if (rankMax) params.set("rankMax", String(rankMax));
+    const trimmedName = (playerNameQuery || "").trim();
+    if (trimmedName) params.set("name", trimmedName);
+    return `/api/leaderboard/rune/${encodeURIComponent(runeId)}?${params.toString()}`;
+  }
 
-    if (runeSearchInput) runeSearchInput.value = rune.name;
-    if (runeSuggestions) runeSuggestions.hidden = true;
-    if (runeFilterClear) runeFilterClear.hidden = false;
+  function hideRunePager() {
+    if (!pageControls) return;
+    pageControls.hidden = true;
+    pageControls.replaceChildren();
+  }
 
+  function renderRuneResultsPage() {
     const leaderboardBody = getLeaderboardBody();
+    if (!leaderboardBody) return;
+    const pageInfo = getPageItems(lastScanMatches, runeResultsPage, MAXIMUM_PLAYERS_DISPLAYED_PER_PAGE);
+    runeResultsPage = pageInfo.page;
+    renderRows(leaderboardBody, pageInfo.items);
+    if (pageControls) {
+      if (pageInfo.totalPages <= 1) {
+        hideRunePager();
+      } else {
+        pageControls.hidden = false;
+        pageControls.replaceChildren();
+        for (let page = 1; page <= pageInfo.totalPages; page += 1) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.textContent = String(page);
+          if (page === pageInfo.page) {
+            button.classList.add("active");
+            button.setAttribute("aria-current", "page");
+          }
+          button.addEventListener("click", () => {
+            runeResultsPage = page;
+            renderRuneResultsPage();
+          });
+          pageControls.append(button);
+        }
+      }
+    }
+    updateActiveFilters();
+  }
+
+  async function runRuneScan(rune, { isRescan = false } = {}) {
+    const generation = ++scanGeneration;
+    if (onApply) onApply();
     if (runeFilterStatus) {
       runeFilterStatus.hidden = false;
-      runeFilterStatus.textContent = `Scanning top ${LEADERBOARD_MAX_RANK} ranked players for "${rune.name}"...`;
+      runeFilterStatus.textContent = `${isRescan ? "Rescanning" : "Scanning"} top ${LEADERBOARD_MAX_RANK} ranked players for "${rune.name}"...`;
     }
+    const leaderboardBody = getLeaderboardBody();
     if (leaderboardBody) leaderboardBody.replaceChildren();
+    hideRunePager();
 
     try {
-      const url = `/api/leaderboard/rune/${encodeURIComponent(rune.id)}?milestone=${leaderboardState.currentEraMilestone}`;
-      const response = await fetch(url);
+      const response = await fetch(buildRuneScanUrl(rune.id));
       if (!response.ok) throw new Error(`Rune filter request failed: ${response.status}`);
       const data = await response.json();
-      const matches = Array.isArray(data.players) ? data.players : [];
+      if (generation !== scanGeneration || leaderboardState.activeRuneId !== rune.id) return;
 
-      if (leaderboardState.activeRuneId !== rune.id) return;
-
+      lastScanMatches = Array.isArray(data.players) ? data.players : [];
+      runeResultsPage = 1;
       if (runeFilterStatus) {
-        runeFilterStatus.textContent = `${matches.length} player(s) running "${rune.name}" within top ${data.scannedRanks || LEADERBOARD_MAX_RANK}.`;
+        runeFilterStatus.textContent = `${lastScanMatches.length} player(s) running "${rune.name}" within top ${data.scannedRanks || LEADERBOARD_MAX_RANK}.`;
       }
-      if (leaderboardBody) {
-        renderRows(leaderboardBody, matches);
-        updateActiveFilters();
-      }
+      renderRuneResultsPage();
     } catch (error) {
       console.error("Rune filter error:", error);
+      if (generation !== scanGeneration) return;
       if (runeFilterStatus) runeFilterStatus.textContent = `Failed to scan for "${rune.name}".`;
       if (leaderboardBody) {
         leaderboardBody.innerHTML =
@@ -93,13 +151,39 @@ export function createRuneFilterController({ renderRows, updateActiveFilters, ge
     }
   }
 
+  async function applyRuneFilter(rune) {
+    selectedRune = rune;
+    leaderboardState.activeRuneId = rune.id;
+    leaderboardState.runeFilterActive = true;
+
+    if (runeSearchInput) runeSearchInput.value = rune.name;
+    if (runeSuggestions) runeSuggestions.hidden = true;
+    if (runeFilterClear) runeFilterClear.hidden = false;
+    clearTimeout(rescanDebounceTimer);
+    await runRuneScan(rune);
+  }
+
+  function rescanIfActive() {
+    if (!leaderboardState.runeFilterActive || !selectedRune) return;
+    clearTimeout(rescanDebounceTimer);
+    rescanDebounceTimer = setTimeout(() => {
+      runRuneScan(selectedRune, { isRescan: true });
+    }, RUNE_RESCAN_DEBOUNCE_MS);
+  }
+
   function clearRuneFilter() {
+    selectedRune = null;
+    lastScanMatches = [];
+    runeResultsPage = 1;
+    scanGeneration += 1;
+    clearTimeout(rescanDebounceTimer);
     leaderboardState.activeRuneId = null;
     leaderboardState.runeFilterActive = false;
     if (runeSearchInput) runeSearchInput.value = "";
     if (runeSuggestions) runeSuggestions.hidden = true;
     if (runeFilterStatus) runeFilterStatus.hidden = true;
     if (runeFilterClear) runeFilterClear.hidden = true;
+    hideRunePager();
   }
 
   function init() {
@@ -127,5 +211,5 @@ export function createRuneFilterController({ renderRows, updateActiveFilters, ge
     });
   }
 
-  return { clearRuneFilter, init };
+  return { clearRuneFilter, rescanIfActive, init };
 }

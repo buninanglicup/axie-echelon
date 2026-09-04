@@ -62,14 +62,14 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
   - backend `127.0.0.1:8787`
 - Profile-driven multi-tracker development using `.env`; each instance selects a numbered `TRACKER_PROFILE` and receives isolated runtime settings.
 - Five predefined PowerShell launch scripts for local multi-window testing; the profile resolver itself supports additional contiguous profile numbers.
-- Phase 3 candidate-pool implementation is in progress: 3a (backend ceiling/cache constants) and 3b (full-pool loading) are implemented; 3c (client-side filtering), 3d (pagination), and 3e (narrow-then-enrich rune/body-part filtering) remain.
+- Phase 3 candidate-pool implementation: 3a (backend ceiling/cache constants), 3b (full-pool loading), 3c (client-side filtering), 3d (pagination), and 3e rune narrowing are implemented. Non-live visible rows progressively request team data and reuse the existing morph renderer. Body-part filtering remains future work because its catalog, route, and predicate are not implemented. Morph completeness still requires manual verification against real ranked-battle payloads.
 
 ## Backend Routes
 
 - `GET /api/leaderboard`: legacy eager-enrichment leaderboard; `liveMode=true` bypasses the page cache and fetches fresh battle logs.
 - `GET /api/leaderboard/pool`: cheap rank/name/MMR candidate pool.
 - `GET /api/leaderboard/team/:userID`: on-demand enrichment status endpoint.
-- `GET /api/leaderboard/rune/:runeId`: rune scan through rank 200.
+- `GET /api/leaderboard/rune/:runeId`: rune scan with optional rank/name narrowing through the configured top-1000 candidate pool.
 - `GET /api/runes`: generated rune catalog.
 - `GET /api/axie/:id`: Axie lookup and normalization.
 - `GET /api/axie-detail/:id`: GraphQL Axie detail.

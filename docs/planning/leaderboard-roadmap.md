@@ -264,13 +264,20 @@ validated and committed independently:
   existing `leaderboardData` path.
 - **3d — Pagination UI:** use `getPageItems()` and
   `MAXIMUM_PLAYERS_DISPLAYED_PER_PAGE`, with page reset on filter changes.
-- **3e — Rune/body-part narrowing:** apply cheap rank/name filters first, then
-  enrich or scan only the surviving candidates and keep the intersection.
+- **3e — Rune narrowing:** apply cheap rank/name filters first, then enrich
+  or scan only the surviving candidates and keep the intersection. Body-part
+  filtering remains a separate future feature because no body-part catalog,
+  route, or predicate exists yet.
 
-Current progress: **3a complete; 3b complete; 3c complete; 3d in progress.**
+Current progress: **3a complete; 3b complete; 3c complete; 3d complete;
+3e rune narrowing complete.**
 The non-live table now consumes the loaded pool for rank/name filtering and
-pagination; rune/body-part narrowing remains the next step after 3d is
-verified.
+pagination. Rune selection narrows rank/name candidates before team
+enrichment, rescans are debounced when those cheap filters change, and the
+selected rune results are paginated client-side. Non-live visible rows also
+progressively request team data so the existing morph renderer can populate
+the three Axie previews. Remaining verification is manual validation of
+morph completeness for real ranked-battle payloads.
 
 ### Phase 4 — Progressive enrichment and status-driven rendering
 

@@ -193,6 +193,7 @@ function renderFilteredPool() {
   }
   renderPoolPager(pageInfo);
   updateActiveFilters();
+  enrichVisiblePoolPage(pageInfo.items, leaderboardState.currentPage, leaderboardState.currentEraMilestone);
 }
 
 function renderPoolPager({ page, totalPages }) {
@@ -250,10 +251,15 @@ function renderFilteredView() {
 
 function resetPageAndRenderFilteredView() {
   leaderboardState.currentPage = 1;
+  if (leaderboardState.runeFilterActive) {
+    rescanRuneFilterIfActive();
+    return;
+  }
   renderFilteredView();
 }
 
 let clearRuneFilter = () => {};
+let rescanRuneFilterIfActive = () => {};
 
 function updateActiveFilters() {
   if (!activeFilters) return;
@@ -406,6 +412,75 @@ async function fetchJsonWithRetry(url, attempts = 8) {
 // docs/planning/leaderboard-roadmap.md for why. Not yet wired into
 // pagination (that's 3d); 3c consumes it for non-live filtering and rendering.
 let leaderboardPoolFetchMilestone = null;
+const POOL_TEAM_ENRICHMENT_CONCURRENCY = 8;
+const POOL_TEAM_ENRICHMENT_RERENDER_DEBOUNCE_MS = 200;
+const enrichmentInFlightUserIDs = new Set();
+let poolEnrichmentRerenderTimer = null;
+
+async function runWithConcurrencyLimit(items, limit, worker) {
+  let index = 0;
+  const workerCount = Math.min(limit, items.length);
+  await Promise.all(
+    Array.from({ length: workerCount }, async () => {
+      while (index < items.length) {
+        const currentIndex = index++;
+        await worker(items[currentIndex]);
+      }
+    })
+  );
+}
+
+function scheduleEnrichmentRerender() {
+  if (poolEnrichmentRerenderTimer !== null) return;
+  poolEnrichmentRerenderTimer = window.setTimeout(() => {
+    poolEnrichmentRerenderTimer = null;
+    if (!leaderboardState.liveModeEnabled && !leaderboardState.runeFilterActive) {
+      renderFilteredPool();
+    }
+  }, POOL_TEAM_ENRICHMENT_RERENDER_DEBOUNCE_MS);
+}
+
+async function enrichVisiblePoolPage(pageItems, requestedPage, requestedMilestone) {
+  const targets = pageItems.filter(
+    (player) =>
+      player.userID &&
+      !player.team &&
+      !player.enrichmentAttempted &&
+      !enrichmentInFlightUserIDs.has(player.userID)
+  );
+  if (targets.length === 0) return;
+
+  await runWithConcurrencyLimit(targets, POOL_TEAM_ENRICHMENT_CONCURRENCY, async (player) => {
+    enrichmentInFlightUserIDs.add(player.userID);
+    try {
+      const response = await fetch(`/api/leaderboard/team/${encodeURIComponent(player.userID)}?priority=high`);
+      if (!response.ok) {
+        player.enrichmentAttempted = true;
+        return;
+      }
+      const data = await response.json();
+      player.enrichmentAttempted = true;
+
+      if (data && data.team) {
+        player.team = data.team;
+      }
+
+      if (
+        leaderboardState.currentPage !== requestedPage ||
+        leaderboardState.currentEraMilestone !== requestedMilestone
+      ) {
+        return;
+      }
+    } catch (error) {
+      console.warn(`Team enrichment failed for ${player.userID}`, error);
+      player.enrichmentAttempted = true;
+    } finally {
+      enrichmentInFlightUserIDs.delete(player.userID);
+    }
+  });
+
+  scheduleEnrichmentRerender();
+}
 
 async function fetchLeaderboardPool() {
   // Dedup: if a fetch for this era is already in flight, reuse it instead
@@ -652,6 +727,7 @@ export function initLeaderboardView() {
     runeFilterController.clearRuneFilter();
     renderFilteredView();
   };
+  rescanRuneFilterIfActive = () => runeFilterController.rescanIfActive();
   runeFilterController.init();
 
   // Wire rank inputs (if present)
