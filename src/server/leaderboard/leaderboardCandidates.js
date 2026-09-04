@@ -1,6 +1,6 @@
 // PHASE 1 FILE SPLIT (2026-08-19) -- moved from the old server.js.
 import { AXIE_ECHELON_API_KEY, DEBUG_ON, MAVIS_API_URL } from "../shared/env.js";
-import { fetchWithRetry } from "../shared/httpRetry.js";
+import { fetchWithRetry, parseRetryAfterMs } from "../shared/httpRetry.js";
 import { RANK_CANDIDATE_CACHE_TTL_MS, SEASON_LEADERBOARD_API_MAX_LIMIT } from "./leaderboardConstants.js";
 
 export const rankCandidateCache = new Map();
@@ -40,10 +40,8 @@ async function fetchCandidateChunk(eraMilestone, offset) {
     );
 
     if (!res.ok) {
-      const retryAfterHeader = res.headers.get("retry-after");
-      const retryAfterSeconds = retryAfterHeader && /^\d+$/.test(retryAfterHeader.trim())
-        ? Number(retryAfterHeader.trim())
-        : null;
+      const retryAfterMs = parseRetryAfterMs(res.headers.get("retry-after"));
+      const retryAfterSeconds = retryAfterMs !== null ? Math.ceil(retryAfterMs / 1000) : null;
       throw new CandidatePoolUnavailableError(
         `Rank candidate fetch failed at offset ${offset}: ${res.status}`,
         { status: res.status, offset, retryAfterSeconds }

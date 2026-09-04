@@ -4,7 +4,7 @@ const DEFAULT_BASE_DELAY_MS = 500;
 const DEFAULT_MAX_DELAY_MS = 10_000;
 const DEFAULT_MAX_TOTAL_DELAY_MS = 20_000;
 
-function parseRetryAfterMs(headerValue) {
+export function parseRetryAfterMs(headerValue) {
   if (!headerValue) return null;
   const trimmed = String(headerValue).trim();
 
