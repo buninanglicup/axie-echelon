@@ -1,4 +1,8 @@
-# Axie Morph Viewer - Copilot Continuation Prompt
+# Archived Axie Morph Viewer - Copilot Continuation Prompt
+
+> Historical continuation notes retained for context. They describe an older
+> pre-split architecture and are not current project instructions. Use
+> `PROJECT_HANDOFF.md` for the current project state.
 
 ## Project Overview
 Axie Infinity web app that searches axies by ID or Ronin address and renders morph previews using PIXI/Spine. Backend: Node.js/Express. Frontend: Vite + vanilla JS. Runs on http://127.0.0.1:8787 (backend) and http://127.0.0.1:5173 (frontend).

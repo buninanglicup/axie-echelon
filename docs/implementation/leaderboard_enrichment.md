@@ -9,13 +9,14 @@ are ignored, and multiple selected runes use OR semantics: a player matches if
 their team has any selected rune. This control is leaderboard-only; the
 separate Morph Viewer is unchanged.
 
-Current status: the multi-select UI, repeated-rune route contract, and OR
-matching are working. Manual testing confirmed successful results for top-30
-and top-100 scans, including multiple selected runes. A top-1000 scan currently
-fails when Sky Mavis returns HTTP 429 while the candidate pool is being fetched
-in multiple upstream requests. This is a rate-limit/request-volume limitation,
-not a confirmed rune-ID or team-matching failure. Retry/backoff and resilient
-candidate-chunk caching remain future work.
+Current status: the multi-select UI, asynchronous rune-scan job routes, partial
+results, repeated-rune route contract, and OR matching are working. Manual
+testing confirmed successful results for top-30 and top-100 scans, including
+multiple selected runes. A live top-1000 scan can finish as `partial` when
+upstream battle-log rate limits and `Retry-After` delays exceed the watchdog;
+this is a rate-limit/request-volume limitation, not a confirmed rune-ID or
+team-matching failure. Candidate-chunk caching, bounded retries, and
+Retry-After handling are implemented.
 
 **See also:** [Cache and Polling Strategy](../planning/cache-and-polling-strategy.md) — comprehensive guide to the three-layer cache architecture, polling optimization, and tuning recommendations for live battle tracking.
 
@@ -61,7 +62,7 @@ The leaderboard battle-log payload exposes both `genes` and
   - timeout per attempt: `3000` ms
   - retry attempts: `3`
   - exponential backoff: `500` ms base
-- Retries occur on transient upstream failures like `429`, `500`, `502`, and timeouts.
+- Retries occur on transient upstream failures like `429`, `500`, `502`, `503`, and timeouts. `Retry-After` is honored when present, with bounded per-request and cumulative retry delays.
 
 ### 3. Deeper ranked-match scan
 - Battle-log enrichment now requests up to `20` recent logs (API limit) instead of `10`.
@@ -78,18 +79,20 @@ The leaderboard battle-log payload exposes both `genes` and
 ## Why these changes help
 | Problem | Fix | Result |
 |---|---|---|
-| Temporary API failures or rate-limits | Retries + timeout | fewer false misses, more consistent team enrichment |
+| Temporary API failures or rate-limits | Bounded retries + timeout + Retry-After | fewer false misses without retry storms |
 | Rapid repeated refreshes | In-memory cache | repeated requests reuse successful teams, reducing flicker |
 | Ranked match not in first 10 logs | Increase battle-log limit to 30 | higher probability of finding the right team |
 
 ## Configuration
-### Defaults set in `server.js`
-- `TEAM_CACHE_TTL_MS` = `600000` (10 minutes) — updated for live battle tracking optimization
+### Defaults set in backend modules
+- `TEAM_CACHE_TTL_MS` = `600000` (10 minutes) — see `src/server/leaderboard/leaderboardConstants.js`
 - `LEADERBOARD_PAGE_CACHE_TTL_MS` = `30000` (30 seconds) — synced with browser cache
 - `LEADERBOARD_STORAGE_TTL_MS` = `30000` (30 seconds, browser-side) — see `src/main.js`
 - `BATTLELOG_FETCH_ATTEMPTS` = `3`
 - `BATTLELOG_FETCH_TIMEOUT_MS` = `3000`
 - `BATTLELOG_FETCH_BACKOFF_MS` = `500`
+- `BATTLELOG_MAX_RETRY_DELAY_MS` = `10000`
+- `BATTLELOG_MAX_TOTAL_RETRY_DELAY_MS` = `20000`
 - `fetchBattleLogsForClient(..., 20)` requests 20 battle logs
 
 ### Optional overrides
@@ -124,8 +127,8 @@ for ($i=1; $i -le 5; $i++) {
 
 ## Change log
 - `TEAM_CACHE_TTL_MS` increased from `60000` to `300000`
-- batch log request limit increased from `10` to `30`
-- retry + timeout added to `fetchBattleLogsForClient`
+- batch log request limit increased from `10` to `20`
+- retry + timeout + Retry-After handling added to `fetchBattleLogsForClient`
 - cache + retry behavior documented in `server.js` and this document
 
 ## Notes

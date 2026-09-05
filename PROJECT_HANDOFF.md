@@ -2,7 +2,7 @@
 
 **Last verified:** 2026-09-04
 
-This is the canonical current-status document. `PHASE1_SPLIT_SUMMARY.md` records the historical refactor, while `HANDOFF.md` and `PROJECT_STATUS.md` are older overlapping notes.
+This is the canonical current-status document. `PHASE1_SPLIT_SUMMARY.md` records the historical refactor. Older snapshots are retained under `docs/history/`; they are not current project instructions.
 
 ## Purpose and Current State
 
