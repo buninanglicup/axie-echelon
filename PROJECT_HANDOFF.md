@@ -14,7 +14,7 @@ The project is an MVP with the Phase 1 server/frontend split implemented and bui
 
 ### Era terminology
 
-An Origins season contains four eras. Sky Mavis names the numeric era selector `milestone` in its API. This project uses `eraMilestone` internally. The external query parameter and response field remain `milestone` for API compatibility; they all represent the same numeric era selector, where `1` = Rare, `2` = Epic, `3` = Mystic, and `4` = Final.
+An Origins season contains four eras. Sky Mavis names the numeric era selector `milestone` in its API. This project uses `eraMilestone` internally. The external query parameter and response field remain `milestone` for API compatibility; they all represent the same numeric era selector, where `1` = Rare, `2` = Epic, `3` = Mystic, and `4` = Final. Era boundaries are calculated backward from the configured `seasonEndedAt`; the calculated Rare start is overridden by the authoritative `seasonStartedAt` to account for maintenance delays.
 
 ### Runtime terminology
 
@@ -42,7 +42,7 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
 
 - Leaderboard display with rank, player name, MMR, win rate, daily change, recent form, team previews, rune badges, profile links, and last ranked-battle time.
 - Live mode polling with configurable interval and activity windows from 0 seconds through 20 minutes.
-- Season/era resolution from `src/data/season.json`; the backend exposes `/api/season/current`. Internally, the numeric value is called `eraMilestone`; at the Sky Mavis API boundary it is sent as `milestone` and explicit `?milestone=` overrides remain supported. The frontend checks immediately at startup and once every 24 hours afterward.
+- Season/era resolution from `src/data/season.json`; the backend exposes `/api/season/current`. Internally, the numeric value is called `eraMilestone`; at the Sky Mavis API boundary it is sent as `milestone` and explicit `?milestone=` overrides remain supported. Era calculation anchors Final to `seasonEndedAt`, works backward for intermediate boundaries, and anchors Rare to `seasonStartedAt`. The resolver reports `seasonOver` at the configured end; automatic offseason endpoint switching remains a separate follow-up. The frontend checks immediately at startup and once every 24 hours afterward.
 - Live-mode freshness model:
   - profile/address data is cached for a long TTL;
   - team composition is cached separately;

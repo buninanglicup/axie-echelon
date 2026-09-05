@@ -43,31 +43,51 @@ validateSeasonConfig(seasonConfig);
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+function getEraBoundaries() {
+  const seasonStartedAtMs = seasonConfig.seasonStartedAt * 1000;
+  const seasonEndedAtMs = seasonConfig.seasonEndedAt
+    ? seasonConfig.seasonEndedAt * 1000
+    : seasonStartedAtMs + seasonConfig.eraDurationDays.reduce((total, days) => total + days, 0) * DAY_MS;
+  const durationsMs = seasonConfig.eraDurationDays.map((days) => days * DAY_MS);
+  const boundaries = Array(durationsMs.length).fill(null);
+  let cursorMs = seasonEndedAtMs;
+
+  for (let index = durationsMs.length - 1; index >= 0; index -= 1) {
+    const endMs = cursorMs;
+    const startMs = endMs - durationsMs[index];
+    boundaries[index] = { startMs, endMs };
+    cursorMs = startMs;
+  }
+
+  // A maintenance delay may shift the first era's actual start. The config's
+  // seasonStartedAt is authoritative for Rare even when backward calculation
+  // produces an earlier nominal boundary.
+  boundaries[0].startMs = seasonStartedAtMs;
+  return boundaries;
+}
+
 // Resolve the current era within the season declared in season.json. The
 // returned milestone is the numeric value Sky Mavis expects for its API.
 export function getCurrentEraForConfiguredSeason(now = Date.now()) {
   const seasonStartedAtMs = seasonConfig.seasonStartedAt * 1000;
-  const eraDurationsMs = seasonConfig.eraDurationDays.map((days) => days * DAY_MS);
+  const seasonEndedAtMs = seasonConfig.seasonEndedAt ? seasonConfig.seasonEndedAt * 1000 : null;
+  const boundaries = getEraBoundaries();
   let eraIndex = 0;
-  let eraStartedAtMs = seasonStartedAtMs;
+  let eraStartedAtMs = boundaries[0].startMs;
+  let eraEndsAtMs = boundaries[0].endMs;
 
   if (now >= seasonStartedAtMs) {
-    let cursorMs = seasonStartedAtMs;
-    eraIndex = eraDurationsMs.length - 1;
-    eraStartedAtMs = cursorMs;
-
-    for (let index = 0; index < eraDurationsMs.length; index += 1) {
-      if (now < cursorMs + eraDurationsMs[index]) {
+    eraIndex = boundaries.length - 1;
+    for (let index = 0; index < boundaries.length; index += 1) {
+      if (now < boundaries[index].endMs) {
         eraIndex = index;
-        eraStartedAtMs = cursorMs;
         break;
       }
-      cursorMs += eraDurationsMs[index];
-      eraStartedAtMs = cursorMs;
     }
+    eraStartedAtMs = boundaries[eraIndex].startMs;
+    eraEndsAtMs = boundaries[eraIndex].endMs;
   }
 
-  const eraEndsAtMs = eraStartedAtMs + eraDurationsMs[eraIndex];
   const milestone = eraIndex + 1;
 
   return {
@@ -79,6 +99,9 @@ export function getCurrentEraForConfiguredSeason(now = Date.now()) {
     milestone,
     eraName: seasonConfig.eraNames?.[eraIndex] || `Era ${milestone}`,
     eraStartedAt: Math.floor(eraStartedAtMs / 1000),
-    eraEndsAt: Math.floor(eraEndsAtMs / 1000)
+    eraEndsAt: Math.floor(eraEndsAtMs / 1000),
+    seasonOver: seasonEndedAtMs !== null && now >= seasonEndedAtMs
   };
 }
+
+export { getEraBoundaries };
