@@ -95,6 +95,7 @@ test("applies name and rank narrowing before enrichment", async () => {
 
 test("uses a valid stale cached team without scheduling a refresh during a scan", async () => {
   let battleLogCalls = 0;
+  let unknownCount = null;
   teamCache.set("user-1", {
     timestamp: Date.now() - 6 * 60 * 1000,
     team: {
@@ -115,9 +116,16 @@ test("uses a valid stale cached team without scheduling a refresh during a scan"
     throw new Error(`Unexpected fetch: ${url}`);
   };
 
-  const matches = await scanLeaderboardForBodyParts(["Clear"], "stale-cache-test", { rankMin: 1, rankMax: 1 });
+  const matches = await scanLeaderboardForBodyParts(["Clear"], "stale-cache-test", {
+    rankMin: 1,
+    rankMax: 1,
+    onProgress: (_batchMatches, _processedCount, _totalCandidates, batchUnknownCount) => {
+      unknownCount = batchUnknownCount;
+    }
+  });
   await new Promise((resolve) => setTimeout(resolve, 20));
 
   assert.deepEqual(matches.map((match) => match.rank), [1]);
   assert.equal(battleLogCalls, 0);
+  assert.equal(unknownCount, 2);
 });

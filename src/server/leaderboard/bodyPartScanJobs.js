@@ -106,6 +106,7 @@ function toPublicJob(job) {
     matches: job.matches,
     processedCount: job.processedCount,
     totalCandidates: job.totalCandidates,
+    unknownCount: job.unknownCount,
     error: job.error,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt
@@ -134,13 +135,14 @@ function runJob(job) {
   job.status = JOB_STATUS.RUNNING;
   job.updatedAt = Date.now();
 
-  const onProgress = (batchMatches, processedCount, totalCandidates) => {
+  const onProgress = (batchMatches, processedCount, totalCandidates, batchUnknownCount = 0) => {
     if (job.cancelRequested || job.status !== JOB_STATUS.RUNNING) {
       throw new BodyPartScanCancelledError(job.jobId);
     }
     job.matches.push(...batchMatches);
     job.processedCount = processedCount;
     job.totalCandidates = totalCandidates;
+    job.unknownCount += batchUnknownCount;
     job.updatedAt = Date.now();
   };
 
@@ -227,6 +229,7 @@ export function startBodyPartScanJob({
     matches: [],
     processedCount: 0,
     totalCandidates: null,
+    unknownCount: 0,
     error: null,
     cancelRequested: false,
     createdAt: Date.now(),

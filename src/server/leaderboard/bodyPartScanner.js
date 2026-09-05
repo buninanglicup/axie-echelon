@@ -13,16 +13,19 @@ function teamMatchesBodyParts(team, selectedNames) {
   if (!team || !Array.isArray(team.fighters)) return { matched: false, known: false, parts: [] };
   const matches = [];
   let knownFighterCount = 0;
+  let unknownFighterCount = 0;
 
   for (const fighter of team.fighters) {
     const result = fighterMatchesBodyParts(fighter, selectedNames);
     if (result.known) knownFighterCount += 1;
+    else unknownFighterCount += 1;
     matches.push(...result.parts);
   }
 
   return {
     matched: matches.length > 0,
     known: knownFighterCount > 0,
+    unknownCount: unknownFighterCount,
     parts: matches
   };
 }
@@ -41,9 +44,9 @@ async function enrichCandidateForBodyParts(player, selectedNames) {
   // uncached candidates for the rate-limited low-priority queue.
 
   const bodyPartResult = teamMatchesBodyParts(team, selectedNames);
-  if (!bodyPartResult.matched) return null;
+  if (!bodyPartResult.matched) return { unknownCount: bodyPartResult.unknownCount, match: null };
 
-  return {
+  return { unknownCount: bodyPartResult.unknownCount, match: {
     rank: player.topRank || player.rank,
     name: player.name || userID,
     mmr: player.vstar || player.rating,
@@ -54,7 +57,7 @@ async function enrichCandidateForBodyParts(player, selectedNames) {
     bodyParts: bodyPartResult.parts,
     lastRankedBattleTime: team?.lastRankedBattleTime || null,
     userID
-  };
+  } };
 }
 
 export async function scanLeaderboardForBodyParts(
@@ -86,10 +89,11 @@ export async function scanLeaderboardForBodyParts(
       (player) => enrichCandidateForBodyParts(player, requestedNames),
       BATTLELOG_FETCH_CONCURRENCY
     );
-    const batchMatches = batchResults.filter(Boolean);
+    const batchMatches = batchResults.filter((result) => result?.match).map((result) => result.match);
+    const batchUnknownCount = batchResults.reduce((count, result) => count + (result?.unknownCount || 0), 0);
     matches.push(...batchMatches);
     if (typeof onProgress === "function") {
-      onProgress(batchMatches, Math.min(start + batch.length, narrowedCandidates.length), narrowedCandidates.length);
+      onProgress(batchMatches, Math.min(start + batch.length, narrowedCandidates.length), narrowedCandidates.length, batchUnknownCount);
     }
 
     const isLastBatch = start + RUNE_SCAN_ENRICHMENT_BATCH_SIZE >= narrowedCandidates.length;
