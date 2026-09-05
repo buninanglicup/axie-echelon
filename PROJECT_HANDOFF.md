@@ -110,7 +110,10 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
 - `src/server/leaderboard/leaderboardBodyPartScanRoutes.js` now exposes
   asynchronous start/status/cancel endpoints with body-part validation, era
   resolution, rank clamping, and public job snapshots. The filter UI remains
-  future work.
+  integrated in `index.html`, `leaderboardState.js`, `leaderboardView.js`, and
+  `leaderboardBodyPartFilter.js`, with canonical search, variant labels,
+  polling, stale-result suppression, mutual exclusion with rune scans, and
+  client-side result pagination.
 - The larger ignored rune-scan capture contains 2,733 fighter records and 2,727
   unique gene strings; all decode successfully and 16,342 of 16,362 dominant
   parts map to the candidate file. The 20 unmapped low-ID parts belong to

@@ -126,6 +126,9 @@ export const leaderboardState = {
   activeRuneId: null,
   selectedRunes: [],
   runeFilterActive: false,
+  bodyPartCatalog: [],
+  selectedBodyPartNames: [],
+  bodyPartFilterActive: false,
   playerNameQuery: ""
 };
 
@@ -169,4 +172,9 @@ export const runeSuggestions = document.querySelector("#rune-suggestions");
 export const selectedRuneChips = document.querySelector("#selected-rune-chips");
 export const runeFilterStatus = document.querySelector("#rune-filter-status");
 export const runeFilterClear = document.querySelector("#rune-filter-clear");
+export const bodyPartSearchInput = document.querySelector("#body-part-search-input");
+export const bodyPartSuggestions = document.querySelector("#body-part-suggestions");
+export const selectedBodyPartChips = document.querySelector("#selected-body-part-chips");
+export const bodyPartFilterStatus = document.querySelector("#body-part-filter-status");
+export const bodyPartFilterClear = document.querySelector("#body-part-filter-clear");
 export const pageControls = document.querySelector("#page-controls");

@@ -5,6 +5,7 @@
 import { renderLeaderboardRows, updateLeaderboardRelativeTimes } from "./leaderboardRenderer.js";
 import { applyLeaderboardFilters, applyRankFilter } from "./leaderboardFilters.js";
 import { createRuneFilterController } from "./leaderboardRuneFilter.js";
+import { createBodyPartFilterController } from "./leaderboardBodyPartFilter.js";
 import {
   leaderboardState,
   DEFAULT_BATTLE_WINDOW_MINUTES,
@@ -141,7 +142,7 @@ function hidePoolPager() {
 
 function renderFilteredLeaderboard() {
   hidePoolPager();
-  if (leaderboardState.runeFilterActive) return;
+  if (hasActiveScanFilter()) return;
   const leaderboardBody = document.querySelector("#leaderboard-body");
   if (!leaderboardBody) return;
   renderLeaderboardRows(leaderboardBody, applyLeaderboardFilters(leaderboardState.leaderboardData));
@@ -166,7 +167,7 @@ function applyPoolFilters(players) {
 }
 
 function renderFilteredPool() {
-  if (leaderboardState.runeFilterActive || leaderboardState.liveModeEnabled) {
+  if (hasActiveScanFilter() || leaderboardState.liveModeEnabled) {
     hidePoolPager();
     return;
   }
@@ -255,17 +256,32 @@ function resetPageAndRenderFilteredView() {
     rescanRuneFilterIfActive();
     return;
   }
+  if (leaderboardState.bodyPartFilterActive) {
+    rescanBodyPartFilterIfActive();
+    return;
+  }
   renderFilteredView();
 }
 
 let clearRuneFilter = () => {};
 let rescanRuneFilterIfActive = () => {};
+let clearBodyPartFilter = () => {};
+let rescanBodyPartFilterIfActive = () => {};
+
+function hasActiveScanFilter() {
+  return leaderboardState.runeFilterActive || leaderboardState.bodyPartFilterActive;
+}
+
+function rescanActiveScanFilterIfNeeded() {
+  if (leaderboardState.runeFilterActive) rescanRuneFilterIfActive();
+  if (leaderboardState.bodyPartFilterActive) rescanBodyPartFilterIfActive();
+}
 
 function updateActiveFilters() {
   if (!activeFilters) return;
   activeFilters.replaceChildren();
   const tags = [];
-  const { rankMin, rankMax, selectedRunes } = leaderboardState;
+  const { rankMin, rankMax, selectedRunes, selectedBodyPartNames } = leaderboardState;
 
   if (rankMin || rankMax) {
     tags.push({
@@ -283,6 +299,13 @@ function updateActiveFilters() {
     tags.push({
       label: `Rune: ${rune.name}`,
       clear: () => clearRuneFilter()
+    });
+  }
+
+  for (const name of selectedBodyPartNames || []) {
+    tags.push({
+      label: `Body part: ${name}`,
+      clear: () => clearBodyPartFilter()
     });
   }
 
@@ -434,7 +457,7 @@ function scheduleEnrichmentRerender() {
   if (poolEnrichmentRerenderTimer !== null) return;
   poolEnrichmentRerenderTimer = window.setTimeout(() => {
     poolEnrichmentRerenderTimer = null;
-    if (!leaderboardState.liveModeEnabled && !leaderboardState.runeFilterActive) {
+    if (!leaderboardState.liveModeEnabled && !hasActiveScanFilter()) {
       renderFilteredPool();
     }
   }, POOL_TEAM_ENRICHMENT_RERENDER_DEBOUNCE_MS);
@@ -544,7 +567,7 @@ async function hydrateLeaderboard() {
   if (storagePayload) {
     console.log("Rendering leaderboard from browser cache");
     leaderboardState.leaderboardData = Array.isArray(storagePayload.players) ? storagePayload.players : [];
-    if (!leaderboardState.runeFilterActive) {
+    if (!hasActiveScanFilter()) {
       renderLeaderboardRows(
         leaderboardBody,
         applyLeaderboardFilters(leaderboardState.leaderboardData)
@@ -552,7 +575,7 @@ async function hydrateLeaderboard() {
       updateActiveFilters();
     }
     renderedFromCacheFingerprint = fingerprintLeaderboard(leaderboardState.leaderboardData);
-  } else if (!leaderboardState.runeFilterActive) {
+  } else if (!hasActiveScanFilter()) {
     if (leaderboardState.leaderboardData.length === 0) {
       leaderboardBody.replaceChildren();
     }
@@ -568,7 +591,7 @@ async function hydrateLeaderboard() {
     console.log("Response status:", response.status);
 
     if (!response.ok) {
-      if (!leaderboardState.runeFilterActive) {
+      if (!hasActiveScanFilter()) {
         leaderboardBody.innerHTML =
           '<tr><td colspan="4" style="text-align:center; padding:1rem; color:#888;">Failed to load leaderboard</td></tr>';
       }
@@ -630,7 +653,7 @@ async function hydrateLeaderboard() {
     // A rune filter is showing scan results right now -- keep leaderboardData
     // warm in the background (so clearing the filter has fresh data ready)
     // but don't touch the DOM while those results are on screen.
-    if (leaderboardState.runeFilterActive) return;
+    if (hasActiveScanFilter()) return;
 
     const liveFingerprint = fingerprintLeaderboard(leaderboardState.leaderboardData);
     if (liveFingerprint === renderedFromCacheFingerprint) {
@@ -689,6 +712,7 @@ async function syncConfiguredEra() {
     leaderboardState.leaderboardPoolLoaded = false;
     leaderboardState.currentPage = 1;
     fetchLeaderboardPool();
+    if (previousEraMilestone !== leaderboardState.currentEraMilestone) rescanActiveScanFilterIfNeeded();
     console.log(
       `[syncConfiguredEra] Resolved ${data.seasonName} - ${data.eraName} (API milestone=${leaderboardState.currentEraMilestone})`
     );
@@ -703,6 +727,7 @@ async function syncConfiguredEra() {
     leaderboardState.leaderboardPoolLoaded = false;
     leaderboardState.currentPage = 1;
     fetchLeaderboardPool();
+    if (previousEraMilestone !== leaderboardState.currentEraMilestone) rescanActiveScanFilterIfNeeded();
     return previousEraMilestone !== leaderboardState.currentEraMilestone;
   }
 }
@@ -716,12 +741,17 @@ const SEASON_ERA_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // Every 24 hours
 // the original file did at the top level) so import order no longer matters
 // for correctness -- main.js controls exactly when this feature "starts."
 export function initLeaderboardView() {
-  const runeFilterController = createRuneFilterController({
+  let runeFilterController;
+  let bodyPartFilterController;
+  runeFilterController = createRuneFilterController({
     renderRows: renderLeaderboardRows,
     updateActiveFilters,
     getLeaderboardBody: () => document.querySelector("#leaderboard-body"),
     onClear: () => clearRuneFilter(),
-    onApply: hidePoolPager
+    onApply: () => {
+      bodyPartFilterController?.clearBodyPartFilter();
+      hidePoolPager();
+    }
   });
   clearRuneFilter = () => {
     runeFilterController.clearRuneFilter();
@@ -729,6 +759,23 @@ export function initLeaderboardView() {
   };
   rescanRuneFilterIfActive = () => runeFilterController.rescanIfActive();
   runeFilterController.init();
+
+  bodyPartFilterController = createBodyPartFilterController({
+    renderRows: renderLeaderboardRows,
+    updateActiveFilters,
+    getLeaderboardBody: () => document.querySelector("#leaderboard-body"),
+    onClear: () => clearBodyPartFilter(),
+    onApply: () => {
+      runeFilterController.clearRuneFilter();
+      hidePoolPager();
+    }
+  });
+  clearBodyPartFilter = () => {
+    bodyPartFilterController.clearBodyPartFilter();
+    renderFilteredView();
+  };
+  rescanBodyPartFilterIfActive = () => bodyPartFilterController.rescanIfActive();
+  bodyPartFilterController.init();
 
   // Wire rank inputs (if present)
   if (rankMinInput) {
@@ -897,6 +944,7 @@ export function initLeaderboardView() {
       if (playerNameSearch) playerNameSearch.value = "";
       leaderboardState.playerNameQuery = "";
       clearRuneFilter();
+      clearBodyPartFilter();
       updateLeaderboardFilterLabels();
       resetPageAndRenderFilteredView();
     });
@@ -989,6 +1037,7 @@ export function initLeaderboardView() {
       leaderboardState.leaderboardPoolLoaded = false;
       leaderboardState.currentPage = 1;
       fetchLeaderboardPool();
+      resetPageAndRenderFilteredView();
       if (leaderboardState.liveModeEnabled) hydrateLeaderboard();
     });
   }

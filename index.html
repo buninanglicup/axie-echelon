@@ -105,6 +105,16 @@
           <div id="selected-rune-chips" class="selected-rune-chips" aria-live="polite"></div>
           <p id="rune-filter-status" class="rune-filter-status" hidden></p>
           <button id="rune-filter-clear" type="button" class="rune-filter-clear" hidden>Clear rune filter</button>
+
+          <label class="field-label" for="body-part-search-input">Body Part</label>
+          <div class="rune-search-wrap search-select-wrap">
+            <input id="body-part-search-input" type="search" placeholder="Search body part..." autocomplete="off" aria-describedby="body-part-search-help" />
+            <div id="body-part-suggestions" class="rune-suggestions body-part-suggestions" role="listbox" hidden></div>
+          </div>
+          <span id="body-part-search-help" class="sr-only">Select one or more canonical body-part names to scan the leaderboard.</span>
+          <div id="selected-body-part-chips" class="selected-rune-chips" aria-live="polite"></div>
+          <p id="body-part-filter-status" class="rune-filter-status" aria-live="polite" hidden></p>
+          <button id="body-part-filter-clear" type="button" class="rune-filter-clear" hidden>Clear body-part filter</button>
         </section>
 
         <section class="panel-card leaderboard-filter-card">

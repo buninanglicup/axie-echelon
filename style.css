@@ -704,6 +704,14 @@ h1 {
   background: rgba(73, 220, 143, 0.12);
 }
 
+.body-part-suggestion-detail {
+  display: block;
+  margin-top: 2px;
+  color: #9dbab8;
+  font-size: 11px;
+  font-weight: 500;
+}
+
 .rune-suggestion-item img {
   border-radius: 4px;
   flex-shrink: 0;
