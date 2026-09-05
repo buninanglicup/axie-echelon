@@ -19,6 +19,7 @@ import {
   POLLING_STALE_MULTIPLIER,
   lastKnownGoodBattleTime,
   battleTimeCacheKey,
+  getCurrentLeaderboardScopeKey,
   PROFILE_BASE,
   getBattleWindowPreset,
   getLeaderboardStorageKey,
@@ -41,6 +42,7 @@ import {
   seasonSelector,
   headerLastUpdated,
   eraTabs,
+  offseasonStatus,
   compactModeToggle,
   standardModeToggle,
   leaderboardTable,
@@ -52,11 +54,20 @@ import {
 import { formatRelativeTime, predictNextActivity, formatActivityEstimate } from "../shared/formatting.js";
 import { getPageItems } from "../pagination.js";
 import { getVisibleScanMatches } from "./scanFilterIntersection.js";
+import {
+  appendLeaderboardScopeParams,
+  createHistoricalLeaderboardScope,
+  getCurrentLeaderboardControl,
+  getLeaderboardScopeKey,
+  getSelectedEraMilestone,
+  getVisibleEraMilestones,
+  isCurrentLeaderboardScope
+} from "./leaderboardScope.js";
 
 // ===== sessionStorage leaderboard page cache ======
-function loadLeaderboardPageFromStorage(limit, offset, milestone) {
+function loadLeaderboardPageFromStorage(limit, offset, leaderboardScope) {
   if (typeof sessionStorage === "undefined") return null;
-  const key = getLeaderboardStorageKey(limit, offset, milestone);
+  const key = getLeaderboardStorageKey(limit, offset, leaderboardScope);
   try {
     const raw = sessionStorage.getItem(key);
     if (!raw) return null;
@@ -77,9 +88,9 @@ function loadLeaderboardPageFromStorage(limit, offset, milestone) {
   }
 }
 
-function saveLeaderboardPageToStorage(limit, offset, milestone, payload) {
+function saveLeaderboardPageToStorage(limit, offset, leaderboardScope, payload) {
   if (typeof sessionStorage === "undefined") return;
-  const key = getLeaderboardStorageKey(limit, offset, milestone);
+  const key = getLeaderboardStorageKey(limit, offset, leaderboardScope);
   try {
     sessionStorage.setItem(
       key,
@@ -126,11 +137,75 @@ function updateLeaderboardFilterLabels() {
   updateRankFilterLabels();
 }
 
-function updateEraTabs(milestone) {
+function updateEraTabs(milestone, automaticScope) {
+  const visibleMilestones = new Set(getVisibleEraMilestones(automaticScope));
   for (const tab of eraTabs) {
-    const selected = tab.dataset.milestone === String(milestone);
+    const visible = visibleMilestones.has(tab.dataset.milestone);
+    const selected = visible && tab.dataset.milestone === String(milestone);
+    tab.hidden = !visible;
+    tab.disabled = !visible;
     tab.classList.toggle("active", selected);
     tab.setAttribute("aria-selected", String(selected));
+  }
+}
+
+function updateOffseasonStatus(automaticScope, isManualHistoricalScope) {
+  if (!offseasonStatus) return;
+  const control = getCurrentLeaderboardControl(automaticScope, isManualHistoricalScope);
+  offseasonStatus.hidden = !control.visible;
+  if (!control.visible) return;
+
+  offseasonStatus.textContent = control.label;
+  offseasonStatus.disabled = !control.actionable;
+  offseasonStatus.setAttribute(
+    "aria-label",
+    control.actionable
+      ? `Return to the ${control.label} leaderboard`
+      : `${control.label} leaderboard`
+  );
+}
+
+function setAutomaticLeaderboardScope(scope) {
+  leaderboardState.automaticLeaderboardScope = {
+    seasonId: scope.seasonId,
+    seasonName: scope.seasonName,
+    offSeasonMode: Boolean(scope.offSeasonMode),
+    milestone: scope.offSeasonMode ? null : scope.milestone,
+    eraName: scope.eraName
+  };
+  updateOffseasonStatus(
+    leaderboardState.automaticLeaderboardScope,
+    leaderboardState.isManualHistoricalScope
+  );
+  updateEraTabs(
+    leaderboardState.currentEraMilestone,
+    leaderboardState.automaticLeaderboardScope
+  );
+}
+
+function setLeaderboardScope(scope, { isManualHistoricalScope = false } = {}) {
+  const previousScopeKey = getCurrentLeaderboardScopeKey();
+  leaderboardState.leaderboardScope = {
+    seasonId: scope.seasonId,
+    seasonName: scope.seasonName,
+    offSeasonMode: Boolean(scope.offSeasonMode),
+    milestone: scope.offSeasonMode ? null : scope.milestone,
+    eraName: scope.eraName
+  };
+  leaderboardState.isManualHistoricalScope = isManualHistoricalScope;
+  leaderboardState.currentEraMilestone = getSelectedEraMilestone(leaderboardState.leaderboardScope);
+  updateEraTabs(leaderboardState.currentEraMilestone, leaderboardState.automaticLeaderboardScope);
+  updateOffseasonStatus(
+    leaderboardState.automaticLeaderboardScope,
+    leaderboardState.isManualHistoricalScope
+  );
+
+  if (previousScopeKey !== getCurrentLeaderboardScopeKey()) {
+    leaderboardState.leaderboardData = [];
+    leaderboardState.leaderboardPool = [];
+    leaderboardState.leaderboardPoolLoaded = false;
+    leaderboardState.avgMatchDurationMs = null;
+    leaderboardState.lastSuccessfulPollAt = null;
   }
 }
 
@@ -195,7 +270,7 @@ function renderFilteredPool() {
   }
   renderPoolPager(pageInfo);
   updateActiveFilters();
-  enrichVisiblePoolPage(pageInfo.items, leaderboardState.currentPage, leaderboardState.currentEraMilestone);
+  enrichVisiblePoolPage(pageInfo.items, leaderboardState.currentPage, getCurrentLeaderboardScopeKey());
 }
 
 function renderPoolPager({ page, totalPages }) {
@@ -276,6 +351,28 @@ function hasActiveScanFilter() {
 function rescanActiveScanFilterIfNeeded() {
   if (leaderboardState.runeFilterActive) rescanRuneFilterIfActive();
   if (leaderboardState.bodyPartFilterActive) rescanBodyPartFilterIfActive();
+}
+
+function reloadSelectedLeaderboardScope() {
+  leaderboardState.currentPage = 1;
+  fetchLeaderboardPool();
+  if (hasActiveScanFilter()) {
+    rescanActiveScanFilterIfNeeded();
+  } else {
+    renderFilteredView();
+  }
+  if (leaderboardState.liveModeEnabled) hydrateLeaderboard();
+}
+
+function returnToAutomaticLeaderboardScope() {
+  const automaticScope = leaderboardState.automaticLeaderboardScope;
+  if (!automaticScope) return;
+
+  const previousScopeKey = getCurrentLeaderboardScopeKey();
+  setLeaderboardScope(automaticScope, { isManualHistoricalScope: false });
+  if (previousScopeKey !== getCurrentLeaderboardScopeKey()) {
+    reloadSelectedLeaderboardScope();
+  }
 }
 
 function updateActiveFilters() {
@@ -435,7 +532,7 @@ async function fetchJsonWithRetry(url, attempts = 8) {
 // rank/name/rune filter -- see "Fetch strategy" in
 // docs/planning/leaderboard-roadmap.md for why. Not yet wired into
 // pagination (that's 3d); 3c consumes it for non-live filtering and rendering.
-let leaderboardPoolFetchMilestone = null;
+let leaderboardPoolFetchScopeKey = null;
 const POOL_TEAM_ENRICHMENT_CONCURRENCY = 8;
 const POOL_TEAM_ENRICHMENT_RERENDER_DEBOUNCE_MS = 200;
 const enrichmentInFlightUserIDs = new Set();
@@ -464,7 +561,7 @@ function scheduleEnrichmentRerender() {
   }, POOL_TEAM_ENRICHMENT_RERENDER_DEBOUNCE_MS);
 }
 
-async function enrichVisiblePoolPage(pageItems, requestedPage, requestedMilestone) {
+async function enrichVisiblePoolPage(pageItems, requestedPage, requestedScopeKey) {
   const targets = pageItems.filter(
     (player) =>
       player.userID &&
@@ -487,7 +584,7 @@ async function enrichVisiblePoolPage(pageItems, requestedPage, requestedMileston
 
       if (
         leaderboardState.currentPage !== requestedPage ||
-        leaderboardState.currentEraMilestone !== requestedMilestone
+        getCurrentLeaderboardScopeKey() !== requestedScopeKey
       ) {
         return;
       }
@@ -507,17 +604,22 @@ async function enrichVisiblePoolPage(pageItems, requestedPage, requestedMileston
 }
 
 async function fetchLeaderboardPool() {
-  // Dedup: if a fetch for this era is already in flight, reuse it instead
-  // of firing a second request (e.g. init and an era-change racing).
-  const milestone = leaderboardState.currentEraMilestone;
+  // Dedup: if a fetch for this leaderboard source is already in flight,
+  // reuse it instead of firing a second request.
+  const scope = leaderboardState.leaderboardScope;
+  const scopeKey = getLeaderboardScopeKey(scope);
   if (
     leaderboardState.leaderboardPoolFetchPromise &&
-    leaderboardPoolFetchMilestone === milestone
+    leaderboardPoolFetchScopeKey === scopeKey
   ) {
     return leaderboardState.leaderboardPoolFetchPromise;
   }
 
-  const url = `/api/leaderboard/pool?rankMax=${LEADERBOARD_MAX_RANK}&milestone=${milestone}`;
+  const params = appendLeaderboardScopeParams(
+    new URLSearchParams({ rankMax: String(LEADERBOARD_MAX_RANK) }),
+    scope
+  );
+  const url = `/api/leaderboard/pool?${params.toString()}`;
 
   const fetchPromise = (async () => {
     try {
@@ -528,23 +630,23 @@ async function fetchLeaderboardPool() {
         return;
       }
       const data = await response.json();
-      if (leaderboardState.currentEraMilestone !== milestone) return;
+      if (!isCurrentLeaderboardScope(scope, leaderboardState.leaderboardScope)) return;
       const players = Array.isArray(data.players) ? data.players : [];
       leaderboardState.leaderboardPool = players;
       leaderboardState.leaderboardPoolLoaded = true;
-      console.log(`Leaderboard pool loaded: ${players.length} players for milestone ${milestone}`);
+      console.log(`Leaderboard pool loaded: ${players.length} players for ${scopeKey}`);
       renderFilteredPool();
     } catch (error) {
       console.error("Leaderboard pool fetch error:", error);
     } finally {
       if (leaderboardState.leaderboardPoolFetchPromise === fetchPromise) {
         leaderboardState.leaderboardPoolFetchPromise = null;
-        leaderboardPoolFetchMilestone = null;
+        leaderboardPoolFetchScopeKey = null;
       }
     }
   })();
 
-  leaderboardPoolFetchMilestone = milestone;
+  leaderboardPoolFetchScopeKey = scopeKey;
   leaderboardState.leaderboardPoolFetchPromise = fetchPromise;
   return fetchPromise;
 }
@@ -559,11 +661,12 @@ async function hydrateLeaderboard() {
 
   console.log("hydrateLeaderboard called");
 
+  const scope = leaderboardState.leaderboardScope;
   let renderedFromCacheFingerprint = null;
   const storagePayload = loadLeaderboardPageFromStorage(
     GET_SEASON_LEADERBOARD_API_LIMIT,
     GET_SEASON_LEADERBOARD_API_OFFSET,
-    leaderboardState.currentEraMilestone
+    scope
   );
   if (storagePayload) {
     console.log("Rendering leaderboard from browser cache");
@@ -583,8 +686,15 @@ async function hydrateLeaderboard() {
   }
 
   try {
-    const liveModeParam = leaderboardState.liveModeEnabled ? "&liveMode=true" : "";
-    const url = `/api/leaderboard?limit=${GET_SEASON_LEADERBOARD_API_LIMIT}&offset=${GET_SEASON_LEADERBOARD_API_OFFSET}&milestone=${leaderboardState.currentEraMilestone}${liveModeParam}`;
+    const params = appendLeaderboardScopeParams(
+      new URLSearchParams({
+        limit: String(GET_SEASON_LEADERBOARD_API_LIMIT),
+        offset: String(GET_SEASON_LEADERBOARD_API_OFFSET)
+      }),
+      scope
+    );
+    if (leaderboardState.liveModeEnabled) params.set("liveMode", "true");
+    const url = `/api/leaderboard?${params.toString()}`;
     if (leaderboardState.liveModeEnabled) console.log("[LIVE MODE] Bypassing cache, fetching fresh data...");
     console.log("Fetching from:", url);
 
@@ -600,11 +710,12 @@ async function hydrateLeaderboard() {
     }
 
     const data = await response.json();
+    if (!isCurrentLeaderboardScope(scope, leaderboardState.leaderboardScope)) return;
     console.log("Response data:", data);
     saveLeaderboardPageToStorage(
       GET_SEASON_LEADERBOARD_API_LIMIT,
       GET_SEASON_LEADERBOARD_API_OFFSET,
-      leaderboardState.currentEraMilestone,
+      scope,
       data
     );
 
@@ -625,11 +736,10 @@ async function hydrateLeaderboard() {
     const players = Array.isArray(data.players) ? data.players : [];
 
     if (leaderboardState.liveModeEnabled) {
-      const eraMilestone = leaderboardState.currentEraMilestone;
       for (const player of players) {
         if (player.userID && !player.battleTimeFetchFailed && player.lastRankedBattleTime) {
           lastKnownGoodBattleTime.set(
-            battleTimeCacheKey(eraMilestone, player.userID),
+            battleTimeCacheKey(scope, player.userID),
             player.lastRankedBattleTime
           );
         }
@@ -702,34 +812,55 @@ function evictStaleBattleTimeCacheEntries() {
 
 async function syncConfiguredEra() {
   // Return whether callers need to reload leaderboard data after this sync.
-  const previousEraMilestone = leaderboardState.currentEraMilestone;
+  const previousScopeKey = getCurrentLeaderboardScopeKey();
   try {
     const response = await fetchJsonWithRetry("/api/season/current");
     if (!response.ok) throw new Error(`Season resolve failed: ${response.status}`);
     const data = await response.json();
-    leaderboardState.currentEraMilestone = String(data.milestone);
-    updateEraTabs(leaderboardState.currentEraMilestone);
+    setAutomaticLeaderboardScope(data);
     if (seasonSelector) seasonSelector.value = String(data.seasonId);
+
+    // A periodic current-era refresh must update the Current status without
+    // replacing a deliberate historical-era selection.
+    if (leaderboardState.isManualHistoricalScope) {
+      console.log(
+        `[syncConfiguredEra] Current scope is ${data.seasonName} - ${data.eraName}; retaining historical ${leaderboardState.leaderboardScope.eraName}`
+      );
+      return false;
+    }
+
+    setLeaderboardScope(data, { isManualHistoricalScope: false });
     leaderboardState.leaderboardPoolLoaded = false;
     leaderboardState.currentPage = 1;
     fetchLeaderboardPool();
-    if (previousEraMilestone !== leaderboardState.currentEraMilestone) rescanActiveScanFilterIfNeeded();
+    const scopeChanged = previousScopeKey !== getCurrentLeaderboardScopeKey();
+    if (scopeChanged) rescanActiveScanFilterIfNeeded();
     console.log(
-      `[syncConfiguredEra] Resolved ${data.seasonName} - ${data.eraName} (API milestone=${leaderboardState.currentEraMilestone})`
+      `[syncConfiguredEra] Resolved ${data.seasonName} - ${data.eraName} (${getCurrentLeaderboardScopeKey()})`
     );
-    return previousEraMilestone !== leaderboardState.currentEraMilestone;
+    return scopeChanged;
   } catch (error) {
     console.error(
       "[syncConfiguredEra] Failed to resolve current season/era; using milestone=3",
       error
     );
-    leaderboardState.currentEraMilestone = "3";
-    updateEraTabs(leaderboardState.currentEraMilestone);
+    if (leaderboardState.isManualHistoricalScope) return false;
+
+    const fallbackScope = {
+      seasonId: leaderboardState.leaderboardScope.seasonId,
+      seasonName: leaderboardState.leaderboardScope.seasonName,
+      offSeasonMode: false,
+      milestone: "3",
+      eraName: "Mystic"
+    };
+    setAutomaticLeaderboardScope(fallbackScope);
+    setLeaderboardScope(fallbackScope, { isManualHistoricalScope: false });
     leaderboardState.leaderboardPoolLoaded = false;
     leaderboardState.currentPage = 1;
     fetchLeaderboardPool();
-    if (previousEraMilestone !== leaderboardState.currentEraMilestone) rescanActiveScanFilterIfNeeded();
-    return previousEraMilestone !== leaderboardState.currentEraMilestone;
+    const scopeChanged = previousScopeKey !== getCurrentLeaderboardScopeKey();
+    if (scopeChanged) rescanActiveScanFilterIfNeeded();
+    return scopeChanged;
   }
 }
 
@@ -1045,15 +1176,19 @@ export function initLeaderboardView() {
     tab.addEventListener("click", () => {
       const milestone = tab.dataset.milestone;
       if (!milestone) return;
-      leaderboardState.currentEraMilestone = milestone;
-      updateEraTabs(milestone);
-      leaderboardState.leaderboardPoolLoaded = false;
-      leaderboardState.currentPage = 1;
-      fetchLeaderboardPool();
-      resetPageAndRenderFilteredView();
-      if (leaderboardState.liveModeEnabled) hydrateLeaderboard();
+      setLeaderboardScope(
+        createHistoricalLeaderboardScope(
+          leaderboardState.automaticLeaderboardScope,
+          milestone,
+          tab.textContent.trim()
+        ),
+        { isManualHistoricalScope: true }
+      );
+      reloadSelectedLeaderboardScope();
     });
   }
+
+  offseasonStatus?.addEventListener("click", returnToAutomaticLeaderboardScope);
 
   // ===== TEMPORARY: Compact mode toggle (easy to remove) =====
   if (compactModeToggle && leaderboardTable) {

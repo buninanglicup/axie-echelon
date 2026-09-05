@@ -3,12 +3,18 @@ import { AXIE_ECHELON_API_KEY, DEBUG_ON, MAVIS_API_URL } from "../shared/env.js"
 import { fetchWithRetry, parseRetryAfterMs } from "../shared/httpRetry.js";
 import { RANK_CANDIDATE_CACHE_TTL_MS, SEASON_LEADERBOARD_API_MAX_LIMIT } from "./leaderboardConstants.js";
 import { recordCandidatePoolRequest, recordCandidatePoolCacheHit } from "./runeScanDiagnostics.js";
+import {
+  appendLeaderboardScopeParams,
+  getLeaderboardEndpointPath,
+  getLeaderboardScopeKey,
+  normalizeLeaderboardScope
+} from "../../leaderboard/leaderboardScope.js";
 
 export const rankCandidateCache = new Map();
 const inFlightChunkFetches = new Map();
 
-function chunkCacheKey(eraMilestone, offset) {
-  return `${eraMilestone}_${offset}`;
+export function chunkCacheKey(scope, offset) {
+  return `${getLeaderboardScopeKey(scope)}:offset:${offset}`;
 }
 
 export class CandidatePoolUnavailableError extends Error {
@@ -22,8 +28,8 @@ export class CandidatePoolUnavailableError extends Error {
   }
 }
 
-async function fetchCandidateChunk(eraMilestone, offset) {
-  const key = chunkCacheKey(eraMilestone, offset);
+async function fetchCandidateChunk(scope, offset) {
+  const key = chunkCacheKey(scope, offset);
   const cached = rankCandidateCache.get(key);
   if (cached && Date.now() - cached.timestamp < RANK_CANDIDATE_CACHE_TTL_MS) {
     if (DEBUG_ON) console.log(`[fetchCandidateChunk] cache HIT for ${key}`);
@@ -34,7 +40,11 @@ async function fetchCandidateChunk(eraMilestone, offset) {
   if (inFlightChunkFetches.has(key)) return inFlightChunkFetches.get(key);
 
   const promise = (async () => {
-    const url = `${MAVIS_API_URL}/origins/v2/season-leaderboards?limit=${SEASON_LEADERBOARD_API_MAX_LIMIT}&offset=${offset}&milestone=${eraMilestone}`;
+    const params = appendLeaderboardScopeParams(
+      new URLSearchParams({ limit: String(SEASON_LEADERBOARD_API_MAX_LIMIT), offset: String(offset) }),
+      scope
+    );
+    const url = `${MAVIS_API_URL}${getLeaderboardEndpointPath(scope)}?${params.toString()}`;
     recordCandidatePoolRequest();
     const res = await fetchWithRetry(
       url,
@@ -74,14 +84,15 @@ async function fetchCandidateChunk(eraMilestone, offset) {
 // larger raw slice with no enrichment, since enrichment only happens for
 // whichever candidates the rune scan (or, later, another filter) actually
 // needs to inspect.
-export async function fetchRankCandidates(eraMilestone, maxRank) {
+export async function fetchRankCandidates(leaderboardScope, maxRank) {
+  const scope = normalizeLeaderboardScope(leaderboardScope);
   const merged = [];
   for (let offset = 0; offset < maxRank; offset += SEASON_LEADERBOARD_API_MAX_LIMIT) {
-    const { items, isLastPage } = await fetchCandidateChunk(eraMilestone, offset);
+    const { items, isLastPage } = await fetchCandidateChunk(scope, offset);
     merged.push(...items);
     if (isLastPage) break;
   }
 
-  if (DEBUG_ON) console.log(`[fetchRankCandidates] assembled ${merged.length} candidates for era=${eraMilestone} maxRank=${maxRank}`);
+  if (DEBUG_ON) console.log(`[fetchRankCandidates] assembled ${merged.length} candidates for scope=${getLeaderboardScopeKey(scope)} maxRank=${maxRank}`);
   return merged.slice(0, maxRank);
 }

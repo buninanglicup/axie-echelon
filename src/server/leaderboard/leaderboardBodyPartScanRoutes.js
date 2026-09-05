@@ -1,7 +1,7 @@
 import express from "express";
 import { DEBUG_ON } from "../shared/env.js";
 import { LEADERBOARD_MAX_RANK } from "./leaderboardConstants.js";
-import { resolveEraMilestone } from "../seasonRoutes.js";
+import { resolveLeaderboardScope } from "../seasonRoutes.js";
 import { startBodyPartScanJob, getBodyPartScanJob, cancelBodyPartScanJob } from "./bodyPartScanJobs.js";
 
 const router = express.Router();
@@ -21,7 +21,7 @@ router.post("/api/leaderboard/body-part-scan", (request, response) => {
     return response.status(400).json({ error: "At least one bodyPartName is required.", code: "BODY_PART_NAME_REQUIRED" });
   }
 
-  const eraMilestone = resolveEraMilestone(request);
+  const leaderboardScope = resolveLeaderboardScope(request);
   const requestedRankMin = Math.max(1, Number(request.query.rankMin) || 1);
   const rankMin = Math.min(requestedRankMin, LEADERBOARD_MAX_RANK);
   const requestedRankMax = Math.max(rankMin, Number(request.query.rankMax) || LEADERBOARD_MAX_RANK);
@@ -30,11 +30,11 @@ router.post("/api/leaderboard/body-part-scan", (request, response) => {
 
   if (DEBUG_ON) {
     console.log(
-      `[POST /api/leaderboard/body-part-scan] starting job bodyPartNames=${bodyPartNames.join(",")} eraMilestone=${eraMilestone} ranks=${rankMin}-${rankMax}`
+      `[POST /api/leaderboard/body-part-scan] starting job bodyPartNames=${bodyPartNames.join(",")} scope=${leaderboardScope.offSeasonMode ? "offseason" : `milestone=${leaderboardScope.milestone}`} ranks=${rankMin}-${rankMax}`
     );
   }
 
-  const job = startBodyPartScanJob({ bodyPartNames, eraMilestone, rankMin, rankMax, name });
+  const job = startBodyPartScanJob({ bodyPartNames, leaderboardScope, rankMin, rankMax, name });
   response.status(202).json(job);
 });
 

@@ -7,7 +7,14 @@ process.env.BATTLELOG_FETCH_CONCURRENCY = "5";
 process.env.BATTLELOG_FETCH_ATTEMPTS = "1";
 process.env.MAX_CONCURRENT_RUNE_SCAN_JOBS = "2";
 
-const { startRuneScanJob, getRuneScanJob, cancelRuneScanJob, runeScanJobStore, JOB_STATUS } = await import(
+const {
+  startRuneScanJob,
+  getRuneScanJob,
+  cancelRuneScanJob,
+  runeScanJobStore,
+  JOB_STATUS,
+  __setRuneScannerForTesting
+} = await import(
   "./runeScanJobs.js"
 );
 const { rankCandidateCache } = await import("./leaderboardCandidates.js");
@@ -16,6 +23,7 @@ const { teamCache } = await import("./leaderboardCaches.js");
 const originalFetch = globalThis.fetch;
 
 afterEach(() => {
+  __setRuneScannerForTesting();
   globalThis.fetch = originalFetch;
   rankCandidateCache.clear();
   teamCache.clear();
@@ -282,4 +290,36 @@ test("a non-JSON candidate response fails the job with the generic scan-failed c
   const failed = await waitForStatus(started.jobId, [JOB_STATUS.COMPLETE, JOB_STATUS.FAILED]);
   assert.equal(failed.status, JOB_STATUS.FAILED);
   assert.equal(failed.error.code, "RUNE_SCAN_FAILED");
+});
+
+test("does not deduplicate identical rune scans across Final and offseason scopes", async () => {
+  const seenScopes = [];
+  let releaseScans;
+  const scanGate = new Promise((resolve) => {
+    releaseScans = resolve;
+  });
+  __setRuneScannerForTesting(async (runeIds, leaderboardScope, { onProgress }) => {
+    seenScopes.push(leaderboardScope);
+    onProgress([], 0, 1);
+    await scanGate;
+    return [];
+  });
+
+  const finalScope = { seasonId: 19, offSeasonMode: false, milestone: 4, eraName: "Final" };
+  const offseasonScope = { seasonId: 19, offSeasonMode: true, milestone: null, eraName: "Offseason" };
+  const finalJob = startRuneScanJob({ runeIds: ["rune-x"], leaderboardScope: finalScope, rankMin: 1, rankMax: 1 });
+  const offseasonJob = startRuneScanJob({ runeIds: ["rune-x"], leaderboardScope: offseasonScope, rankMin: 1, rankMax: 1 });
+
+  assert.notEqual(finalJob.jobId, offseasonJob.jobId);
+  assert.equal(finalJob.eraMilestone, 4);
+  assert.equal(offseasonJob.eraMilestone, null);
+  assert.deepEqual(finalJob.leaderboardScope, finalScope);
+  assert.deepEqual(offseasonJob.leaderboardScope, offseasonScope);
+  assert.deepEqual(seenScopes, [finalScope, offseasonScope]);
+
+  releaseScans();
+  await Promise.all([
+    waitForStatus(finalJob.jobId, [JOB_STATUS.COMPLETE, JOB_STATUS.FAILED]),
+    waitForStatus(offseasonJob.jobId, [JOB_STATUS.COMPLETE, JOB_STATUS.FAILED])
+  ]);
 });

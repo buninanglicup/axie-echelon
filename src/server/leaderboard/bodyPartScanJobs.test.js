@@ -338,3 +338,33 @@ test("empty narrowed scans report zero progress", async () => {
   assert.equal(finished.processedCount, 0);
   assert.equal(finished.totalCandidates, 0);
 });
+
+test("does not deduplicate identical body-part scans across Final and offseason scopes", async () => {
+  const seenScopes = [];
+  let releaseScans;
+  const scanGate = new Promise((resolve) => {
+    releaseScans = resolve;
+  });
+  __setBodyPartScannerForTesting(async (bodyPartNames, leaderboardScope, { onProgress }) => {
+    seenScopes.push(leaderboardScope);
+    onProgress([], 0, 1);
+    await scanGate;
+    return [];
+  });
+
+  const finalScope = { seasonId: 19, offSeasonMode: false, milestone: 4, eraName: "Final" };
+  const offseasonScope = { seasonId: 19, offSeasonMode: true, milestone: null, eraName: "Offseason" };
+  const finalJob = startBodyPartScanJob({ bodyPartNames: ["Hazy"], leaderboardScope: finalScope, rankMin: 1, rankMax: 1 });
+  const offseasonJob = startBodyPartScanJob({ bodyPartNames: ["Hazy"], leaderboardScope: offseasonScope, rankMin: 1, rankMax: 1 });
+
+  assert.notEqual(finalJob.jobId, offseasonJob.jobId);
+  assert.equal(finalJob.eraMilestone, 4);
+  assert.equal(offseasonJob.eraMilestone, null);
+  assert.deepEqual(seenScopes, [finalScope, offseasonScope]);
+
+  releaseScans();
+  await Promise.all([
+    waitForStatus(finalJob.jobId, [JOB_STATUS.COMPLETE, JOB_STATUS.FAILED]),
+    waitForStatus(offseasonJob.jobId, [JOB_STATUS.COMPLETE, JOB_STATUS.FAILED])
+  ]);
+});

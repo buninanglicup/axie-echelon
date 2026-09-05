@@ -11,6 +11,7 @@
 // the original file's behavior (many functions reading and reassigning the
 // same variables) without introducing getter/setter boilerplate for a
 // pure structural move.
+import { getLeaderboardScopeKey } from "./leaderboardScope.js";
 
 // ===== Constants =====
 export const DEFAULT_ERA_MILESTONE = "4"; // Final Era; sent to Sky Mavis as `milestone=4`
@@ -90,8 +91,8 @@ export function getBattleWindowPreset(value) {
   return battleWindowPresets[5];
 }
 
-export function getLeaderboardStorageKey(limit, offset, milestone) {
-  return `leaderboard_cache_${milestone}_${limit}_${offset}`;
+export function getLeaderboardStorageKey(limit, offset, leaderboardScope) {
+  return `leaderboard_cache_${getLeaderboardScopeKey(leaderboardScope)}_${limit}_${offset}`;
 }
 
 // ===== Mutable state (see file-level comment on why this is one object) =====
@@ -106,6 +107,21 @@ export const leaderboardState = {
   leaderboardPoolFetchPromise: null, // in-flight dedup guard
   currentPage: 1, // Non-live pool pagination only; live mode remains unpaginated.
   currentEraMilestone: DEFAULT_ERA_MILESTONE,
+  leaderboardScope: {
+    seasonId: "unknown",
+    offSeasonMode: false,
+    milestone: DEFAULT_ERA_MILESTONE,
+    eraName: "Final"
+  },
+  // The resolver's current scope is retained even while the user inspects a
+  // numbered historical era. `leaderboardScope` remains the selected source.
+  automaticLeaderboardScope: {
+    seasonId: "unknown",
+    offSeasonMode: false,
+    milestone: DEFAULT_ERA_MILESTONE,
+    eraName: "Final"
+  },
+  isManualHistoricalScope: false,
   activeBattleWindowMinutes: null,
   rankMin: null,
   rankMax: null,
@@ -138,8 +154,12 @@ export const leaderboardState = {
 // the raw timestamp from the current poll response.
 export const lastKnownGoodBattleTime = new Map();
 
-export function battleTimeCacheKey(eraMilestone, userID) {
-  return `${eraMilestone}:${userID}`;
+export function battleTimeCacheKey(leaderboardScope, userID) {
+  return `${getLeaderboardScopeKey(leaderboardScope)}:${userID}`;
+}
+
+export function getCurrentLeaderboardScopeKey() {
+  return getLeaderboardScopeKey(leaderboardState.leaderboardScope);
 }
 
 // ===== Leaderboard-only DOM refs (queried once at module load, same timing
@@ -164,6 +184,7 @@ export const rankMaxError = document.querySelector("#rank-max-error");
 export const seasonSelector = document.querySelector("#season-selector");
 export const headerLastUpdated = document.querySelector("#header-last-updated");
 export const eraTabs = document.querySelectorAll(".era-tab");
+export const offseasonStatus = document.querySelector("#offseason-status");
 export const compactModeToggle = document.querySelector("#compact-mode-toggle");
 export const standardModeToggle = document.querySelector("#standard-mode-toggle");
 export const leaderboardTable = document.querySelector("#leaderboard-table");

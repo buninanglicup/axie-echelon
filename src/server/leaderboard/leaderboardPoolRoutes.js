@@ -1,17 +1,18 @@
 import express from "express";
 import { LEADERBOARD_MAX_RANK } from "./leaderboardConstants.js";
 import { CandidatePoolUnavailableError, fetchRankCandidates } from "./leaderboardCandidates.js";
-import { resolveEraMilestone } from "../seasonRoutes.js";
+import { resolveLeaderboardScope } from "../seasonRoutes.js";
+import { getLeaderboardScopeKey } from "../../leaderboard/leaderboardScope.js";
 
 const router = express.Router();
 
 router.get("/api/leaderboard/pool", async (request, response) => {
   try {
-    const eraMilestone = resolveEraMilestone(request);
+    const leaderboardScope = resolveLeaderboardScope(request);
     const rankMin = Math.max(1, Number(request.query.rankMin) || 1);
     const requestedRankMax = Math.max(rankMin, Number(request.query.rankMax) || LEADERBOARD_MAX_RANK);
     const rankMax = Math.min(requestedRankMax, LEADERBOARD_MAX_RANK);
-    const candidates = await fetchRankCandidates(eraMilestone, rankMax);
+    const candidates = await fetchRankCandidates(leaderboardScope, rankMax);
 
     const players = candidates
       .filter((player) => {
@@ -37,7 +38,15 @@ router.get("/api/leaderboard/pool", async (request, response) => {
         enrichment: { status: "not_requested" }
       }));
 
-    response.json({ players, rankMin, rankMax, milestone: eraMilestone, poolMaxRank: LEADERBOARD_MAX_RANK });
+    response.json({
+      players,
+      rankMin,
+      rankMax,
+      milestone: leaderboardScope.milestone,
+      offSeasonMode: leaderboardScope.offSeasonMode,
+      scopeKey: getLeaderboardScopeKey(leaderboardScope),
+      poolMaxRank: LEADERBOARD_MAX_RANK
+    });
   } catch (error) {
     console.error("[/api/leaderboard/pool] Error:", error.message);
     if (error instanceof CandidatePoolUnavailableError || error.code === "LEADERBOARD_UPSTREAM_UNAVAILABLE") {

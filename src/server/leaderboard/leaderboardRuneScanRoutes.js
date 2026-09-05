@@ -1,7 +1,7 @@
 import express from "express";
 import { DEBUG_ON } from "../shared/env.js";
 import { LEADERBOARD_MAX_RANK } from "./leaderboardConstants.js";
-import { resolveEraMilestone } from "../seasonRoutes.js";
+import { resolveLeaderboardScope } from "../seasonRoutes.js";
 import { startRuneScanJob, getRuneScanJob, cancelRuneScanJob } from "./runeScanJobs.js";
 
 const router = express.Router();
@@ -24,7 +24,7 @@ router.post("/api/leaderboard/rune-scan", (request, response) => {
     return response.status(400).json({ error: "At least one runeId is required.", code: "RUNE_ID_REQUIRED" });
   }
 
-  const eraMilestone = resolveEraMilestone(request);
+  const leaderboardScope = resolveLeaderboardScope(request);
   const rankMin = Math.max(1, Number(request.query.rankMin) || 1);
   const requestedRankMax = Math.max(rankMin, Number(request.query.rankMax) || LEADERBOARD_MAX_RANK);
   const rankMax = Math.min(requestedRankMax, LEADERBOARD_MAX_RANK);
@@ -32,7 +32,7 @@ router.post("/api/leaderboard/rune-scan", (request, response) => {
 
   if (DEBUG_ON) {
     console.log(
-      `[POST /api/leaderboard/rune-scan] starting job runeIds=${runeIds.join(",")} eraMilestone=${eraMilestone} ranks=${rankMin}-${rankMax}`
+      `[POST /api/leaderboard/rune-scan] starting job runeIds=${runeIds.join(",")} scope=${leaderboardScope.offSeasonMode ? "offseason" : `milestone=${leaderboardScope.milestone}`} ranks=${rankMin}-${rankMax}`
     );
   }
 
@@ -40,7 +40,7 @@ router.post("/api/leaderboard/rune-scan", (request, response) => {
   // the scan itself runs in the background via runeScanJobs.js. 202 signals
   // "accepted for async processing," matching that -- the response body is
   // the job snapshot the client will keep polling with GET.
-  const job = startRuneScanJob({ runeIds, eraMilestone, rankMin, rankMax, name });
+  const job = startRuneScanJob({ runeIds, leaderboardScope, rankMin, rankMax, name });
   response.status(202).json(job);
 });
 

@@ -187,9 +187,21 @@ h1 {
 .status-pill {
   color: #a8ffd8;
   background: #183b30;
+  border: 1px solid transparent;
   border-radius: 999px;
   padding: 2px 8px;
   font-size: 11px;
+  font-family: inherit;
+}
+
+button.status-pill:not(:disabled) {
+  cursor: pointer;
+}
+
+button.status-pill:not(:disabled):hover,
+button.status-pill:not(:disabled):focus-visible {
+  border-color: rgba(125, 245, 196, 0.5);
+  color: #e8fff4;
 }
 
 .filter-block {

@@ -35,6 +35,7 @@ import { randomUUID } from "node:crypto";
 import { scanLeaderboardForBodyParts as defaultScanLeaderboardForBodyParts } from "./bodyPartScanner.js";
 import { DEBUG_ON } from "../shared/env.js";
 import { LEADERBOARD_MAX_RANK } from "./leaderboardConstants.js";
+import { getLeaderboardScopeKey, normalizeLeaderboardScope } from "../../leaderboard/leaderboardScope.js";
 
 export const JOB_STATUS = Object.freeze({
   QUEUED: "queued",
@@ -89,9 +90,9 @@ function normalizeBodyPartNames(bodyPartNames) {
   return [...namesByKey.values()];
 }
 
-function buildDedupKey({ bodyPartNames, eraMilestone, rankMin, rankMax, name }) {
+function buildDedupKey({ bodyPartNames, leaderboardScope, rankMin, rankMax, name }) {
   const sortedBodyPartNames = [...new Set(bodyPartNames.map((value) => String(value).toLowerCase()))].sort();
-  return `${eraMilestone}|${sortedBodyPartNames.join(",")}|${rankMin}|${rankMax}|${String(name || "").trim().toLowerCase()}`;
+  return `${getLeaderboardScopeKey(leaderboardScope)}|${sortedBodyPartNames.join(",")}|${rankMin}|${rankMax}|${String(name || "").trim().toLowerCase()}`;
 }
 
 function toPublicJob(job) {
@@ -100,6 +101,7 @@ function toPublicJob(job) {
     status: job.status,
     bodyPartNames: job.bodyPartNames,
     eraMilestone: job.eraMilestone,
+    leaderboardScope: job.leaderboardScope,
     rankMin: job.rankMin,
     rankMax: job.rankMax,
     name: job.name,
@@ -146,7 +148,7 @@ function runJob(job) {
     job.updatedAt = Date.now();
   };
 
-  const scanPromise = scanLeaderboardForBodyParts(job.bodyPartNames, job.eraMilestone, {
+  const scanPromise = scanLeaderboardForBodyParts(job.bodyPartNames, job.leaderboardScope, {
     rankMin: job.rankMin,
     rankMax: job.rankMax,
     name: job.name,
@@ -196,6 +198,7 @@ function runJob(job) {
 
 export function startBodyPartScanJob({
   bodyPartNames,
+  leaderboardScope,
   eraMilestone,
   rankMin = 1,
   rankMax = LEADERBOARD_MAX_RANK,
@@ -205,7 +208,8 @@ export function startBodyPartScanJob({
   if (normalizedBodyPartNames.length === 0) {
     throw new Error("At least one body-part name is required.");
   }
-  const dedupKey = buildDedupKey({ bodyPartNames: normalizedBodyPartNames, eraMilestone, rankMin, rankMax, name });
+  const scope = normalizeLeaderboardScope(leaderboardScope ?? eraMilestone);
+  const dedupKey = buildDedupKey({ bodyPartNames: normalizedBodyPartNames, leaderboardScope: scope, rankMin, rankMax, name });
 
   const existingJobId = dedupIndex.get(dedupKey);
   if (existingJobId) {
@@ -222,7 +226,8 @@ export function startBodyPartScanJob({
     dedupKey,
     status: JOB_STATUS.QUEUED,
     bodyPartNames: normalizedBodyPartNames,
-    eraMilestone,
+    eraMilestone: scope.milestone,
+    leaderboardScope: scope,
     rankMin,
     rankMax,
     name,

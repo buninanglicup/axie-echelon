@@ -49,28 +49,29 @@ test("POST rejects missing or only-empty bodyPartName values", async () => {
   assert.equal((await empty.json()).code, "BODY_PART_NAME_REQUIRED");
 });
 
-test("POST accepts repeated names, trims inputs, and passes filters to the job", async () => {
+test("POST accepts repeated names, trims inputs, and passes filters to the scoped job", async () => {
   let received;
-  installScanner(async (bodyPartNames, eraMilestone, options) => {
-    received = { bodyPartNames, eraMilestone, options };
+  installScanner(async (bodyPartNames, leaderboardScope, options) => {
+    received = { bodyPartNames, leaderboardScope, options };
     return [];
   });
 
   const response = await nativeFetch(
-    `${baseUrl}/api/leaderboard/body-part-scan?bodyPartName=%20Hazy%20&bodyPartName=Clear&milestone=era-42&rankMin=3&rankMax=9&name=%20Player%20One%20`,
+    `${baseUrl}/api/leaderboard/body-part-scan?bodyPartName=%20Hazy%20&bodyPartName=Clear&milestone=4&rankMin=3&rankMax=9&name=%20Player%20One%20`,
     { method: "POST" }
   );
   assert.equal(response.status, 202);
   const job = await response.json();
   assert.deepEqual(job.bodyPartNames, ["Hazy", "Clear"]);
-  assert.equal(job.eraMilestone, "era-42");
+  assert.equal(job.eraMilestone, "4");
   assert.equal(job.rankMin, 3);
   assert.equal(job.rankMax, 9);
   assert.equal(job.name, "Player One");
 
   await new Promise((resolve) => setTimeout(resolve, 0));
   assert.deepEqual(received.bodyPartNames, ["Hazy", "Clear"]);
-  assert.equal(received.eraMilestone, "era-42");
+  assert.equal(received.leaderboardScope.offSeasonMode, false);
+  assert.equal(received.leaderboardScope.milestone, "4");
   assert.equal(received.options.rankMin, 3);
   assert.equal(received.options.rankMax, 9);
   assert.equal(received.options.name, "Player One");

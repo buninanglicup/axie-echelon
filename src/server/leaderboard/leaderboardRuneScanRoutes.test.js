@@ -78,7 +78,7 @@ function battleLogResponse(userID, runeId) {
 }
 
 test("POST rejects a request with no runeId", async () => {
-  const response = await nativeFetch(`${baseUrl}/api/leaderboard/rune-scan?milestone=route-test`, { method: "POST" });
+  const response = await nativeFetch(`${baseUrl}/api/leaderboard/rune-scan?milestone=1`, { method: "POST" });
   assert.equal(response.status, 400);
   const body = await response.json();
   assert.equal(body.code, "RUNE_ID_REQUIRED");
@@ -96,7 +96,7 @@ test("POST starts a job, GET reports progress through completion, unknown jobId 
   };
 
   const postResponse = await nativeFetch(
-    `${baseUrl}/api/leaderboard/rune-scan?runeId=rune-x&milestone=route-test-2&rankMin=1&rankMax=4`,
+    `${baseUrl}/api/leaderboard/rune-scan?runeId=rune-x&milestone=2&rankMin=1&rankMax=4`,
     { method: "POST" }
   );
   assert.equal(postResponse.status, 202);
@@ -144,7 +144,7 @@ test("DELETE cancels a running job at the next batch boundary", async () => {
   };
 
   const postResponse = await nativeFetch(
-    `${baseUrl}/api/leaderboard/rune-scan?runeId=rune-x&milestone=route-test-3&rankMin=1&rankMax=4`,
+    `${baseUrl}/api/leaderboard/rune-scan?runeId=rune-x&milestone=3&rankMin=1&rankMax=4`,
     { method: "POST" }
   );
   const created = await postResponse.json();

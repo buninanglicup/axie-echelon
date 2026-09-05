@@ -62,13 +62,13 @@ async function enrichCandidateForBodyParts(player, selectedNames) {
 
 export async function scanLeaderboardForBodyParts(
   selectedNames,
-  eraMilestone,
+  leaderboardScope,
   { rankMin = 1, rankMax = LEADERBOARD_MAX_RANK, name = "", onProgress } = {}
 ) {
   const requestedNames = [...new Set((Array.isArray(selectedNames) ? selectedNames : [selectedNames])
     .map((value) => String(value || "").trim())
     .filter(Boolean))];
-  const candidates = await fetchRankCandidates(eraMilestone, LEADERBOARD_MAX_RANK);
+  const candidates = await fetchRankCandidates(leaderboardScope, LEADERBOARD_MAX_RANK);
   const nameQuery = String(name || "").trim().toLowerCase();
   const narrowedCandidates = candidates.filter((player) => {
     const rank = Number(player.topRank || player.rank);

@@ -78,11 +78,11 @@ async function enrichCandidateForRune(player, runeIds) {
 
 export async function scanLeaderboardForRune(
   runeIds,
-  eraMilestone,
+  leaderboardScope,
   { rankMin = 1, rankMax = LEADERBOARD_MAX_RANK, name = "", onProgress } = {}
 ) {
   markRuneScanStart();
-  const candidates = await fetchRankCandidates(eraMilestone, LEADERBOARD_MAX_RANK);
+  const candidates = await fetchRankCandidates(leaderboardScope, LEADERBOARD_MAX_RANK);
   markCandidatePoolEnd();
 
   const nameQuery = String(name || "").trim().toLowerCase();

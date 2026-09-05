@@ -72,6 +72,22 @@ export function getCurrentEraForConfiguredSeason(now = Date.now()) {
   const seasonStartedAtMs = seasonConfig.seasonStartedAt * 1000;
   const seasonEndedAtMs = seasonConfig.seasonEndedAt ? seasonConfig.seasonEndedAt * 1000 : null;
   const boundaries = getEraBoundaries();
+
+  if (seasonEndedAtMs !== null && now >= seasonEndedAtMs) {
+    return {
+      seasonId: seasonConfig.seasonId,
+      seasonName: seasonConfig.seasonName,
+      offSeasonMode: true,
+      milestone: null,
+      eraName: "Offseason",
+      seasonStartedAt: seasonConfig.seasonStartedAt,
+      seasonEndedAt: seasonConfig.seasonEndedAt,
+      eraIndex: null,
+      eraStartedAt: Math.floor(seasonEndedAtMs / 1000),
+      eraEndsAt: null
+    };
+  }
+
   let eraIndex = 0;
   let eraStartedAtMs = boundaries[0].startMs;
   let eraEndsAtMs = boundaries[0].endMs;
@@ -93,14 +109,14 @@ export function getCurrentEraForConfiguredSeason(now = Date.now()) {
   return {
     seasonId: seasonConfig.seasonId,
     seasonName: seasonConfig.seasonName,
+    offSeasonMode: false,
     seasonStartedAt: seasonConfig.seasonStartedAt,
     seasonEndedAt: seasonConfig.seasonEndedAt ?? null,
     eraIndex,
     milestone,
     eraName: seasonConfig.eraNames?.[eraIndex] || `Era ${milestone}`,
     eraStartedAt: Math.floor(eraStartedAtMs / 1000),
-    eraEndsAt: Math.floor(eraEndsAtMs / 1000),
-    seasonOver: seasonEndedAtMs !== null && now >= seasonEndedAtMs
+    eraEndsAt: Math.floor(eraEndsAtMs / 1000)
   };
 }
 

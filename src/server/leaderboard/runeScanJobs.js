@@ -33,9 +33,10 @@
 //   battle-log queue that concurrency.js already fairness-limits.
 
 import { randomUUID } from "node:crypto";
-import { scanLeaderboardForRune } from "./runeScanner.js";
+import { scanLeaderboardForRune as defaultScanLeaderboardForRune } from "./runeScanner.js";
 import { DEBUG_ON } from "../shared/env.js";
 import { LEADERBOARD_MAX_RANK } from "./leaderboardConstants.js";
+import { getLeaderboardScopeKey, normalizeLeaderboardScope } from "../../leaderboard/leaderboardScope.js";
 
 export const JOB_STATUS = Object.freeze({
   QUEUED: "queued",
@@ -51,6 +52,10 @@ const JOB_HEARTBEAT_TIMEOUT_MS = Number(process.env.RUNE_SCAN_JOB_HEARTBEAT_TIME
 const JOB_RESULT_TTL_MS = Number(process.env.RUNE_SCAN_JOB_RESULT_TTL_MS || 300_000);
 const JOB_SWEEP_INTERVAL_MS = Number(process.env.RUNE_SCAN_JOB_SWEEP_INTERVAL_MS || 30_000);
 const RUNE_SCAN_JOB_MAX_DURATION_MS = Number(process.env.RUNE_SCAN_JOB_MAX_DURATION_MS || 300_000);
+
+// Swappable only for lifecycle tests. It keeps scope/dedup tests independent
+// of the candidate-pool and battle-log fetch stack.
+let scanLeaderboardForRune = defaultScanLeaderboardForRune;
 
 class RuneScanCancelledError extends Error {
   constructor(jobId) {
@@ -76,9 +81,9 @@ const dedupIndex = new Map(); // dedupKey -> jobId, queued/running jobs only
 const pendingQueue = []; // jobIds waiting for a concurrency slot
 let runningCount = 0;
 
-function buildDedupKey({ runeIds, eraMilestone, rankMin, rankMax, name }) {
+function buildDedupKey({ runeIds, leaderboardScope, rankMin, rankMax, name }) {
   const sortedRuneIds = [...new Set(runeIds.map(String))].sort();
-  return `${eraMilestone}|${sortedRuneIds.join(",")}|${rankMin}|${rankMax}|${name || ""}`;
+  return `${getLeaderboardScopeKey(leaderboardScope)}|${sortedRuneIds.join(",")}|${rankMin}|${rankMax}|${name || ""}`;
 }
 
 function toPublicJob(job) {
@@ -87,6 +92,7 @@ function toPublicJob(job) {
     status: job.status,
     runeIds: job.runeIds,
     eraMilestone: job.eraMilestone,
+    leaderboardScope: job.leaderboardScope,
     rankMin: job.rankMin,
     rankMax: job.rankMax,
     name: job.name,
@@ -131,7 +137,7 @@ function runJob(job) {
     job.updatedAt = Date.now();
   };
 
-  const scanPromise = scanLeaderboardForRune(job.runeIds, job.eraMilestone, {
+  const scanPromise = scanLeaderboardForRune(job.runeIds, job.leaderboardScope, {
     rankMin: job.rankMin,
     rankMax: job.rankMax,
     name: job.name,
@@ -179,11 +185,19 @@ function runJob(job) {
   scanPromise.catch(() => {});
 }
 
-export function startRuneScanJob({ runeIds, eraMilestone, rankMin = 1, rankMax = LEADERBOARD_MAX_RANK, name = "" }) {
+export function startRuneScanJob({
+  runeIds,
+  leaderboardScope,
+  eraMilestone,
+  rankMin = 1,
+  rankMax = LEADERBOARD_MAX_RANK,
+  name = ""
+}) {
   const normalizedRuneIds = [
     ...new Set((Array.isArray(runeIds) ? runeIds : [runeIds]).map(String).map((value) => value.trim()).filter(Boolean))
   ];
-  const dedupKey = buildDedupKey({ runeIds: normalizedRuneIds, eraMilestone, rankMin, rankMax, name });
+  const scope = normalizeLeaderboardScope(leaderboardScope ?? eraMilestone);
+  const dedupKey = buildDedupKey({ runeIds: normalizedRuneIds, leaderboardScope: scope, rankMin, rankMax, name });
 
   const existingJobId = dedupIndex.get(dedupKey);
   if (existingJobId) {
@@ -200,7 +214,8 @@ export function startRuneScanJob({ runeIds, eraMilestone, rankMin = 1, rankMax =
     dedupKey,
     status: JOB_STATUS.QUEUED,
     runeIds: normalizedRuneIds,
-    eraMilestone,
+    eraMilestone: scope.milestone,
+    leaderboardScope: scope,
     rankMin,
     rankMax,
     name,
@@ -278,3 +293,7 @@ function sweepStaleJobs() {
 
 const jobSweepTimer = setInterval(sweepStaleJobs, JOB_SWEEP_INTERVAL_MS);
 jobSweepTimer.unref?.();
+
+export function __setRuneScannerForTesting(scanFn) {
+  scanLeaderboardForRune = scanFn || defaultScanLeaderboardForRune;
+}

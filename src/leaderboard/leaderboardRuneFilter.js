@@ -13,6 +13,7 @@ import {
 } from "./leaderboardState.js";
 import { getPageItems } from "../pagination.js";
 import { clearScanFilterState, isCurrentScanUpdate } from "./scanFilterIntersection.js";
+import { appendLeaderboardScopeParams } from "./leaderboardScope.js";
 
 const RUNE_RESCAN_DEBOUNCE_MS = 350;
 const RUNE_SCAN_POLL_INTERVAL_MS = 1500;
@@ -107,8 +108,7 @@ export function createRuneFilterController({ renderRows, updateActiveFilters, ge
   }
 
   function buildRuneScanParams() {
-    const params = new URLSearchParams();
-    params.set("milestone", leaderboardState.currentEraMilestone);
+    const params = appendLeaderboardScopeParams(new URLSearchParams(), leaderboardState.leaderboardScope);
     for (const rune of selectedRunes) params.append("runeId", rune.id);
     const { rankMin, rankMax, playerNameQuery } = leaderboardState;
     if (rankMin) params.set("rankMin", String(rankMin));
@@ -310,6 +310,12 @@ export function createRuneFilterController({ renderRows, updateActiveFilters, ge
   function rescanIfActive() {
     if (!leaderboardState.runeFilterActive || selectedRunes.length === 0) return;
     clearTimeout(rescanDebounceTimer);
+    // Invalidate immediately so a response for the prior leaderboard scope
+    // cannot render while this rescan is waiting for its debounce.
+    scanGeneration += 1;
+    stopPolling();
+    cancelJob(activeJobId);
+    activeJobId = null;
     rescanDebounceTimer = setTimeout(() => {
       startScan({ isRescan: true });
     }, RUNE_RESCAN_DEBOUNCE_MS);

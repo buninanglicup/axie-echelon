@@ -12,6 +12,7 @@ import {
 } from "./leaderboardState.js";
 import { getPageItems } from "../pagination.js";
 import { clearScanFilterState, isCurrentScanUpdate } from "./scanFilterIntersection.js";
+import { appendLeaderboardScopeParams } from "./leaderboardScope.js";
 
 const BODY_PART_RESCAN_DEBOUNCE_MS = 350;
 const BODY_PART_SCAN_POLL_INTERVAL_MS = 1500;
@@ -87,7 +88,7 @@ export function createBodyPartFilterController({ renderRows, updateActiveFilters
   }
 
   function buildScanParams() {
-    const params = new URLSearchParams({ milestone: leaderboardState.currentEraMilestone });
+    const params = appendLeaderboardScopeParams(new URLSearchParams(), leaderboardState.leaderboardScope);
     for (const part of selectedBodyParts) params.append("bodyPartName", part.name);
     if (leaderboardState.rankMin) params.set("rankMin", String(leaderboardState.rankMin));
     if (leaderboardState.rankMax) params.set("rankMax", String(leaderboardState.rankMax));
@@ -240,6 +241,12 @@ export function createBodyPartFilterController({ renderRows, updateActiveFilters
   function rescanIfActive() {
     if (!leaderboardState.bodyPartFilterActive || selectedBodyParts.length === 0) return;
     clearTimeout(rescanDebounceTimer);
+    // Invalidate immediately so a response for the prior leaderboard scope
+    // cannot render while this rescan is waiting for its debounce.
+    scanGeneration += 1;
+    stopPolling();
+    cancelJob(activeJobId);
+    activeJobId = null;
     rescanDebounceTimer = setTimeout(() => startScan({ isRescan: true }), BODY_PART_RESCAN_DEBOUNCE_MS);
   }
 

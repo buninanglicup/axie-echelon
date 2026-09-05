@@ -56,28 +56,24 @@ export function getCachedPage(key) {
 }
 export function setCachedPage(key, payload) { pageCache.set(key, { payload, timestamp: Date.now() }); }
 
-// Single global cache entry for the average ranked-match duration across
-// all currently-tracked players (see computeGlobalAvgMatchDurationMs() in
-// leaderboardEnrichment.js). NOT a Map -- this is intentionally one value,
-// not keyed per player.
-//
-// NOT multi-leaderboard-pool-safe: if this app ever tracks multiple
-// leaderboard pools/windows simultaneously, this single key would let one
-// pool's match pacing bleed into another's estimate. Re-key per pool if
-// that's ever added.
-let globalAvgMatchDurationCache = null; // { value: number|null, timestamp } | null
+// Scoped cache entries for the average ranked-match duration across
+// currently-tracked players (see computeGlobalAvgMatchDurationMs() in
+// leaderboardEnrichment.js). A Final-era result must not affect an
+// offseason estimate, even when the player sets overlap.
+const globalAvgMatchDurationCache = new Map(); // scopeKey -> { value: number|null, timestamp }
 
-export function getCachedGlobalAvgMatchDuration() {
-  if (!globalAvgMatchDurationCache) return undefined; // no entry yet
-  if (Date.now() - globalAvgMatchDurationCache.timestamp > AVG_MATCH_DURATION_CACHE_TTL_MS) {
-    globalAvgMatchDurationCache = null;
+export function getCachedGlobalAvgMatchDuration(scopeKey) {
+  const entry = globalAvgMatchDurationCache.get(scopeKey);
+  if (!entry) return undefined; // no entry yet
+  if (Date.now() - entry.timestamp > AVG_MATCH_DURATION_CACHE_TTL_MS) {
+    globalAvgMatchDurationCache.delete(scopeKey);
     return undefined;
   }
-  return globalAvgMatchDurationCache.value; // may be null itself if last computation found no valid data
+  return entry.value; // may be null itself if last computation found no valid data
 }
 
-export function setCachedGlobalAvgMatchDuration(value) {
-  globalAvgMatchDurationCache = { value, timestamp: Date.now() };
+export function setCachedGlobalAvgMatchDuration(scopeKey, value) {
+  globalAvgMatchDurationCache.set(scopeKey, { value, timestamp: Date.now() });
 }
 
 function sweepExpiredCacheEntries() {
@@ -100,6 +96,9 @@ function sweepExpiredCacheEntries() {
   for (const [key, entry] of enrichmentCache) {
     const ttl = entry.status === "failed" ? FAILED_ENRICHMENT_CACHE_TTL_MS : TEAM_CACHE_TTL_MS;
     if (now - entry.timestamp > ttl) enrichmentCache.delete(key);
+  }
+  for (const [key, entry] of globalAvgMatchDurationCache) {
+    if (now - entry.timestamp > AVG_MATCH_DURATION_CACHE_TTL_MS) globalAvgMatchDurationCache.delete(key);
   }
 }
 

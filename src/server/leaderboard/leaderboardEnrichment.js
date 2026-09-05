@@ -18,6 +18,12 @@ import {
   setCachedGlobalAvgMatchDuration
 } from "./leaderboardCaches.js";
 import { SEASON_LEADERBOARD_API_MAX_LIMIT, MIN_VALID_MATCH_DURATION_MS } from "./leaderboardConstants.js";
+import {
+  appendLeaderboardScopeParams,
+  getLeaderboardEndpointPath,
+  getLeaderboardScopeKey,
+  normalizeLeaderboardScope
+} from "../../leaderboard/leaderboardScope.js";
 
 // ===== LEADERBOARD ENRICHMENT =====
 // Fetch the leaderboard page from Skymavis and enrich each player with recent ranked battle team data.
@@ -115,8 +121,9 @@ function formatUserLog(userID, userName) {
 // snapshot when the cache expires, with no cross-poll accumulation. TTL is
 // AVG_MATCH_DURATION_CACHE_TTL_MS (see leaderboardConstants.js for why
 // it's a static value, not derived from the user's polling interval).
-function computeGlobalAvgMatchDurationMs(enrichedPlayers) {
-  const cached = getCachedGlobalAvgMatchDuration();
+function computeGlobalAvgMatchDurationMs(enrichedPlayers, leaderboardScope) {
+  const scopeKey = getLeaderboardScopeKey(leaderboardScope);
+  const cached = getCachedGlobalAvgMatchDuration(scopeKey);
   if (cached !== undefined) return cached;
 
   const durations = [];
@@ -134,12 +141,13 @@ function computeGlobalAvgMatchDurationMs(enrichedPlayers) {
   }
 
   const result = durations.length > 0 ? median(durations) : null;
-  setCachedGlobalAvgMatchDuration(result);
+  setCachedGlobalAvgMatchDuration(scopeKey, result);
   if (DEBUG_ON) console.log(`[computeGlobalAvgMatchDurationMs] ${durations.length} valid durations, median=${result}`);
   return result;
 }
 
-export async function fetchAndEnrichLeaderboard(limit, offset, eraMilestone, liveMode = false) {
+export async function fetchAndEnrichLeaderboard(limit, offset, leaderboardScope, liveMode = false) {
+  const scope = normalizeLeaderboardScope(leaderboardScope);
   const requestedLimit = Math.max(1, Number(limit) || 20);
   const requestedOffset = Math.max(0, Number(offset) || 0);
 
@@ -150,7 +158,11 @@ export async function fetchAndEnrichLeaderboard(limit, offset, eraMilestone, liv
   for (let currentOffset = requestedOffset; currentOffset < requestedOffset + requestedLimit; currentOffset += SEASON_LEADERBOARD_API_MAX_LIMIT) {
     const remaining = requestedOffset + requestedLimit - currentOffset;
     const pageLimit = Math.min(SEASON_LEADERBOARD_API_MAX_LIMIT, remaining);
-    const leaderboardUrl = `${MAVIS_API_URL}/origins/v2/season-leaderboards?limit=${pageLimit}&offset=${currentOffset}&milestone=${eraMilestone}`;
+    const params = appendLeaderboardScopeParams(
+      new URLSearchParams({ limit: String(pageLimit), offset: String(currentOffset) }),
+      scope
+    );
+    const leaderboardUrl = `${MAVIS_API_URL}${getLeaderboardEndpointPath(scope)}?${params.toString()}`;
     const leaderboardResponse = await fetch(leaderboardUrl, {
       headers: { "x-api-key": AXIE_ECHELON_API_KEY }
     });
@@ -311,22 +323,29 @@ export async function fetchAndEnrichLeaderboard(limit, offset, eraMilestone, liv
   );
 
   if (enrichmentFailures > 0) {
-    console.warn(`[/api/leaderboard] ${enrichmentFailures}/${players.length} players failed enrichment for eraMilestone=${eraMilestone} offset=${offset}`);
+    console.warn(`[/api/leaderboard] ${enrichmentFailures}/${players.length} players failed enrichment for scope=${JSON.stringify(scope)} offset=${offset}`);
   }
 
-  const avgMatchDurationMs = liveMode ? computeGlobalAvgMatchDurationMs(enrichedPlayers) : null;
+  const avgMatchDurationMs = liveMode ? computeGlobalAvgMatchDurationMs(enrichedPlayers, scope) : null;
 
-  return { players: enrichedPlayers, limit, offset, milestone: eraMilestone, avgMatchDurationMs };
+  return {
+    players: enrichedPlayers,
+    limit,
+    offset,
+    milestone: scope.milestone,
+    offSeasonMode: scope.offSeasonMode,
+    avgMatchDurationMs
+  };
 }
 
-export function schedulePageRefresh(key, limit, offset, eraMilestone) {
+export function schedulePageRefresh(key, limit, offset, leaderboardScope) {
   if (inFlightPageRefreshes.has(key)) return;
   inFlightPageRefreshes.add(key);
 
   (async () => {
     try {
       if (DEBUG_ON) console.log(`[schedulePageRefresh] refreshing ${key}`);
-      const payload = await fetchAndEnrichLeaderboard(limit, offset, eraMilestone);
+      const payload = await fetchAndEnrichLeaderboard(limit, offset, leaderboardScope);
       setCachedPage(key, payload);
       if (DEBUG_ON) console.log(`[schedulePageRefresh] refreshed ${key}`);
     } catch (err) {

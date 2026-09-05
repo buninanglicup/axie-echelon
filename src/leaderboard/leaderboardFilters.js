@@ -1,7 +1,6 @@
 // Pure leaderboard filter predicates. This module reads shared state but does
 // not manipulate the DOM or trigger network requests.
-import { leaderboardState } from "./leaderboardState.js";
-import { battleTimeCacheKey, lastKnownGoodBattleTime } from "./leaderboardState.js";
+import { battleTimeCacheKey, lastKnownGoodBattleTime, leaderboardState } from "./leaderboardState.js";
 
 export function applyRankFilter(players) {
   const { rankMin, rankMax } = leaderboardState;
@@ -22,7 +21,7 @@ export function getLastBattleTimestamp(player) {
   // became inactive. Use the last successful timestamp for filtering only;
   // the renderer still receives the raw current-cycle value.
   if (player.userID) {
-    const key = battleTimeCacheKey(leaderboardState.currentEraMilestone, player.userID);
+    const key = battleTimeCacheKey(leaderboardState.leaderboardScope, player.userID);
     if (lastKnownGoodBattleTime.has(key)) return lastKnownGoodBattleTime.get(key);
   }
 

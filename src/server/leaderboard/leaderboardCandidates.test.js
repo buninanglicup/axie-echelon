@@ -1,8 +1,15 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
-import { CandidatePoolUnavailableError, fetchRankCandidates, rankCandidateCache } from "./leaderboardCandidates.js";
+import {
+  CandidatePoolUnavailableError,
+  chunkCacheKey,
+  fetchRankCandidates,
+  rankCandidateCache
+} from "./leaderboardCandidates.js";
 
 const originalFetch = globalThis.fetch;
+const finalScope = { seasonId: 19, offSeasonMode: false, milestone: 4, eraName: "Final" };
+const offseasonScope = { seasonId: 19, offSeasonMode: true, milestone: null, eraName: "Offseason" };
 
 function responseForItems(count, startRank = 1, headers = {}) {
   const items = Array.from({ length: count }, (_, index) => ({
@@ -88,9 +95,9 @@ test("retains successful chunks when a later chunk fails", async () => {
     fetchRankCandidates("partial-test", 300),
     (error) => error instanceof CandidatePoolUnavailableError && error.failedOffset === 200
   );
-  assert.equal(rankCandidateCache.has("partial-test_0"), true);
-  assert.equal(rankCandidateCache.has("partial-test_100"), true);
-  assert.equal(rankCandidateCache.has("partial-test_200"), false);
+  assert.equal(rankCandidateCache.has(chunkCacheKey("partial-test", 0)), true);
+  assert.equal(rankCandidateCache.has(chunkCacheKey("partial-test", 100)), true);
+  assert.equal(rankCandidateCache.has(chunkCacheKey("partial-test", 200)), false);
 
   const candidates = await fetchRankCandidates("partial-test", 300);
   assert.equal(candidates.length, 300);
@@ -113,6 +120,59 @@ test("fails closed when a required chunk remains unavailable", async () => {
     (error) => error instanceof CandidatePoolUnavailableError && error.failedOffset === 100
   );
   assert.equal(calls, 4);
-  assert.equal(rankCandidateCache.has("fail-closed-test_0"), true);
-  assert.equal(rankCandidateCache.has("fail-closed-test_100"), false);
+  assert.equal(rankCandidateCache.has(chunkCacheKey("fail-closed-test", 0)), true);
+  assert.equal(rankCandidateCache.has(chunkCacheKey("fail-closed-test", 100)), false);
+});
+
+test("uses the seasonal endpoint and milestone for a seasonal scope", async () => {
+  let requestedUrl;
+  globalThis.fetch = async (url) => {
+    requestedUrl = new URL(url);
+    return responseForItems(1);
+  };
+
+  const candidates = await fetchRankCandidates(finalScope, 1);
+
+  assert.equal(requestedUrl.pathname, "/origins/v2/season-leaderboards");
+  assert.equal(requestedUrl.searchParams.get("milestone"), "4");
+  assert.deepEqual(candidates, [{ rank: 1, userID: "1" }]);
+});
+
+test("uses the offseason endpoint without a milestone and keeps candidate items unchanged", async () => {
+  let requestedUrl;
+  globalThis.fetch = async (url) => {
+    requestedUrl = new URL(url);
+    return responseForItems(1);
+  };
+
+  const candidates = await fetchRankCandidates(offseasonScope, 1);
+
+  assert.equal(requestedUrl.pathname, "/origins/v2/leaderboards");
+  assert.equal(requestedUrl.searchParams.has("milestone"), false);
+  assert.deepEqual(candidates, [{ rank: 1, userID: "1" }]);
+});
+
+test("keeps Final and offseason cache and in-flight chunks separate", async () => {
+  let calls = 0;
+  let releaseFetches;
+  const fetchGate = new Promise((resolve) => {
+    releaseFetches = resolve;
+  });
+  globalThis.fetch = async () => {
+    calls += 1;
+    await fetchGate;
+    return responseForItems(1);
+  };
+
+  const finalCandidates = fetchRankCandidates(finalScope, 1);
+  const offseasonCandidates = fetchRankCandidates(offseasonScope, 1);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(calls, 2);
+  assert.notEqual(chunkCacheKey(finalScope, 0), chunkCacheKey(offseasonScope, 0));
+
+  releaseFetches();
+  await Promise.all([finalCandidates, offseasonCandidates]);
+  assert.equal(rankCandidateCache.has(chunkCacheKey(finalScope, 0)), true);
+  assert.equal(rankCandidateCache.has(chunkCacheKey(offseasonScope, 0)), true);
 });

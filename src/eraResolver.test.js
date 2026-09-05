@@ -23,13 +23,35 @@ test("resolves the final era using the backward-calculated boundary", () => {
   assert.equal(final.milestone, 4);
   assert.equal(final.eraStartedAt, seasonEndedAt - (14 * day));
   assert.equal(final.eraEndsAt, seasonEndedAt);
-  assert.equal(final.seasonOver, false);
+  assert.equal(final.offSeasonMode, false);
 });
 
-test("marks the season over at the configured season end", () => {
+test("resolves every active era at its exact start boundary", () => {
+  const boundaries = getEraBoundaries();
+  const expectedNames = ["Rare", "Epic", "Mystic", "Final"];
+
+  for (const [index, boundary] of boundaries.entries()) {
+    const era = getCurrentEraForConfiguredSeason(boundary.startMs);
+    assert.equal(era.offSeasonMode, false);
+    assert.equal(era.milestone, index + 1);
+    assert.equal(era.eraName, expectedNames[index]);
+  }
+});
+
+test("keeps the configured timestamp as the exact Rare start", () => {
+  const rare = getCurrentEraForConfiguredSeason(seasonStartedAt * 1000);
+
+  assert.equal(rare.offSeasonMode, false);
+  assert.equal(rare.milestone, 1);
+  assert.equal(rare.eraName, "Rare");
+  assert.equal(rare.eraStartedAt, seasonStartedAt);
+});
+
+test("enters offseason at the configured season end without a milestone", () => {
   const atEnd = getCurrentEraForConfiguredSeason(seasonEndedAt * 1000);
 
   assert.equal(atEnd.seasonEndedAt, seasonEndedAt);
-  assert.equal(atEnd.seasonOver, true);
-  assert.equal(atEnd.milestone, 4);
+  assert.equal(atEnd.offSeasonMode, true);
+  assert.equal(atEnd.milestone, null);
+  assert.equal(atEnd.eraName, "Offseason");
 });
