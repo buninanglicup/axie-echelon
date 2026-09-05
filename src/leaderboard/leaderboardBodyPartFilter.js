@@ -11,6 +11,7 @@ import {
   MAXIMUM_PLAYERS_DISPLAYED_PER_PAGE
 } from "./leaderboardState.js";
 import { getPageItems } from "../pagination.js";
+import { clearScanFilterState, isCurrentScanUpdate } from "./scanFilterIntersection.js";
 
 const BODY_PART_RESCAN_DEBOUNCE_MS = 350;
 const BODY_PART_SCAN_POLL_INTERVAL_MS = 1500;
@@ -142,9 +143,10 @@ export function createBodyPartFilterController({ renderRows, updateActiveFilters
     const names = selectedBodyParts.map((part) => part.name).join(", ");
     const total = job.totalCandidates ?? (job.rankMax - job.rankMin + 1);
     if (job.status === "queued") return `Queued to scan ${total} ranked players for ${names}.`;
-    if (job.status === "running") return `Scanning ${total} ranked players for ${names}: ${job.processedCount}/${job.totalCandidates ?? "?"} checked, ${job.matches.length} found.`;
-    if (job.status === "complete") return `${job.matches.length} player(s) match any selected body part.`;
-    if (job.status === "partial") return `Coverage is incomplete: ${job.processedCount}/${job.totalCandidates ?? "?"} checked; showing ${job.matches.length} match(es).`;
+    const unknown = job.unknownCount ? `, ${job.unknownCount} unknown fighter(s) skipped` : "";
+    if (job.status === "running") return `Scanning ${total} ranked players for ${names}: ${job.processedCount}/${job.totalCandidates ?? "?"} checked, ${job.matches.length} found${unknown}.`;
+    if (job.status === "complete") return `${job.matches.length} player(s) match any selected body part${unknown}.`;
+    if (job.status === "partial") return `Coverage is incomplete: ${job.processedCount}/${job.totalCandidates ?? "?"} checked; showing ${job.matches.length} match(es)${unknown}.`;
     if (job.status === "cancelled") return "Body-part scan cancelled.";
     return "Body-part scan failed.";
   }
@@ -163,7 +165,7 @@ export function createBodyPartFilterController({ renderRows, updateActiveFilters
   }
 
   function applyJobUpdate(job, generation) {
-    if (generation !== scanGeneration || !leaderboardState.bodyPartFilterActive) return;
+    if (!isCurrentScanUpdate({ generation, currentGeneration: scanGeneration, filterActive: leaderboardState.bodyPartFilterActive })) return;
     lastScanMatches = Array.isArray(job.matches) ? job.matches : [];
     if (bodyPartFilterStatus) {
       bodyPartFilterStatus.hidden = false;
@@ -179,15 +181,15 @@ export function createBodyPartFilterController({ renderRows, updateActiveFilters
   }
 
   async function pollJob(jobId, generation) {
-    if (generation !== scanGeneration || !leaderboardState.bodyPartFilterActive) return;
+    if (!isCurrentScanUpdate({ generation, currentGeneration: scanGeneration, filterActive: leaderboardState.bodyPartFilterActive })) return;
     try {
       const response = await fetch(`/api/leaderboard/body-part-scan/${encodeURIComponent(jobId)}`);
-      if (generation !== scanGeneration || !leaderboardState.bodyPartFilterActive) return;
+      if (!isCurrentScanUpdate({ generation, currentGeneration: scanGeneration, filterActive: leaderboardState.bodyPartFilterActive })) return;
       if (response.status === 404) return startScan({ isRescan: true });
       if (!response.ok) throw new Error(`Body-part scan poll failed: ${response.status}`);
       applyJobUpdate(await response.json(), generation);
     } catch (error) {
-      if (generation !== scanGeneration || !leaderboardState.bodyPartFilterActive) return;
+      if (!isCurrentScanUpdate({ generation, currentGeneration: scanGeneration, filterActive: leaderboardState.bodyPartFilterActive })) return;
       if (bodyPartFilterStatus) bodyPartFilterStatus.textContent = "Lost connection while scanning — retrying...";
       pollTimer = setTimeout(() => pollJob(jobId, generation), BODY_PART_SCAN_POLL_INTERVAL_MS);
     }
@@ -209,14 +211,14 @@ export function createBodyPartFilterController({ renderRows, updateActiveFilters
     hidePager();
     try {
       const response = await fetch(`/api/leaderboard/body-part-scan?${buildScanParams()}`, { method: "POST" });
-      if (generation !== scanGeneration || !leaderboardState.bodyPartFilterActive) return;
+      if (!isCurrentScanUpdate({ generation, currentGeneration: scanGeneration, filterActive: leaderboardState.bodyPartFilterActive })) return;
       if (!response.ok) throw new Error(`Body-part scan request failed: ${response.status}`);
       const job = await response.json();
-      if (generation !== scanGeneration || !leaderboardState.bodyPartFilterActive) return;
+      if (!isCurrentScanUpdate({ generation, currentGeneration: scanGeneration, filterActive: leaderboardState.bodyPartFilterActive })) return;
       activeJobId = job.jobId;
       applyJobUpdate(job, generation);
     } catch (error) {
-      if (generation !== scanGeneration) return;
+      if (!isCurrentScanUpdate({ generation, currentGeneration: scanGeneration, filterActive: leaderboardState.bodyPartFilterActive })) return;
       if (bodyPartFilterStatus) bodyPartFilterStatus.textContent = "Failed to start body-part scan.";
       renderMessage("Failed to start body-part scan.");
     }
@@ -260,8 +262,9 @@ export function createBodyPartFilterController({ renderRows, updateActiveFilters
     activeJobId = null;
     clearTimeout(rescanDebounceTimer);
     selectedBodyParts = [];
-    leaderboardState.selectedBodyPartNames = [];
-    leaderboardState.bodyPartFilterActive = false;
+    const nextState = clearScanFilterState(leaderboardState, "body-part");
+    leaderboardState.selectedBodyPartNames = nextState.selectedBodyPartNames;
+    leaderboardState.bodyPartFilterActive = nextState.bodyPartFilterActive;
     lastScanMatches = [];
     resultsPage = 1;
     if (bodyPartSearchInput) bodyPartSearchInput.value = "";

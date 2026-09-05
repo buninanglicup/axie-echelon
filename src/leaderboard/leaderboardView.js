@@ -51,7 +51,7 @@ import {
 } from "./leaderboardState.js";
 import { formatRelativeTime, predictNextActivity, formatActivityEstimate } from "../shared/formatting.js";
 import { getPageItems } from "../pagination.js";
-import { intersectScanMatches } from "./scanFilterIntersection.js";
+import { getVisibleScanMatches } from "./scanFilterIntersection.js";
 
 // ===== sessionStorage leaderboard page cache ======
 function loadLeaderboardPageFromStorage(limit, offset, milestone) {
@@ -752,9 +752,12 @@ export function initLeaderboardView() {
     onApply: () => {
       hidePoolPager();
     },
-    getCombinedMatches: (runeMatches) => leaderboardState.bodyPartFilterActive
-      ? intersectScanMatches(runeMatches, bodyPartFilterController?.getMatches() || [])
-      : runeMatches
+    getCombinedMatches: (runeMatches) => getVisibleScanMatches({
+      runeFilterActive: leaderboardState.runeFilterActive,
+      runeMatches,
+      bodyPartFilterActive: leaderboardState.bodyPartFilterActive,
+      bodyPartMatches: bodyPartFilterController?.getMatches() || []
+    })
   });
   clearRuneFilter = () => {
     runeFilterController.clearRuneFilter();
@@ -772,9 +775,12 @@ export function initLeaderboardView() {
     onApply: () => {
       hidePoolPager();
     },
-    getCombinedMatches: (bodyPartMatches) => leaderboardState.runeFilterActive
-      ? intersectScanMatches(bodyPartMatches, runeFilterController.getMatches())
-      : bodyPartMatches
+    getCombinedMatches: (bodyPartMatches) => getVisibleScanMatches({
+      runeFilterActive: leaderboardState.runeFilterActive,
+      runeMatches: runeFilterController.getMatches(),
+      bodyPartFilterActive: leaderboardState.bodyPartFilterActive,
+      bodyPartMatches
+    })
   });
   clearBodyPartFilter = () => {
     bodyPartFilterController.clearBodyPartFilter();
