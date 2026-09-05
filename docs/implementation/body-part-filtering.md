@@ -1,7 +1,7 @@
 # Body-Part Filtering
 
-Status: mapping validation and local scanner complete. The async job, HTTP route,
-and filter UI do not exist yet.
+Status: mapping validation, local scanner, and async job complete. The HTTP
+route and filter UI do not exist yet.
 
 ## Current Decision
 
@@ -102,6 +102,12 @@ battle-log fetch path, applies rank/name narrowing before enrichment, scans in
 bounded batches, and reports matched body-part details. Its async job and HTTP
 route are intentionally still separate follow-up work.
 
+`src/server/leaderboard/bodyPartScanJobs.js` now owns queued/running/complete/
+partial/failed/cancelled lifecycle state, case-insensitive selection
+deduplication, heartbeat cleanup, cancellation, watchdog timeouts, partial
+results, and progress polling. Its focused lifecycle suite uses a scanner seam
+so job behavior is tested independently from network fixtures.
+
 The existing battle-log fixture contains only six fighter records, but the
 larger rune-scan capture contains 2,733 fighter records and 2,727 unique gene
 strings. All unique genes decoded. Of 16,362 dominant parts, 16,342 mapped to
@@ -119,9 +125,7 @@ The [cc-axie-gtk2d repository](https://github.com/axieinfinity/cc-axie-gtk2d) is
 
 ## Next Milestone
 
-1. Add the asynchronous body-part scan job with deduplication, polling,
-   cancellation, watchdog timeout, and partial results.
-2. Add HTTP start/status/cancel routes around that job.
-3. Add the leaderboard filter UI and client-side result pagination.
-4. Continue expanding name-bearing captures when new variants or unsupported
+1. Add HTTP start/status/cancel routes around the body-part scan job.
+2. Add the leaderboard filter UI and client-side result pagination.
+3. Continue expanding name-bearing captures when new variants or unsupported
    starter records are encountered.

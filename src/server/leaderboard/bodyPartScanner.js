@@ -75,6 +75,9 @@ export async function scanLeaderboardForBodyParts(
   });
 
   const matches = [];
+  if (narrowedCandidates.length === 0 && typeof onProgress === "function") {
+    onProgress([], 0, 0);
+  }
   for (let start = 0; start < narrowedCandidates.length; start += RUNE_SCAN_ENRICHMENT_BATCH_SIZE) {
     const batch = narrowedCandidates.slice(start, start + RUNE_SCAN_ENRICHMENT_BATCH_SIZE);
     const batchResults = await mapWithConcurrency(

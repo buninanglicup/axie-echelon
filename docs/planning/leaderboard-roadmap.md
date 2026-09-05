@@ -38,13 +38,15 @@ Current frontend module boundaries:
 
 ### Body-part filtering status
 
-Body-part filtering is not implemented yet. The agreed direction is local gene
-decoding from battle-log fighter data, followed by canonical variant matching
-(`Yen` matches base part `Sleepless`, for example). The existing GraphQL Axie
-detail `parts` response is a verification/fallback path only; per-Axie detail
-requests must not be added to a top-1000 scan without a separate rate-limit
-design. The cards catalog is a separate battle-card reference, not a confirmed
-body-part mapping. See `docs/implementation/body-part-filtering.md`.
+Body-part mapping, local predicate, scanner, and asynchronous job groundwork
+are implemented. The remaining work is HTTP route integration and the
+leaderboard UI. The agreed direction remains local gene decoding from
+battle-log fighter data, followed by canonical variant matching (`Yen` matches
+base part `Sleepless`, for example). The existing GraphQL Axie detail `parts`
+response is a verification/fallback path only; per-Axie detail requests must
+not be added to a top-1000 scan without a separate rate-limit design. The cards
+catalog is a separate battle-card reference, not a confirmed body-part mapping.
+See `docs/implementation/body-part-filtering.md`.
 
 ## Rank ceiling fix **[NEW]**
 
