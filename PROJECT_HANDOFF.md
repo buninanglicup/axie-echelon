@@ -42,7 +42,7 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
 
 - Leaderboard display with rank, player name, MMR, win rate, daily change, recent form, team previews, rune badges, profile links, and last ranked-battle time.
 - Live mode polling with configurable interval and activity windows from 0 seconds through 20 minutes.
-- Season/era resolution from `src/data/season.json`; the backend exposes `/api/season/current`. Internally, the numeric value is called `eraMilestone`; at the Sky Mavis API boundary it is sent as `milestone` and explicit `?milestone=` overrides remain supported. Era calculation anchors Final to `seasonEndedAt`, works backward for intermediate boundaries, and anchors Rare to `seasonStartedAt`. The resolver reports `seasonOver` at the configured end; automatic offseason endpoint switching remains a separate follow-up. The frontend checks immediately at startup and once every 24 hours afterward.
+- Season/era resolution from `src/data/season.json`; the backend exposes `/api/season/current`. Internally, the numeric value is called `eraMilestone`; at the Sky Mavis API boundary it is sent as `milestone` and explicit `?milestone=` overrides remain supported. Era calculation anchors Final to `seasonEndedAt`, works backward for intermediate boundaries, and anchors Rare to `seasonStartedAt`. Automatic offseason mode uses `/origins/v2/leaderboards` without a milestone, while historical era tabs use `/origins/v2/season-leaderboards?milestone=N`. The frontend checks immediately at startup and once every 24 hours afterward.
 - Live-mode freshness model:
   - profile/address data is cached for a long TTL;
   - team composition is cached separately;
@@ -64,13 +64,11 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
   - backend `127.0.0.1:8787`
 - Profile-driven multi-tracker development using `.env`; each instance selects a numbered `TRACKER_PROFILE` and receives isolated runtime settings.
 - Five predefined PowerShell launch scripts for local multi-window testing; the profile resolver itself supports additional contiguous profile numbers.
-- Phase 3 candidate-pool implementation: 3a (backend ceiling/cache constants), 3b (full-pool loading), 3c (client-side filtering), 3d (pagination), and 3e rune narrowing are implemented. Non-live visible rows progressively request team data and reuse the existing morph renderer. Body-part mapping, predicate, and local scanner groundwork are implemented; async job, route, and UI work remain. Morph completeness still requires manual verification against real ranked-battle payloads.
-- Body-part filtering is the next filter milestone. The current design uses local
-  gene decoding from existing battle-log fields, canonicalizes collectible
-  variants such as `Yen` under base part `Sleepless`, and reuses the rune-scan
-  job model only after decoder/mapping validation. No extra per-fighter API
-  lookup is planned for the normal top-1000 path. See
-  `docs/implementation/body-part-filtering.md`.
+- Phase 3 candidate-pool implementation: 3a (backend ceiling/cache constants), 3b (full-pool loading), 3c (client-side filtering), 3d (pagination), and 3e rune/body-part narrowing are implemented. Non-live visible rows progressively request team data and reuse the existing morph renderer. Automatic offseason and historical era scopes use separate endpoint/cache identities. Morph completeness still requires manual verification against real ranked-battle payloads.
+- Body-part filtering uses local gene decoding from existing battle-log fields,
+  canonicalizes collectible variants such as `Yen` under base part `Sleepless`,
+  and reuses the rune-scan job model. No extra per-fighter API lookup is planned
+  for the normal top-1000 path. See `docs/implementation/body-part-filtering.md`.
 - Body-part mapping validation is complete for the current reviewed evidence. The captured `ListUserFighters.json`
   fixture currently produces 120 exact dominant ID/class matches across 20
   fighters with no unknowns or mismatches using the local decoder. This confirms
@@ -91,18 +89,17 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
   `specialGenes` metadata as variants. It remains candidate-only until broader
   captures and canonicalization review are complete.
 - `src/bodyPartMapper.js` now provides a canonical/variant lookup over
-  that candidate file, with focused tests included in `npm test`. It is not yet
-  wired into an HTTP route or the UI.
+  that candidate file, with focused tests included in `npm test`. It is wired
+  into the body-part scanner and leaderboard UI.
 - `src/bodyPartFilter.js` now provides the local fighter predicate: it prefers
   `genes_metamorph`, falls back to `genes`, matches canonical or verified
   variant names with OR semantics, and exposes whether the gene data was known.
   Starter/legacy records without mapper entries do not produce confirmed
-  matches. The predicate is tested but not yet wired into a route or UI.
+  matches. Unknown-fighter counts are reported in body-part scan progress.
 - `src/server/leaderboard/bodyPartScanner.js` now applies the predicate to
   narrowed leaderboard candidates while reusing team caching, battle-log
-  enrichment, bounded batches, and progress callbacks. Its focused tests pass;
-  the async job lifecycle is now implemented; HTTP route integration remains
-  next.
+  enrichment, bounded batches, and progress callbacks. Its async job lifecycle,
+  HTTP routes, scope-aware deduplication, and UI integration are implemented.
 - `src/server/leaderboard/bodyPartScanJobs.js` provides queued/running/complete/
   partial/failed/cancelled lifecycle state, selection deduplication, heartbeat
   cleanup, cancellation, watchdog timeouts, partial results, and progress
@@ -222,7 +219,7 @@ npm test
 npm run build
 ```
 
-The explicit suite passes 65 tests and the Vite build succeeds. All current
+The explicit suite passes 99 tests and the Vite build succeeds. All current
 relative JavaScript import targets resolve, and the backend leaderboard module
 graph loads with Node. Live browser smoke testing on 2026-09-05 verified:
 
@@ -232,6 +229,7 @@ graph loads with Node. Live browser smoke testing on 2026-09-05 verified:
 - clearing filters, normal leaderboard pagination, and retaining both rune and body-part selections
 - live API body-part scans through the current local `.env` configuration
 - mobile layout at a 390px viewport without horizontal document overflow
+- automatic offseason view, historical Final selection, and return to Current
 
 The top-1000 scan was observed progressing against live data; the focused
 top-50 scan completed successfully. The broader local coverage review still
@@ -239,15 +237,15 @@ reports only the documented low-ID starter/legacy unknowns.
 
 ## Recommended Next Steps
 
-1. Validate the independently ported body-part gene mapping and canonical
-   variant normalization before adding a body-part scan route. See
-   `docs/implementation/body-part-filtering.md`.
-2. Design resumability for terminal partial rune-scan jobs if full coverage
-  after a timeout is required.
-3. Review the ignored real capture locally if actual data-shape inspection is
-  needed; never commit it.
-4. Reproduce and diagnose the live-mode page reload with browser console and
-  network logs.
-5. Run a complete browser smoke test for both lookup and leaderboard flows.
-6. Decide the intended UI behavior when a live battle-time fetch fails.
-7. Add browser/API tests and consider code-splitting PIXI/Spine.
+1. Design resumability for terminal partial rune-scan jobs if full coverage
+   after a timeout is required.
+2. Review ignored real captures locally when new body-part variants or
+   unsupported starter records appear; never commit raw captures.
+3. Reproduce and diagnose the live-mode page reload if it occurs again.
+4. Complete browser smoke coverage for the Morph Viewer and address lookup.
+5. Decide the intended UI behavior when a live battle-time fetch fails.
+6. Add browser/API tests and consider code-splitting PIXI/Spine.
+
+Track these items in this section of `PROJECT_HANDOFF.md`; implementation
+details and historical planning notes remain in `docs/planning/` and
+`docs/implementation/`.

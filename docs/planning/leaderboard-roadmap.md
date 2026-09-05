@@ -78,12 +78,11 @@ Two upstream endpoints exist and are easy to confuse:
 | Endpoint | Query params | Scope | Used by this app |
 |---|---|---|---|
 | `GET /origins/v2/season-leaderboards` | `limit`, `offset`, `milestone` | Era-scoped ("current leaderboard players by Era") | **Yes** — this is what `fetchRankCandidates()` calls today, and what the pool/rune/legacy routes all rely on. |
-| `GET /origins/v2/leaderboards` | `limit`, `offset` (no milestone) | Includes offseason (the gap between one era ending and the next starting) | No — not called anywhere in this codebase. Would be a separate feature (an "all-time/current ladder including offseason" view), out of scope for this pagination fix. |
+| `GET /origins/v2/leaderboards` | `limit`, `offset` (no milestone) | Includes offseason (the gap between one era ending and the next starting) | Yes — automatic current offseason view. |
 
-**Decision:** the top-1000 pool continues to use `season-leaderboards`, since it
-matches the existing era-tab UI (`eraTabs`, `DEFAULT_ERA_MILESTONE`). Adding a
-second, non-era-scoped leaderboard view using `leaderboards` is a distinct
-future feature, not part of this work.
+**Decision:** active-era and historical tab views use `season-leaderboards`,
+while automatic offseason uses `leaderboards`. Scope-aware cache keys keep the
+two endpoint populations separate.
 
 ## Cheap-field payload shape, confirmed **[NEW]**
 
@@ -277,13 +276,13 @@ validated and committed independently:
   existing `leaderboardData` path.
 - **3d — Pagination UI:** use `getPageItems()` and
   `MAXIMUM_PLAYERS_DISPLAYED_PER_PAGE`, with page reset on filter changes.
-- **3e — Rune narrowing:** apply cheap rank/name filters first, then enrich
-  or scan only the surviving candidates and keep the intersection. Body-part
-  filtering remains a separate future feature because no body-part catalog,
-  route, or predicate exists yet.
+- **3e — Rune/body-part narrowing:** apply cheap rank/name filters first, then
+  enrich or scan only the surviving candidates and keep the intersection.
+  Multiple runes and body parts use OR semantics within each group; rune and
+  body-part groups combine with AND semantics.
 
 Current progress: **3a complete; 3b complete; 3c complete; 3d complete;
-3e rune narrowing complete.**
+3e rune/body-part narrowing complete.**
 The non-live table now consumes the loaded pool for rank/name filtering and
 pagination. Rune selection narrows rank/name candidates before team
 enrichment, rescans are debounced when those cheap filters change, and the
@@ -335,12 +334,10 @@ ranked-battle payloads and live upstream behavior after a backend restart.
   isn't mistaken for the original (unrecoverable) plan.
 - Real data source for `winRate` / `dailyChange` / `recentForm` — not
   investigated. Deferred.
-- Whether to eventually add a second, non-era-scoped leaderboard view backed
-  by `/origins/v2/leaderboards` (includes offseason) — deferred, separate
-  feature.
+- Whether to add resumability for terminal partial scans — deferred.
 
 ## Recommended next step
 
-Implement Phase 3 as scoped above. Live mode, enrichment status polish
-(Phases 4–7), and the two open feature ideas noted above remain separate,
-later work.
+Phase 3 is implemented, including automatic offseason and historical era
+scopes. Live mode, enrichment status polish (Phases 4–7), and scan resumability
+remain separate, later work.
