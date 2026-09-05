@@ -268,6 +268,13 @@ let rescanRuneFilterIfActive = () => {};
 let clearBodyPartFilter = () => {};
 let rescanBodyPartFilterIfActive = () => {};
 
+function intersectScanMatches(primaryMatches, secondaryMatches) {
+  const secondaryPlayerIds = new Set(
+    secondaryMatches.map((player) => player.userID ?? `rank:${player.rank}`)
+  );
+  return primaryMatches.filter((player) => secondaryPlayerIds.has(player.userID ?? `rank:${player.rank}`));
+}
+
 function hasActiveScanFilter() {
   return leaderboardState.runeFilterActive || leaderboardState.bodyPartFilterActive;
 }
@@ -749,12 +756,15 @@ export function initLeaderboardView() {
     getLeaderboardBody: () => document.querySelector("#leaderboard-body"),
     onClear: () => clearRuneFilter(),
     onApply: () => {
-      bodyPartFilterController?.clearBodyPartFilter();
       hidePoolPager();
-    }
+    },
+    getCombinedMatches: (runeMatches) => leaderboardState.bodyPartFilterActive
+      ? intersectScanMatches(runeMatches, bodyPartFilterController?.getMatches() || [])
+      : runeMatches
   });
   clearRuneFilter = () => {
     runeFilterController.clearRuneFilter();
+    bodyPartFilterController?.renderCurrentResults();
     renderFilteredView();
   };
   rescanRuneFilterIfActive = () => runeFilterController.rescanIfActive();
@@ -766,12 +776,15 @@ export function initLeaderboardView() {
     getLeaderboardBody: () => document.querySelector("#leaderboard-body"),
     onClear: () => clearBodyPartFilter(),
     onApply: () => {
-      runeFilterController.clearRuneFilter();
       hidePoolPager();
-    }
+    },
+    getCombinedMatches: (bodyPartMatches) => leaderboardState.runeFilterActive
+      ? intersectScanMatches(bodyPartMatches, runeFilterController.getMatches())
+      : bodyPartMatches
   });
   clearBodyPartFilter = () => {
     bodyPartFilterController.clearBodyPartFilter();
+    runeFilterController.renderCurrentResults();
     renderFilteredView();
   };
   rescanBodyPartFilterIfActive = () => bodyPartFilterController.rescanIfActive();

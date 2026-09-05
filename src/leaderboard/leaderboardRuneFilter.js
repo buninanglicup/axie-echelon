@@ -16,7 +16,7 @@ import { getPageItems } from "../pagination.js";
 const RUNE_RESCAN_DEBOUNCE_MS = 350;
 const RUNE_SCAN_POLL_INTERVAL_MS = 1500;
 
-export function createRuneFilterController({ renderRows, updateActiveFilters, getLeaderboardBody, onClear, onApply }) {
+export function createRuneFilterController({ renderRows, updateActiveFilters, getLeaderboardBody, onClear, onApply, getCombinedMatches }) {
   let selectedRunes = [];
   let scanGeneration = 0;
   let rescanDebounceTimer = null;
@@ -126,7 +126,7 @@ export function createRuneFilterController({ renderRows, updateActiveFilters, ge
   function renderRuneResultsPage() {
     const leaderboardBody = getLeaderboardBody();
     if (!leaderboardBody) return;
-    const pageInfo = getPageItems(lastScanMatches, runeResultsPage, MAXIMUM_PLAYERS_DISPLAYED_PER_PAGE);
+    const pageInfo = getPageItems(getCombinedMatches?.(lastScanMatches) ?? lastScanMatches, runeResultsPage, MAXIMUM_PLAYERS_DISPLAYED_PER_PAGE);
     runeResultsPage = pageInfo.page;
     renderRows(leaderboardBody, pageInfo.items);
     if (pageControls) {
@@ -374,5 +374,5 @@ export function createRuneFilterController({ renderRows, updateActiveFilters, ge
     });
   }
 
-  return { clearRuneFilter, rescanIfActive, init };
+  return { clearRuneFilter, rescanIfActive, renderCurrentResults: renderRuneResultsPage, getMatches: () => lastScanMatches, init };
 }

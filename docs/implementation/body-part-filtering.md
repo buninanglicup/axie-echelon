@@ -19,6 +19,10 @@ Sleepless -> matches Sleepless, Yen, and other verified variants
 
 Variant metadata should retain the slot, class, base name, and variant names. Multiple selected parts should use OR semantics, matching the rune filter's current behavior. Missing or malformed genes are unknown data, not a confirmed non-match.
 
+When both rune and body-part filters are active, the filter groups combine with
+AND semantics. In other words, a player must match at least one selected rune
+and at least one selected body part; selections within either group remain OR.
+
 ## Data Sources
 
 Primary runtime data:
@@ -114,8 +118,8 @@ body-part-name normalization happen at the route boundary; the route reuses
 the existing era resolver and leaves the rune endpoints unchanged.
 
 The leaderboard now exposes a searchable canonical body-part selector with
-variant labels, removable chips, asynchronous progress/partial-result status,
-mutual exclusion with the rune scan, stale-poll protection, and client-side
+removable chips, asynchronous progress/partial-result status, independent
+selection alongside the rune scan, stale-poll protection, and client-side
 result pagination. It uses the existing leaderboard row renderer and restores
 the normal leaderboard view when cleared.
 

@@ -602,7 +602,8 @@ h1 {
 }
 
 #rune-search-input,
-#axie-card-search {
+#axie-card-search,
+#body-part-search-input {
   width: 100%;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.14);
@@ -613,12 +614,14 @@ h1 {
 }
 
 #rune-search-input::placeholder,
-#axie-card-search::placeholder {
+#axie-card-search::placeholder,
+#body-part-search-input::placeholder {
   color: #6b7f8f;
 }
 
 #rune-search-input:focus,
-#axie-card-search:focus {
+#axie-card-search:focus,
+#body-part-search-input:focus {
   outline: none;
   border-color: #49dc8f;
 }
@@ -2059,6 +2062,17 @@ input {
 }
 
 @media (max-width: 760px) {
+  .leaderboard-footer {
+    flex-wrap: wrap;
+  }
+
+  .page-controls {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
   .panel-heading {
     align-items: flex-start;
     flex-direction: column;

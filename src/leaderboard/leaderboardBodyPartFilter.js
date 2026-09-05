@@ -29,7 +29,7 @@ function getCandidateBodyParts() {
   return [...canonicalParts.values()].sort((left, right) => left.name.localeCompare(right.name));
 }
 
-export function createBodyPartFilterController({ renderRows, updateActiveFilters, getLeaderboardBody, onClear, onApply }) {
+export function createBodyPartFilterController({ renderRows, updateActiveFilters, getLeaderboardBody, onClear, onApply, getCombinedMatches }) {
   let selectedBodyParts = [];
   let scanGeneration = 0;
   let rescanDebounceTimer = null;
@@ -59,12 +59,6 @@ export function createBodyPartFilterController({ renderRows, updateActiveFilters
       const name = document.createElement("span");
       name.textContent = part.name;
       item.append(name);
-      if (part.variants.length) {
-        const detail = document.createElement("span");
-        detail.className = "body-part-suggestion-detail";
-        detail.textContent = `Variants: ${part.variants.join(", ")}`;
-        item.append(detail);
-      }
       item.addEventListener("click", () => applyBodyPart(part));
       bodyPartSuggestions.append(item);
     }
@@ -110,7 +104,7 @@ export function createBodyPartFilterController({ renderRows, updateActiveFilters
   function renderResultsPage() {
     const body = getLeaderboardBody();
     if (!body) return;
-    const pageInfo = getPageItems(lastScanMatches, resultsPage, MAXIMUM_PLAYERS_DISPLAYED_PER_PAGE);
+    const pageInfo = getPageItems(getCombinedMatches?.(lastScanMatches) ?? lastScanMatches, resultsPage, MAXIMUM_PLAYERS_DISPLAYED_PER_PAGE);
     resultsPage = pageInfo.page;
     renderRows(body, pageInfo.items);
     if (pageControls && pageInfo.totalPages > 1) {
@@ -293,5 +287,5 @@ export function createBodyPartFilterController({ renderRows, updateActiveFilters
     });
   }
 
-  return { clearBodyPartFilter, rescanIfActive, init };
+  return { clearBodyPartFilter, rescanIfActive, renderCurrentResults: renderResultsPage, getMatches: () => lastScanMatches, init };
 }

@@ -10,7 +10,7 @@ Axie Echelon is a local Axie Infinity leaderboard monitoring and battle-activity
 
 The activity display is heuristic-based. It observes completed ranked battles and estimates likely next activity from historical session timing; it does not directly confirm that a player is currently in a live match.
 
-The project is an MVP with the Phase 1 server/frontend split implemented and build-verified. The main unresolved product issue is live-mode page reload behavior; the application has not yet had a complete browser smoke test after the split.
+The project is an MVP with the Phase 1 server/frontend split implemented and build-verified. The main unresolved product issue is live-mode page reload behavior. A browser smoke test now covers the body-part and rune filter flows, live API scan progress, result pagination, clearing, combined filter selection, and the mobile leaderboard layout.
 
 ### Era terminology
 
@@ -111,8 +111,8 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
   asynchronous start/status/cancel endpoints with body-part validation, era
   resolution, rank clamping, and public job snapshots. The filter UI remains
   integrated in `index.html`, `leaderboardState.js`, `leaderboardView.js`, and
-  `leaderboardBodyPartFilter.js`, with canonical search, variant labels,
-  polling, stale-result suppression, mutual exclusion with rune scans, and
+  `leaderboardBodyPartFilter.js`, with canonical-only search, hidden variant
+  matching, polling, stale-result suppression, independent rune-scan selection, and
   client-side result pagination.
 - The larger ignored rune-scan capture contains 2,733 fighter records and 2,727
   unique gene strings; all decode successfully and 16,342 of 16,362 dominant
@@ -222,9 +222,20 @@ npm test
 npm run build
 ```
 
-The explicit suite passes 32 tests and the Vite build succeeds. All current
+The explicit suite passes 65 tests and the Vite build succeeds. All current
 relative JavaScript import targets resolve, and the backend leaderboard module
-graph loads with Node. A browser smoke test is still required.
+graph loads with Node. Live browser smoke testing on 2026-09-05 verified:
+
+- body-part search and canonical-only selection; verified variants remain
+  internal matching metadata
+- live scan progress with partial matches visible before completion
+- clearing filters, normal leaderboard pagination, and retaining both rune and body-part selections
+- live API body-part scans through the current local `.env` configuration
+- mobile layout at a 390px viewport without horizontal document overflow
+
+The top-1000 scan was observed progressing against live data; the focused
+top-50 scan completed successfully. The broader local coverage review still
+reports only the documented low-ID starter/legacy unknowns.
 
 ## Recommended Next Steps
 
