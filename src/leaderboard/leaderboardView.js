@@ -51,6 +51,7 @@ import {
 } from "./leaderboardState.js";
 import { formatRelativeTime, predictNextActivity, formatActivityEstimate } from "../shared/formatting.js";
 import { getPageItems } from "../pagination.js";
+import { intersectScanMatches } from "./scanFilterIntersection.js";
 
 // ===== sessionStorage leaderboard page cache ======
 function loadLeaderboardPageFromStorage(limit, offset, milestone) {
@@ -267,13 +268,6 @@ let clearRuneFilter = () => {};
 let rescanRuneFilterIfActive = () => {};
 let clearBodyPartFilter = () => {};
 let rescanBodyPartFilterIfActive = () => {};
-
-function intersectScanMatches(primaryMatches, secondaryMatches) {
-  const secondaryPlayerIds = new Set(
-    secondaryMatches.map((player) => player.userID ?? `rank:${player.rank}`)
-  );
-  return primaryMatches.filter((player) => secondaryPlayerIds.has(player.userID ?? `rank:${player.rank}`));
-}
 
 function hasActiveScanFilter() {
   return leaderboardState.runeFilterActive || leaderboardState.bodyPartFilterActive;
