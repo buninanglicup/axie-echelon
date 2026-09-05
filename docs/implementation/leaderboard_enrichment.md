@@ -129,15 +129,15 @@ for ($i=1; $i -le 5; $i++) {
 - `TEAM_CACHE_TTL_MS` increased from `60000` to `300000`
 - batch log request limit increased from `10` to `20`
 - retry + timeout + Retry-After handling added to `fetchBattleLogsForClient`
-- cache + retry behavior documented in `server.js` and this document
+- cache + retry behavior documented in the split backend modules and this document
 
 ## Notes
 - A longer cache TTL is reasonable for testing and repeated refreshes, but may delay updates if a player changes team frequently.
-- Scanning 30 logs usually only adds a small local cost because the code exits when the first ranked match is found.
+- Scanning 20 logs usually only adds a small local cost because the code exits when the first ranked match is found.
 - If the leaderboard still shows occasional misses, the next step is asynchronous enrichment: render rows immediately and update team previews after the server fetches them.
 
 ---
 
 File references:
-- `server.js` — implementation details for cache, retry, and enrichment logic
+- `src/server/leaderboard/leaderboardCaches.js`, `src/server/leaderboard/battleLogClient.js`, `src/server/leaderboard/leaderboardCandidates.js` — implementation details for cache, retry, and enrichment logic
 - `src/config.js` — leaderboard page size config (`getSeasonLeaderboardLimit`)
