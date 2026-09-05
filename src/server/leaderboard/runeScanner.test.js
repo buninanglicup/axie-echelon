@@ -83,6 +83,29 @@ test("a failing battle-log fetch does not drop other candidates' matches", async
   assert.deepEqual(matches.map((match) => match.rank), [1, 3]);
 });
 
+test("uses a valid stale cached team without scheduling a refresh during a scan", async () => {
+  let battleLogCalls = 0;
+  teamCache.set("user-1", {
+    timestamp: Date.now() - 6 * 60 * 1000,
+    team: { fighters: [{ axieID: 1, position: 0, runes: ["rune-x"] }] }
+  });
+  globalThis.fetch = async (url) => {
+    const target = new URL(url);
+    if (target.pathname.includes("season-leaderboards")) return candidateResponse(1, 1);
+    if (target.pathname.includes("battle-logs")) {
+      battleLogCalls += 1;
+      return battleLogResponse("user-1", "rune-x");
+    }
+    throw new Error(`Unexpected fetch: ${url}`);
+  };
+
+  const matches = await scanLeaderboardForRune(["rune-x"], "stale-cache-test", { rankMin: 1, rankMax: 1 });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+
+  assert.deepEqual(matches.map((match) => match.rank), [1]);
+  assert.equal(battleLogCalls, 0);
+});
+
 test("invokes onProgress once per batch with correct counts and matches", async () => {
   globalThis.fetch = async (url) => {
     const target = new URL(url);

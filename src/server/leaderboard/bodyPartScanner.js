@@ -1,5 +1,5 @@
 import { fetchRankCandidates } from "./leaderboardCandidates.js";
-import { getCachedTeam, setCachedTeam, isTeamCacheStale, scheduleTeamRefresh } from "./leaderboardCaches.js";
+import { getCachedTeam, setCachedTeam } from "./leaderboardCaches.js";
 import { fetchBattleLogsForClientDeduped } from "./battleLogClient.js";
 import { mapWithConcurrency, BATTLELOG_FETCH_CONCURRENCY } from "../shared/concurrency.js";
 import {
@@ -35,9 +35,10 @@ async function enrichCandidateForBodyParts(player, selectedNames) {
   if (!team) {
     team = await fetchBattleLogsForClientDeduped(userID, 20, "low");
     if (team) setCachedTeam(userID, team);
-  } else if (isTeamCacheStale(userID)) {
-    scheduleTeamRefresh(userID);
   }
+  // A still-valid cache entry is the scan's snapshot. Refreshing a stale
+  // entry here cannot affect this scan's result, but would compete with
+  // uncached candidates for the rate-limited low-priority queue.
 
   const bodyPartResult = teamMatchesBodyParts(team, selectedNames);
   if (!bodyPartResult.matched) return null;

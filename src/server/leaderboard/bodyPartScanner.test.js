@@ -92,3 +92,32 @@ test("applies name and rank narrowing before enrichment", async () => {
   assert.deepEqual(matches.map((match) => match.rank), [3]);
   assert.equal(battleLogCalls, 1);
 });
+
+test("uses a valid stale cached team without scheduling a refresh during a scan", async () => {
+  let battleLogCalls = 0;
+  teamCache.set("user-1", {
+    timestamp: Date.now() - 6 * 60 * 1000,
+    team: {
+      fighters: [
+        { axieID: 1, genes, genes_metamorph: "", position: 0 },
+        { axieID: 2, genes: "not-a-gene", position: 1 },
+        { axieID: 3, genes: "not-a-gene", position: 2 }
+      ]
+    }
+  });
+  globalThis.fetch = async (url) => {
+    const target = new URL(url);
+    if (target.pathname.includes("season-leaderboards")) return candidateResponse(1, 1);
+    if (target.pathname.includes("battle-logs")) {
+      battleLogCalls += 1;
+      return battleLogResponse("user-1", true);
+    }
+    throw new Error(`Unexpected fetch: ${url}`);
+  };
+
+  const matches = await scanLeaderboardForBodyParts(["Clear"], "stale-cache-test", { rankMin: 1, rankMax: 1 });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+
+  assert.deepEqual(matches.map((match) => match.rank), [1]);
+  assert.equal(battleLogCalls, 0);
+});

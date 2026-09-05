@@ -29,7 +29,7 @@
 // Enrichment is staged into bounded batches and queued at low priority so a
 // full-range scan does not monopolize shared battle-log capacity.
 import { fetchRankCandidates } from "./leaderboardCandidates.js";
-import { getCachedTeam, setCachedTeam, isTeamCacheStale, scheduleTeamRefresh } from "./leaderboardCaches.js";
+import { getCachedTeam, setCachedTeam } from "./leaderboardCaches.js";
 import { fetchBattleLogsForClientDeduped } from "./battleLogClient.js";
 import { mapWithConcurrency, BATTLELOG_FETCH_CONCURRENCY } from "../shared/concurrency.js";
 import {
@@ -56,9 +56,10 @@ async function enrichCandidateForRune(player, runeIds) {
   if (!team) {
     team = await fetchBattleLogsForClientDeduped(userID, 20, "low");
     if (team) setCachedTeam(userID, team);
-  } else if (isTeamCacheStale(userID)) {
-    scheduleTeamRefresh(userID);
   }
+  // A still-valid cache entry is the scan's snapshot. Refreshing a stale
+  // entry here cannot affect this scan's result, but would compete with
+  // uncached candidates for the rate-limited low-priority queue.
 
   if (!teamHasRune(team, runeIds)) return null;
 
