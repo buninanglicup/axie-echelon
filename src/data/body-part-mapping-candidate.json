@@ -1,0 +1,3320 @@
+{
+  "status": "candidate-only",
+  "source": "Sky Mavis GraphQL marketplace profile inventory",
+  "sourceFixture": "api-responses/body-part-profile-validation.json",
+  "notes": [
+    "Names are captured independently from GraphQL parts responses.",
+    "Keys are verified against local decoded dominant class, slot, and partValue.",
+    "canonicalName is selected only when exactly one untagged base name is observed.",
+    "This file is not runtime filtering data until review resolves aliases and variants."
+  ],
+  "mappings": [
+    {
+      "class": "aquatic",
+      "slot": "back",
+      "partValue": 10,
+      "canonicalName": "Anemone",
+      "variants": [],
+      "aliases": [
+        "Anemone"
+      ],
+      "status": "candidate",
+      "sampleCount": 45
+    },
+    {
+      "class": "aquatic",
+      "slot": "back",
+      "partValue": 12,
+      "canonicalName": "Perch",
+      "variants": [],
+      "aliases": [
+        "Perch"
+      ],
+      "status": "candidate",
+      "sampleCount": 21
+    },
+    {
+      "class": "aquatic",
+      "slot": "back",
+      "partValue": 2,
+      "canonicalName": "Hermit",
+      "variants": [
+        {
+          "name": "Crystal Hermit",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 10
+        }
+      ],
+      "aliases": [
+        "Crystal Hermit",
+        "Hermit"
+      ],
+      "status": "candidate",
+      "sampleCount": 29
+    },
+    {
+      "class": "aquatic",
+      "slot": "back",
+      "partValue": 4,
+      "canonicalName": "Blue Moon",
+      "variants": [],
+      "aliases": [
+        "Blue Moon"
+      ],
+      "status": "candidate",
+      "sampleCount": 46
+    },
+    {
+      "class": "aquatic",
+      "slot": "back",
+      "partValue": 6,
+      "canonicalName": "Goldfish",
+      "variants": [
+        {
+          "name": "Tendrils",
+          "specialGenes": [
+            "Nightmare"
+          ],
+          "sampleCount": 9
+        },
+        {
+          "name": "Tendrils Shiny",
+          "specialGenes": [
+            "NightmareShiny"
+          ],
+          "sampleCount": 1
+        }
+      ],
+      "aliases": [
+        "Goldfish",
+        "Tendrils",
+        "Tendrils Shiny"
+      ],
+      "status": "candidate",
+      "sampleCount": 193
+    },
+    {
+      "class": "aquatic",
+      "slot": "back",
+      "partValue": 8,
+      "canonicalName": "Sponge",
+      "variants": [],
+      "aliases": [
+        "Sponge"
+      ],
+      "status": "candidate",
+      "sampleCount": 22
+    },
+    {
+      "class": "aquatic",
+      "slot": "ears",
+      "partValue": 10,
+      "canonicalName": "Gill",
+      "variants": [],
+      "aliases": [
+        "Gill"
+      ],
+      "status": "candidate",
+      "sampleCount": 80
+    },
+    {
+      "class": "aquatic",
+      "slot": "ears",
+      "partValue": 12,
+      "canonicalName": "Seaslug",
+      "variants": [],
+      "aliases": [
+        "Seaslug"
+      ],
+      "status": "candidate",
+      "sampleCount": 41
+    },
+    {
+      "class": "aquatic",
+      "slot": "ears",
+      "partValue": 2,
+      "canonicalName": "Nimo",
+      "variants": [
+        {
+          "name": "Red Nimo",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 10
+        }
+      ],
+      "aliases": [
+        "Nimo",
+        "Red Nimo"
+      ],
+      "status": "candidate",
+      "sampleCount": 82
+    },
+    {
+      "class": "aquatic",
+      "slot": "ears",
+      "partValue": 4,
+      "canonicalName": "Tiny Fan",
+      "variants": [],
+      "aliases": [
+        "Tiny Fan"
+      ],
+      "status": "candidate",
+      "sampleCount": 30
+    },
+    {
+      "class": "aquatic",
+      "slot": "ears",
+      "partValue": 6,
+      "canonicalName": "Bubblemaker",
+      "variants": [],
+      "aliases": [
+        "Bubblemaker"
+      ],
+      "status": "candidate",
+      "sampleCount": 113
+    },
+    {
+      "class": "aquatic",
+      "slot": "ears",
+      "partValue": 8,
+      "canonicalName": "Inkling",
+      "variants": [],
+      "aliases": [
+        "Inkling"
+      ],
+      "status": "candidate",
+      "sampleCount": 111
+    },
+    {
+      "class": "aquatic",
+      "slot": "eyes",
+      "partValue": 10,
+      "canonicalName": "Telescope",
+      "variants": [],
+      "aliases": [
+        "Telescope"
+      ],
+      "status": "candidate",
+      "sampleCount": 87
+    },
+    {
+      "class": "aquatic",
+      "slot": "eyes",
+      "partValue": 2,
+      "canonicalName": "Sleepless",
+      "variants": [
+        {
+          "name": "Insomnia",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 3
+        },
+        {
+          "name": "Yen",
+          "specialGenes": [
+            "Japan"
+          ],
+          "sampleCount": 3
+        }
+      ],
+      "aliases": [
+        "Insomnia",
+        "Sleepless",
+        "Yen"
+      ],
+      "status": "candidate",
+      "sampleCount": 94
+    },
+    {
+      "class": "aquatic",
+      "slot": "eyes",
+      "partValue": 4,
+      "canonicalName": "Clear",
+      "variants": [
+        {
+          "name": "Hazy",
+          "specialGenes": [
+            "Nightmare"
+          ],
+          "sampleCount": 5
+        },
+        {
+          "name": "Hazy Shiny",
+          "specialGenes": [
+            "NightmareShiny"
+          ],
+          "sampleCount": 1
+        }
+      ],
+      "aliases": [
+        "Clear",
+        "Hazy",
+        "Hazy Shiny"
+      ],
+      "status": "candidate",
+      "sampleCount": 212
+    },
+    {
+      "class": "aquatic",
+      "slot": "eyes",
+      "partValue": 8,
+      "canonicalName": "Gero",
+      "variants": [],
+      "aliases": [
+        "Gero"
+      ],
+      "status": "candidate",
+      "sampleCount": 52
+    },
+    {
+      "class": "aquatic",
+      "slot": "horn",
+      "partValue": 10,
+      "canonicalName": "Oranda",
+      "variants": [],
+      "aliases": [
+        "Oranda"
+      ],
+      "status": "candidate",
+      "sampleCount": 93
+    },
+    {
+      "class": "aquatic",
+      "slot": "horn",
+      "partValue": 12,
+      "canonicalName": "Shoal Star",
+      "variants": [
+        {
+          "name": "5H04L-5T4R",
+          "specialGenes": [
+            "Bionic"
+          ],
+          "sampleCount": 1
+        }
+      ],
+      "aliases": [
+        "5H04L-5T4R",
+        "Shoal Star"
+      ],
+      "status": "candidate",
+      "sampleCount": 110
+    },
+    {
+      "class": "aquatic",
+      "slot": "horn",
+      "partValue": 2,
+      "canonicalName": "Babylonia",
+      "variants": [
+        {
+          "name": "Candy Babylonia",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 4
+        }
+      ],
+      "aliases": [
+        "Babylonia",
+        "Candy Babylonia"
+      ],
+      "status": "candidate",
+      "sampleCount": 47
+    },
+    {
+      "class": "aquatic",
+      "slot": "horn",
+      "partValue": 4,
+      "canonicalName": "Teal Shell",
+      "variants": [],
+      "aliases": [
+        "Teal Shell"
+      ],
+      "status": "candidate",
+      "sampleCount": 19
+    },
+    {
+      "class": "aquatic",
+      "slot": "horn",
+      "partValue": 6,
+      "canonicalName": "Clamshell",
+      "variants": [],
+      "aliases": [
+        "Clamshell"
+      ],
+      "status": "candidate",
+      "sampleCount": 42
+    },
+    {
+      "class": "aquatic",
+      "slot": "horn",
+      "partValue": 8,
+      "canonicalName": "Anemone",
+      "variants": [],
+      "aliases": [
+        "Anemone"
+      ],
+      "status": "candidate",
+      "sampleCount": 48
+    },
+    {
+      "class": "aquatic",
+      "slot": "mouth",
+      "partValue": 10,
+      "canonicalName": "Piranha",
+      "variants": [
+        {
+          "name": "Geisha",
+          "specialGenes": [
+            "Japan"
+          ],
+          "sampleCount": 2
+        }
+      ],
+      "aliases": [
+        "Geisha",
+        "Piranha"
+      ],
+      "status": "candidate",
+      "sampleCount": 76
+    },
+    {
+      "class": "aquatic",
+      "slot": "mouth",
+      "partValue": 2,
+      "canonicalName": "Lam",
+      "variants": [
+        {
+          "name": "Lam Handsome",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 8
+        }
+      ],
+      "aliases": [
+        "Lam",
+        "Lam Handsome"
+      ],
+      "status": "candidate",
+      "sampleCount": 80
+    },
+    {
+      "class": "aquatic",
+      "slot": "mouth",
+      "partValue": 4,
+      "canonicalName": "Catfish",
+      "variants": [
+        {
+          "name": "Bottom Dweller",
+          "specialGenes": [
+            "Nightmare"
+          ],
+          "sampleCount": 4
+        },
+        {
+          "name": "Bottom Dweller Shiny",
+          "specialGenes": [
+            "NightmareShiny"
+          ],
+          "sampleCount": 3
+        }
+      ],
+      "aliases": [
+        "Bottom Dweller",
+        "Bottom Dweller Shiny",
+        "Catfish"
+      ],
+      "status": "candidate",
+      "sampleCount": 42
+    },
+    {
+      "class": "aquatic",
+      "slot": "mouth",
+      "partValue": 8,
+      "canonicalName": "Risky Fish",
+      "variants": [
+        {
+          "name": "Bubble Fish",
+          "specialGenes": [
+            "Summer2022"
+          ],
+          "sampleCount": 65
+        }
+      ],
+      "aliases": [
+        "Bubble Fish",
+        "Risky Fish"
+      ],
+      "status": "candidate",
+      "sampleCount": 284
+    },
+    {
+      "class": "aquatic",
+      "slot": "tail",
+      "partValue": 10,
+      "canonicalName": "Navaga",
+      "variants": [],
+      "aliases": [
+        "Navaga"
+      ],
+      "status": "candidate",
+      "sampleCount": 32
+    },
+    {
+      "class": "aquatic",
+      "slot": "tail",
+      "partValue": 12,
+      "canonicalName": "Shrimp",
+      "variants": [],
+      "aliases": [
+        "Shrimp"
+      ],
+      "status": "candidate",
+      "sampleCount": 24
+    },
+    {
+      "class": "aquatic",
+      "slot": "tail",
+      "partValue": 2,
+      "canonicalName": "Koi",
+      "variants": [
+        {
+          "name": "Kuro Koi",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 4
+        }
+      ],
+      "aliases": [
+        "Koi",
+        "Kuro Koi"
+      ],
+      "status": "candidate",
+      "sampleCount": 148
+    },
+    {
+      "class": "aquatic",
+      "slot": "tail",
+      "partValue": 4,
+      "canonicalName": "Nimo",
+      "variants": [
+        {
+          "name": "Bloodfin",
+          "specialGenes": [
+            "Nightmare"
+          ],
+          "sampleCount": 2
+        },
+        {
+          "name": "Bloodfin Shiny",
+          "specialGenes": [
+            "NightmareShiny"
+          ],
+          "sampleCount": 1
+        }
+      ],
+      "aliases": [
+        "Bloodfin",
+        "Bloodfin Shiny",
+        "Nimo"
+      ],
+      "status": "candidate",
+      "sampleCount": 197
+    },
+    {
+      "class": "aquatic",
+      "slot": "tail",
+      "partValue": 6,
+      "canonicalName": "Tadpole",
+      "variants": [],
+      "aliases": [
+        "Tadpole"
+      ],
+      "status": "candidate",
+      "sampleCount": 36
+    },
+    {
+      "class": "aquatic",
+      "slot": "tail",
+      "partValue": 8,
+      "canonicalName": "Ranchu",
+      "variants": [],
+      "aliases": [
+        "Ranchu"
+      ],
+      "status": "candidate",
+      "sampleCount": 11
+    },
+    {
+      "class": "beast",
+      "slot": "back",
+      "partValue": 10,
+      "canonicalName": "Timber",
+      "variants": [],
+      "aliases": [
+        "Timber"
+      ],
+      "status": "candidate",
+      "sampleCount": 31
+    },
+    {
+      "class": "beast",
+      "slot": "back",
+      "partValue": 12,
+      "canonicalName": "Furball",
+      "variants": [
+        {
+          "name": "Beach Ball",
+          "specialGenes": [
+            "Summer2022"
+          ],
+          "sampleCount": 24
+        }
+      ],
+      "aliases": [
+        "Beach Ball",
+        "Furball"
+      ],
+      "status": "candidate",
+      "sampleCount": 51
+    },
+    {
+      "class": "beast",
+      "slot": "back",
+      "partValue": 2,
+      "canonicalName": "Ronin",
+      "variants": [
+        {
+          "name": "Hasagi",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 8
+        }
+      ],
+      "aliases": [
+        "Hasagi",
+        "Ronin"
+      ],
+      "status": "candidate",
+      "sampleCount": 48
+    },
+    {
+      "class": "beast",
+      "slot": "back",
+      "partValue": 4,
+      "canonicalName": "Hero",
+      "variants": [],
+      "aliases": [
+        "Hero"
+      ],
+      "status": "candidate",
+      "sampleCount": 36
+    },
+    {
+      "class": "beast",
+      "slot": "back",
+      "partValue": 6,
+      "canonicalName": "Jaguar",
+      "variants": [
+        {
+          "name": "Shrunken Skulls",
+          "specialGenes": [
+            "Nightmare"
+          ],
+          "sampleCount": 2
+        },
+        {
+          "name": "Shrunken Skulls Shiny",
+          "specialGenes": [
+            "NightmareShiny"
+          ],
+          "sampleCount": 2
+        }
+      ],
+      "aliases": [
+        "Jaguar",
+        "Shrunken Skulls",
+        "Shrunken Skulls Shiny"
+      ],
+      "status": "candidate",
+      "sampleCount": 23
+    },
+    {
+      "class": "beast",
+      "slot": "back",
+      "partValue": 8,
+      "canonicalName": "Risky Beast",
+      "variants": [
+        {
+          "name": "Hamaya",
+          "specialGenes": [
+            "Japan"
+          ],
+          "sampleCount": 6
+        }
+      ],
+      "aliases": [
+        "Hamaya",
+        "Risky Beast"
+      ],
+      "status": "candidate",
+      "sampleCount": 69
+    },
+    {
+      "class": "beast",
+      "slot": "ears",
+      "partValue": 10,
+      "canonicalName": "Puppy",
+      "variants": [],
+      "aliases": [
+        "Puppy"
+      ],
+      "status": "candidate",
+      "sampleCount": 16
+    },
+    {
+      "class": "beast",
+      "slot": "ears",
+      "partValue": 12,
+      "canonicalName": "Belieber",
+      "variants": [],
+      "aliases": [
+        "Belieber"
+      ],
+      "status": "candidate",
+      "sampleCount": 26
+    },
+    {
+      "class": "beast",
+      "slot": "ears",
+      "partValue": 2,
+      "canonicalName": "Nyan",
+      "variants": [
+        {
+          "name": "Coca",
+          "specialGenes": [
+            "Summer2022"
+          ],
+          "sampleCount": 63
+        },
+        {
+          "name": "Pointy Nyan",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 5
+        }
+      ],
+      "aliases": [
+        "Coca",
+        "Nyan",
+        "Pointy Nyan"
+      ],
+      "status": "candidate",
+      "sampleCount": 93
+    },
+    {
+      "class": "beast",
+      "slot": "ears",
+      "partValue": 4,
+      "canonicalName": "Nut Cracker",
+      "variants": [],
+      "aliases": [
+        "Nut Cracker"
+      ],
+      "status": "candidate",
+      "sampleCount": 40
+    },
+    {
+      "class": "beast",
+      "slot": "ears",
+      "partValue": 6,
+      "canonicalName": "Innocent Lamb",
+      "variants": [
+        {
+          "name": "Merry Lamb",
+          "specialGenes": [
+            "Xmas2018"
+          ],
+          "sampleCount": 7
+        }
+      ],
+      "aliases": [
+        "Innocent Lamb",
+        "Merry Lamb"
+      ],
+      "status": "candidate",
+      "sampleCount": 71
+    },
+    {
+      "class": "beast",
+      "slot": "ears",
+      "partValue": 8,
+      "canonicalName": "Zen",
+      "variants": [],
+      "aliases": [
+        "Zen"
+      ],
+      "status": "candidate",
+      "sampleCount": 21
+    },
+    {
+      "class": "beast",
+      "slot": "eyes",
+      "partValue": 10,
+      "canonicalName": "Chubby",
+      "variants": [],
+      "aliases": [
+        "Chubby"
+      ],
+      "status": "candidate",
+      "sampleCount": 30
+    },
+    {
+      "class": "beast",
+      "slot": "eyes",
+      "partValue": 2,
+      "canonicalName": "Zeal",
+      "variants": [
+        {
+          "name": "Calico Zeal",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 3
+        }
+      ],
+      "aliases": [
+        "Calico Zeal",
+        "Zeal"
+      ],
+      "status": "candidate",
+      "sampleCount": 53
+    },
+    {
+      "class": "beast",
+      "slot": "eyes",
+      "partValue": 4,
+      "canonicalName": "Little Peas",
+      "variants": [
+        {
+          "name": "Molten Peas",
+          "specialGenes": [
+            "Nightmare"
+          ],
+          "sampleCount": 4
+        },
+        {
+          "name": "Molten Peas Shiny",
+          "specialGenes": [
+            "NightmareShiny"
+          ],
+          "sampleCount": 5
+        },
+        {
+          "name": "Snowflakes",
+          "specialGenes": [
+            "Xmas2018"
+          ],
+          "sampleCount": 2
+        }
+      ],
+      "aliases": [
+        "Little Peas",
+        "Molten Peas",
+        "Molten Peas Shiny",
+        "Snowflakes"
+      ],
+      "status": "candidate",
+      "sampleCount": 55
+    },
+    {
+      "class": "beast",
+      "slot": "eyes",
+      "partValue": 8,
+      "canonicalName": "Puppy",
+      "variants": [],
+      "aliases": [
+        "Puppy"
+      ],
+      "status": "candidate",
+      "sampleCount": 24
+    },
+    {
+      "class": "beast",
+      "slot": "horn",
+      "partValue": 10,
+      "canonicalName": "Dual Blade",
+      "variants": [],
+      "aliases": [
+        "Dual Blade"
+      ],
+      "status": "candidate",
+      "sampleCount": 47
+    },
+    {
+      "class": "beast",
+      "slot": "horn",
+      "partValue": 12,
+      "canonicalName": "Arco",
+      "variants": [],
+      "aliases": [
+        "Arco"
+      ],
+      "status": "candidate",
+      "sampleCount": 33
+    },
+    {
+      "class": "beast",
+      "slot": "horn",
+      "partValue": 2,
+      "canonicalName": "Little Branch",
+      "variants": [
+        {
+          "name": "Winter Branch",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 9
+        }
+      ],
+      "aliases": [
+        "Little Branch",
+        "Winter Branch"
+      ],
+      "status": "candidate",
+      "sampleCount": 29
+    },
+    {
+      "class": "beast",
+      "slot": "horn",
+      "partValue": 4,
+      "canonicalName": "Imp",
+      "variants": [],
+      "aliases": [
+        "Imp"
+      ],
+      "status": "candidate",
+      "sampleCount": 43
+    },
+    {
+      "class": "beast",
+      "slot": "horn",
+      "partValue": 6,
+      "canonicalName": "Merry",
+      "variants": [],
+      "aliases": [
+        "Merry"
+      ],
+      "status": "candidate",
+      "sampleCount": 15
+    },
+    {
+      "class": "beast",
+      "slot": "horn",
+      "partValue": 8,
+      "canonicalName": "Pocky",
+      "variants": [
+        {
+          "name": "Umaibo",
+          "specialGenes": [
+            "Japan"
+          ],
+          "sampleCount": 4
+        }
+      ],
+      "aliases": [
+        "Pocky",
+        "Umaibo"
+      ],
+      "status": "candidate",
+      "sampleCount": 21
+    },
+    {
+      "class": "beast",
+      "slot": "mouth",
+      "partValue": 10,
+      "canonicalName": "Confident",
+      "variants": [],
+      "aliases": [
+        "Confident"
+      ],
+      "status": "candidate",
+      "sampleCount": 26
+    },
+    {
+      "class": "beast",
+      "slot": "mouth",
+      "partValue": 2,
+      "canonicalName": "Nut Cracker",
+      "variants": [
+        {
+          "name": "Skull Cracker",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 6
+        }
+      ],
+      "aliases": [
+        "Nut Cracker",
+        "Skull Cracker"
+      ],
+      "status": "candidate",
+      "sampleCount": 62
+    },
+    {
+      "class": "beast",
+      "slot": "mouth",
+      "partValue": 4,
+      "canonicalName": "Goda",
+      "variants": [
+        {
+          "name": "Dark Kiss",
+          "specialGenes": [
+            "Nightmare"
+          ],
+          "sampleCount": 1
+        },
+        {
+          "name": "Dark Kiss Shiny",
+          "specialGenes": [
+            "NightmareShiny"
+          ],
+          "sampleCount": 2
+        }
+      ],
+      "aliases": [
+        "Dark Kiss",
+        "Dark Kiss Shiny",
+        "Goda"
+      ],
+      "status": "candidate",
+      "sampleCount": 58
+    },
+    {
+      "class": "beast",
+      "slot": "mouth",
+      "partValue": 8,
+      "canonicalName": "Axie Kiss",
+      "variants": [],
+      "aliases": [
+        "Axie Kiss"
+      ],
+      "status": "candidate",
+      "sampleCount": 40
+    },
+    {
+      "class": "beast",
+      "slot": "tail",
+      "partValue": 10,
+      "canonicalName": "Nut Cracker",
+      "variants": [],
+      "aliases": [
+        "Nut Cracker"
+      ],
+      "status": "candidate",
+      "sampleCount": 28
+    },
+    {
+      "class": "beast",
+      "slot": "tail",
+      "partValue": 12,
+      "canonicalName": "Gerbil",
+      "variants": [],
+      "aliases": [
+        "Gerbil"
+      ],
+      "status": "candidate",
+      "sampleCount": 26
+    },
+    {
+      "class": "beast",
+      "slot": "tail",
+      "partValue": 2,
+      "canonicalName": "Cottontail",
+      "variants": [
+        {
+          "name": "Cotton Candy",
+          "specialGenes": [
+            "Summer2022"
+          ],
+          "sampleCount": 69
+        },
+        {
+          "name": "Sakura Cottontail",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 8
+        }
+      ],
+      "aliases": [
+        "Cotton Candy",
+        "Cottontail",
+        "Sakura Cottontail"
+      ],
+      "status": "candidate",
+      "sampleCount": 126
+    },
+    {
+      "class": "beast",
+      "slot": "tail",
+      "partValue": 4,
+      "canonicalName": "Rice",
+      "variants": [
+        {
+          "name": "Angry Grain",
+          "specialGenes": [
+            "Nightmare"
+          ],
+          "sampleCount": 6
+        },
+        {
+          "name": "Angry Grain Shiny",
+          "specialGenes": [
+            "NightmareShiny"
+          ],
+          "sampleCount": 1
+        }
+      ],
+      "aliases": [
+        "Angry Grain",
+        "Angry Grain Shiny",
+        "Rice"
+      ],
+      "status": "candidate",
+      "sampleCount": 34
+    },
+    {
+      "class": "beast",
+      "slot": "tail",
+      "partValue": 6,
+      "canonicalName": "Shiba",
+      "variants": [],
+      "aliases": [
+        "Shiba"
+      ],
+      "status": "candidate",
+      "sampleCount": 18
+    },
+    {
+      "class": "beast",
+      "slot": "tail",
+      "partValue": 8,
+      "canonicalName": "Hare",
+      "variants": [],
+      "aliases": [
+        "Hare"
+      ],
+      "status": "candidate",
+      "sampleCount": 33
+    },
+    {
+      "class": "bird",
+      "slot": "back",
+      "partValue": 10,
+      "canonicalName": "Kingfisher",
+      "variants": [],
+      "aliases": [
+        "Kingfisher"
+      ],
+      "status": "candidate",
+      "sampleCount": 24
+    },
+    {
+      "class": "bird",
+      "slot": "back",
+      "partValue": 12,
+      "canonicalName": "Tri Feather",
+      "variants": [],
+      "aliases": [
+        "Tri Feather"
+      ],
+      "status": "candidate",
+      "sampleCount": 29
+    },
+    {
+      "class": "bird",
+      "slot": "back",
+      "partValue": 2,
+      "canonicalName": "Balloon",
+      "variants": [
+        {
+          "name": "Starry Balloon",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 4
+        }
+      ],
+      "aliases": [
+        "Balloon",
+        "Starry Balloon"
+      ],
+      "status": "candidate",
+      "sampleCount": 53
+    },
+    {
+      "class": "bird",
+      "slot": "back",
+      "partValue": 4,
+      "canonicalName": "Cupid",
+      "variants": [
+        {
+          "name": "Origami",
+          "specialGenes": [
+            "Japan"
+          ],
+          "sampleCount": 2
+        }
+      ],
+      "aliases": [
+        "Cupid",
+        "Origami"
+      ],
+      "status": "candidate",
+      "sampleCount": 25
+    },
+    {
+      "class": "bird",
+      "slot": "back",
+      "partValue": 6,
+      "canonicalName": "Raven",
+      "variants": [],
+      "aliases": [
+        "Raven"
+      ],
+      "status": "candidate",
+      "sampleCount": 36
+    },
+    {
+      "class": "bird",
+      "slot": "back",
+      "partValue": 8,
+      "canonicalName": "Pigeon Post",
+      "variants": [],
+      "aliases": [
+        "Pigeon Post"
+      ],
+      "status": "candidate",
+      "sampleCount": 38
+    },
+    {
+      "class": "bird",
+      "slot": "ears",
+      "partValue": 10,
+      "canonicalName": "Curly",
+      "variants": [],
+      "aliases": [
+        "Curly"
+      ],
+      "status": "candidate",
+      "sampleCount": 19
+    },
+    {
+      "class": "bird",
+      "slot": "ears",
+      "partValue": 12,
+      "canonicalName": "Risky Bird",
+      "variants": [
+        {
+          "name": "Karimata",
+          "specialGenes": [
+            "Japan"
+          ],
+          "sampleCount": 1
+        }
+      ],
+      "aliases": [
+        "Karimata",
+        "Risky Bird"
+      ],
+      "status": "candidate",
+      "sampleCount": 11
+    },
+    {
+      "class": "bird",
+      "slot": "ears",
+      "partValue": 2,
+      "canonicalName": "Pink Cheek",
+      "variants": [
+        {
+          "name": "Heart Cheek",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 8
+        }
+      ],
+      "aliases": [
+        "Heart Cheek",
+        "Pink Cheek"
+      ],
+      "status": "candidate",
+      "sampleCount": 46
+    },
+    {
+      "class": "bird",
+      "slot": "ears",
+      "partValue": 4,
+      "canonicalName": "Early Bird",
+      "variants": [
+        {
+          "name": "Forever Late",
+          "specialGenes": [
+            "Nightmare"
+          ],
+          "sampleCount": 3
+        },
+        {
+          "name": "Forever Late Shiny",
+          "specialGenes": [
+            "NightmareShiny"
+          ],
+          "sampleCount": 2
+        }
+      ],
+      "aliases": [
+        "Early Bird",
+        "Forever Late",
+        "Forever Late Shiny"
+      ],
+      "status": "candidate",
+      "sampleCount": 35
+    },
+    {
+      "class": "bird",
+      "slot": "ears",
+      "partValue": 6,
+      "canonicalName": "Owl",
+      "variants": [],
+      "aliases": [
+        "Owl"
+      ],
+      "status": "candidate",
+      "sampleCount": 54
+    },
+    {
+      "class": "bird",
+      "slot": "ears",
+      "partValue": 8,
+      "canonicalName": "Peace Maker",
+      "variants": [],
+      "aliases": [
+        "Peace Maker"
+      ],
+      "status": "candidate",
+      "sampleCount": 35
+    },
+    {
+      "class": "bird",
+      "slot": "eyes",
+      "partValue": 10,
+      "canonicalName": "Robin",
+      "variants": [],
+      "aliases": [
+        "Robin"
+      ],
+      "status": "candidate",
+      "sampleCount": 49
+    },
+    {
+      "class": "bird",
+      "slot": "eyes",
+      "partValue": 2,
+      "canonicalName": "Mavis",
+      "variants": [
+        {
+          "name": "Sky Mavis",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 10
+        }
+      ],
+      "aliases": [
+        "Mavis",
+        "Sky Mavis"
+      ],
+      "status": "candidate",
+      "sampleCount": 92
+    },
+    {
+      "class": "bird",
+      "slot": "eyes",
+      "partValue": 4,
+      "canonicalName": "Lucas",
+      "variants": [],
+      "aliases": [
+        "Lucas"
+      ],
+      "status": "candidate",
+      "sampleCount": 61
+    },
+    {
+      "class": "bird",
+      "slot": "eyes",
+      "partValue": 8,
+      "canonicalName": "Little Owl",
+      "variants": [],
+      "aliases": [
+        "Little Owl"
+      ],
+      "status": "candidate",
+      "sampleCount": 35
+    },
+    {
+      "class": "bird",
+      "slot": "horn",
+      "partValue": 10,
+      "canonicalName": "Wing Horn",
+      "variants": [],
+      "aliases": [
+        "Wing Horn"
+      ],
+      "status": "candidate",
+      "sampleCount": 26
+    },
+    {
+      "class": "bird",
+      "slot": "horn",
+      "partValue": 12,
+      "canonicalName": "Feather Spear",
+      "variants": [
+        {
+          "name": "Spruce Spear",
+          "specialGenes": [
+            "Xmas2018"
+          ],
+          "sampleCount": 1
+        }
+      ],
+      "aliases": [
+        "Feather Spear",
+        "Spruce Spear"
+      ],
+      "status": "candidate",
+      "sampleCount": 14
+    },
+    {
+      "class": "bird",
+      "slot": "horn",
+      "partValue": 2,
+      "canonicalName": "Eggshell",
+      "variants": [
+        {
+          "name": "Golden Shell",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 5
+        }
+      ],
+      "aliases": [
+        "Eggshell",
+        "Golden Shell"
+      ],
+      "status": "candidate",
+      "sampleCount": 68
+    },
+    {
+      "class": "bird",
+      "slot": "horn",
+      "partValue": 4,
+      "canonicalName": "Cuckoo",
+      "variants": [],
+      "aliases": [
+        "Cuckoo"
+      ],
+      "status": "candidate",
+      "sampleCount": 57
+    },
+    {
+      "class": "bird",
+      "slot": "horn",
+      "partValue": 6,
+      "canonicalName": "Trump",
+      "variants": [
+        {
+          "name": "Unholy Terror",
+          "specialGenes": [
+            "Nightmare"
+          ],
+          "sampleCount": 5
+        },
+        {
+          "name": "Unholy Terror Shiny",
+          "specialGenes": [
+            "NightmareShiny"
+          ],
+          "sampleCount": 6
+        }
+      ],
+      "aliases": [
+        "Trump",
+        "Unholy Terror",
+        "Unholy Terror Shiny"
+      ],
+      "status": "candidate",
+      "sampleCount": 49
+    },
+    {
+      "class": "bird",
+      "slot": "horn",
+      "partValue": 8,
+      "canonicalName": "Kestrel",
+      "variants": [],
+      "aliases": [
+        "Kestrel"
+      ],
+      "status": "candidate",
+      "sampleCount": 23
+    },
+    {
+      "class": "bird",
+      "slot": "mouth",
+      "partValue": 10,
+      "canonicalName": "Little Owl",
+      "variants": [],
+      "aliases": [
+        "Little Owl"
+      ],
+      "status": "candidate",
+      "sampleCount": 33
+    },
+    {
+      "class": "bird",
+      "slot": "mouth",
+      "partValue": 2,
+      "canonicalName": "Doubletalk",
+      "variants": [
+        {
+          "name": "Mr. Doubletalk",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 4
+        }
+      ],
+      "aliases": [
+        "Doubletalk",
+        "Mr. Doubletalk"
+      ],
+      "status": "candidate",
+      "sampleCount": 44
+    },
+    {
+      "class": "bird",
+      "slot": "mouth",
+      "partValue": 4,
+      "canonicalName": "Peace Maker",
+      "variants": [
+        {
+          "name": "Doombringer",
+          "specialGenes": [
+            "Nightmare"
+          ],
+          "sampleCount": 2
+        },
+        {
+          "name": "Doombringer Shiny",
+          "specialGenes": [
+            "NightmareShiny"
+          ],
+          "sampleCount": 1
+        }
+      ],
+      "aliases": [
+        "Doombringer",
+        "Doombringer Shiny",
+        "Peace Maker"
+      ],
+      "status": "candidate",
+      "sampleCount": 37
+    },
+    {
+      "class": "bird",
+      "slot": "mouth",
+      "partValue": 8,
+      "canonicalName": "Hungry Bird",
+      "variants": [],
+      "aliases": [
+        "Hungry Bird"
+      ],
+      "status": "candidate",
+      "sampleCount": 33
+    },
+    {
+      "class": "bird",
+      "slot": "tail",
+      "partValue": 10,
+      "canonicalName": "Granmas Fan",
+      "variants": [
+        {
+          "name": "Omatsuri",
+          "specialGenes": [
+            "Japan"
+          ],
+          "sampleCount": 3
+        }
+      ],
+      "aliases": [
+        "Granmas Fan",
+        "Omatsuri"
+      ],
+      "status": "candidate",
+      "sampleCount": 22
+    },
+    {
+      "class": "bird",
+      "slot": "tail",
+      "partValue": 12,
+      "canonicalName": "Post Fight",
+      "variants": [],
+      "aliases": [
+        "Post Fight"
+      ],
+      "status": "candidate",
+      "sampleCount": 14
+    },
+    {
+      "class": "bird",
+      "slot": "tail",
+      "partValue": 2,
+      "canonicalName": "Swallow",
+      "variants": [
+        {
+          "name": "Snowy Swallow",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 8
+        }
+      ],
+      "aliases": [
+        "Snowy Swallow",
+        "Swallow"
+      ],
+      "status": "candidate",
+      "sampleCount": 26
+    },
+    {
+      "class": "bird",
+      "slot": "tail",
+      "partValue": 4,
+      "canonicalName": "Feather Fan",
+      "variants": [],
+      "aliases": [
+        "Feather Fan"
+      ],
+      "status": "candidate",
+      "sampleCount": 21
+    },
+    {
+      "class": "bird",
+      "slot": "tail",
+      "partValue": 6,
+      "canonicalName": "The Last One",
+      "variants": [
+        {
+          "name": "Evil Eye",
+          "specialGenes": [
+            "Nightmare"
+          ],
+          "sampleCount": 1
+        },
+        {
+          "name": "Evil Eye Shiny",
+          "specialGenes": [
+            "NightmareShiny"
+          ],
+          "sampleCount": 3
+        }
+      ],
+      "aliases": [
+        "Evil Eye",
+        "Evil Eye Shiny",
+        "The Last One"
+      ],
+      "status": "candidate",
+      "sampleCount": 49
+    },
+    {
+      "class": "bird",
+      "slot": "tail",
+      "partValue": 8,
+      "canonicalName": "Cloud",
+      "variants": [],
+      "aliases": [
+        "Cloud"
+      ],
+      "status": "candidate",
+      "sampleCount": 27
+    },
+    {
+      "class": "bug",
+      "slot": "back",
+      "partValue": 10,
+      "canonicalName": "Scarab",
+      "variants": [],
+      "aliases": [
+        "Scarab"
+      ],
+      "status": "candidate",
+      "sampleCount": 19
+    },
+    {
+      "class": "bug",
+      "slot": "back",
+      "partValue": 12,
+      "canonicalName": "Spiky Wing",
+      "variants": [],
+      "aliases": [
+        "Spiky Wing"
+      ],
+      "status": "candidate",
+      "sampleCount": 18
+    },
+    {
+      "class": "bug",
+      "slot": "back",
+      "partValue": 2,
+      "canonicalName": "Snail Shell",
+      "variants": [
+        {
+          "name": "Starry Shell",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 3
+        }
+      ],
+      "aliases": [
+        "Snail Shell",
+        "Starry Shell"
+      ],
+      "status": "candidate",
+      "sampleCount": 56
+    },
+    {
+      "class": "bug",
+      "slot": "back",
+      "partValue": 4,
+      "canonicalName": "Garish Worm",
+      "variants": [
+        {
+          "name": "Candy Canes",
+          "specialGenes": [
+            "Xmas2018"
+          ],
+          "sampleCount": 4
+        }
+      ],
+      "aliases": [
+        "Candy Canes",
+        "Garish Worm"
+      ],
+      "status": "candidate",
+      "sampleCount": 47
+    },
+    {
+      "class": "bug",
+      "slot": "back",
+      "partValue": 6,
+      "canonicalName": "Buzz Buzz",
+      "variants": [],
+      "aliases": [
+        "Buzz Buzz"
+      ],
+      "status": "candidate",
+      "sampleCount": 21
+    },
+    {
+      "class": "bug",
+      "slot": "back",
+      "partValue": 8,
+      "canonicalName": "Sandal",
+      "variants": [],
+      "aliases": [
+        "Sandal"
+      ],
+      "status": "candidate",
+      "sampleCount": 24
+    },
+    {
+      "class": "bug",
+      "slot": "ears",
+      "partValue": 10,
+      "canonicalName": "Tassels",
+      "variants": [],
+      "aliases": [
+        "Tassels"
+      ],
+      "status": "candidate",
+      "sampleCount": 14
+    },
+    {
+      "class": "bug",
+      "slot": "ears",
+      "partValue": 12,
+      "canonicalName": "Earwing",
+      "variants": [],
+      "aliases": [
+        "Earwing"
+      ],
+      "status": "candidate",
+      "sampleCount": 15
+    },
+    {
+      "class": "bug",
+      "slot": "ears",
+      "partValue": 2,
+      "canonicalName": "Larva",
+      "variants": [
+        {
+          "name": "Vector",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 6
+        }
+      ],
+      "aliases": [
+        "Larva",
+        "Vector"
+      ],
+      "status": "candidate",
+      "sampleCount": 38
+    },
+    {
+      "class": "bug",
+      "slot": "ears",
+      "partValue": 4,
+      "canonicalName": "Beetle Spike",
+      "variants": [],
+      "aliases": [
+        "Beetle Spike"
+      ],
+      "status": "candidate",
+      "sampleCount": 23
+    },
+    {
+      "class": "bug",
+      "slot": "ears",
+      "partValue": 6,
+      "canonicalName": "Ear Breathing",
+      "variants": [
+        {
+          "name": "Blood Sucker",
+          "specialGenes": [
+            "Nightmare"
+          ],
+          "sampleCount": 2
+        },
+        {
+          "name": "Blood Sucker Shiny",
+          "specialGenes": [
+            "NightmareShiny"
+          ],
+          "sampleCount": 2
+        }
+      ],
+      "aliases": [
+        "Blood Sucker",
+        "Blood Sucker Shiny",
+        "Ear Breathing"
+      ],
+      "status": "candidate",
+      "sampleCount": 22
+    },
+    {
+      "class": "bug",
+      "slot": "ears",
+      "partValue": 8,
+      "canonicalName": "Leaf Bug",
+      "variants": [],
+      "aliases": [
+        "Leaf Bug"
+      ],
+      "status": "candidate",
+      "sampleCount": 4
+    },
+    {
+      "class": "bug",
+      "slot": "eyes",
+      "partValue": 10,
+      "canonicalName": "Kotaro?",
+      "variants": [],
+      "aliases": [
+        "Kotaro?"
+      ],
+      "status": "candidate",
+      "sampleCount": 13
+    },
+    {
+      "class": "bug",
+      "slot": "eyes",
+      "partValue": 2,
+      "canonicalName": "Bookworm",
+      "variants": [
+        {
+          "name": "Broken Bookworm",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 4
+        }
+      ],
+      "aliases": [
+        "Bookworm",
+        "Broken Bookworm"
+      ],
+      "status": "candidate",
+      "sampleCount": 35
+    },
+    {
+      "class": "bug",
+      "slot": "eyes",
+      "partValue": 4,
+      "canonicalName": "Neo",
+      "variants": [
+        {
+          "name": "Flower Sunglasses",
+          "specialGenes": [
+            "Summer2022"
+          ],
+          "sampleCount": 73
+        },
+        {
+          "name": "Flower Sunglasses Shiny",
+          "specialGenes": [
+            "SummerShiny2022"
+          ],
+          "sampleCount": 2
+        }
+      ],
+      "aliases": [
+        "Flower Sunglasses",
+        "Flower Sunglasses Shiny",
+        "Neo"
+      ],
+      "status": "candidate",
+      "sampleCount": 117
+    },
+    {
+      "class": "bug",
+      "slot": "eyes",
+      "partValue": 8,
+      "canonicalName": "Nerdy",
+      "variants": [],
+      "aliases": [
+        "Nerdy"
+      ],
+      "status": "candidate",
+      "sampleCount": 23
+    },
+    {
+      "class": "bug",
+      "slot": "horn",
+      "partValue": 10,
+      "canonicalName": "Parasite",
+      "variants": [],
+      "aliases": [
+        "Parasite"
+      ],
+      "status": "candidate",
+      "sampleCount": 21
+    },
+    {
+      "class": "bug",
+      "slot": "horn",
+      "partValue": 12,
+      "canonicalName": "Leaf Bug",
+      "variants": [],
+      "aliases": [
+        "Leaf Bug"
+      ],
+      "status": "candidate",
+      "sampleCount": 68
+    },
+    {
+      "class": "bug",
+      "slot": "horn",
+      "partValue": 2,
+      "canonicalName": "Lagging",
+      "variants": [
+        {
+          "name": "Laggingggggg",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 3
+        }
+      ],
+      "aliases": [
+        "Lagging",
+        "Laggingggggg"
+      ],
+      "status": "candidate",
+      "sampleCount": 37
+    },
+    {
+      "class": "bug",
+      "slot": "horn",
+      "partValue": 4,
+      "canonicalName": "Antenna",
+      "variants": [
+        {
+          "name": "Dark Antenna",
+          "specialGenes": [
+            "Nightmare"
+          ],
+          "sampleCount": 2
+        },
+        {
+          "name": "Dark Antenna Shiny",
+          "specialGenes": [
+            "NightmareShiny"
+          ],
+          "sampleCount": 1
+        }
+      ],
+      "aliases": [
+        "Antenna",
+        "Dark Antenna",
+        "Dark Antenna Shiny"
+      ],
+      "status": "candidate",
+      "sampleCount": 33
+    },
+    {
+      "class": "bug",
+      "slot": "horn",
+      "partValue": 6,
+      "canonicalName": "Caterpillars",
+      "variants": [],
+      "aliases": [
+        "Caterpillars"
+      ],
+      "status": "candidate",
+      "sampleCount": 23
+    },
+    {
+      "class": "bug",
+      "slot": "horn",
+      "partValue": 8,
+      "canonicalName": "Pliers",
+      "variants": [],
+      "aliases": [
+        "Pliers"
+      ],
+      "status": "candidate",
+      "sampleCount": 13
+    },
+    {
+      "class": "bug",
+      "slot": "mouth",
+      "partValue": 10,
+      "canonicalName": "Square Teeth",
+      "variants": [],
+      "aliases": [
+        "Square Teeth"
+      ],
+      "status": "candidate",
+      "sampleCount": 33
+    },
+    {
+      "class": "bug",
+      "slot": "mouth",
+      "partValue": 2,
+      "canonicalName": "Mosquito",
+      "variants": [
+        {
+          "name": "Feasting Mosquito",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 4
+        }
+      ],
+      "aliases": [
+        "Feasting Mosquito",
+        "Mosquito"
+      ],
+      "status": "candidate",
+      "sampleCount": 37
+    },
+    {
+      "class": "bug",
+      "slot": "mouth",
+      "partValue": 4,
+      "canonicalName": "Pincer",
+      "variants": [
+        {
+          "name": "Poisonous Pincer",
+          "specialGenes": [
+            "Nightmare"
+          ],
+          "sampleCount": 3
+        },
+        {
+          "name": "Poisonous Pincer Shiny",
+          "specialGenes": [
+            "NightmareShiny"
+          ],
+          "sampleCount": 2
+        }
+      ],
+      "aliases": [
+        "Pincer",
+        "Poisonous Pincer",
+        "Poisonous Pincer Shiny"
+      ],
+      "status": "candidate",
+      "sampleCount": 35
+    },
+    {
+      "class": "bug",
+      "slot": "mouth",
+      "partValue": 8,
+      "canonicalName": "Cute Bunny",
+      "variants": [
+        {
+          "name": "Kawaii",
+          "specialGenes": [
+            "Japan"
+          ],
+          "sampleCount": 6
+        }
+      ],
+      "aliases": [
+        "Cute Bunny",
+        "Kawaii"
+      ],
+      "status": "candidate",
+      "sampleCount": 41
+    },
+    {
+      "class": "bug",
+      "slot": "tail",
+      "partValue": 10,
+      "canonicalName": "Pupae",
+      "variants": [],
+      "aliases": [
+        "Pupae"
+      ],
+      "status": "candidate",
+      "sampleCount": 12
+    },
+    {
+      "class": "bug",
+      "slot": "tail",
+      "partValue": 12,
+      "canonicalName": "Thorny Caterpillar",
+      "variants": [],
+      "aliases": [
+        "Thorny Caterpillar"
+      ],
+      "status": "candidate",
+      "sampleCount": 40
+    },
+    {
+      "class": "bug",
+      "slot": "tail",
+      "partValue": 2,
+      "canonicalName": "Ant",
+      "variants": [
+        {
+          "name": "Fire Ant",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 5
+        }
+      ],
+      "aliases": [
+        "Ant",
+        "Fire Ant"
+      ],
+      "status": "candidate",
+      "sampleCount": 39
+    },
+    {
+      "class": "bug",
+      "slot": "tail",
+      "partValue": 4,
+      "canonicalName": "Twin Tail",
+      "variants": [
+        {
+          "name": "Earwig Shiny",
+          "specialGenes": [
+            "NightmareShiny"
+          ],
+          "sampleCount": 4
+        }
+      ],
+      "aliases": [
+        "Earwig Shiny",
+        "Twin Tail"
+      ],
+      "status": "candidate",
+      "sampleCount": 25
+    },
+    {
+      "class": "bug",
+      "slot": "tail",
+      "partValue": 6,
+      "canonicalName": "Fish Snack",
+      "variants": [],
+      "aliases": [
+        "Fish Snack"
+      ],
+      "status": "candidate",
+      "sampleCount": 25
+    },
+    {
+      "class": "bug",
+      "slot": "tail",
+      "partValue": 8,
+      "canonicalName": "Gravel Ant",
+      "variants": [],
+      "aliases": [
+        "Gravel Ant"
+      ],
+      "status": "candidate",
+      "sampleCount": 7
+    },
+    {
+      "class": "plant",
+      "slot": "back",
+      "partValue": 10,
+      "canonicalName": "Mint",
+      "variants": [],
+      "aliases": [
+        "Mint"
+      ],
+      "status": "candidate",
+      "sampleCount": 21
+    },
+    {
+      "class": "plant",
+      "slot": "back",
+      "partValue": 12,
+      "canonicalName": "Pumpkin",
+      "variants": [],
+      "aliases": [
+        "Pumpkin"
+      ],
+      "status": "candidate",
+      "sampleCount": 225
+    },
+    {
+      "class": "plant",
+      "slot": "back",
+      "partValue": 2,
+      "canonicalName": "Turnip",
+      "variants": [
+        {
+          "name": "Pink Turnip",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 2
+        }
+      ],
+      "aliases": [
+        "Pink Turnip",
+        "Turnip"
+      ],
+      "status": "candidate",
+      "sampleCount": 31
+    },
+    {
+      "class": "plant",
+      "slot": "back",
+      "partValue": 4,
+      "canonicalName": "Shiitake",
+      "variants": [
+        {
+          "name": "Yakitori",
+          "specialGenes": [
+            "Japan"
+          ],
+          "sampleCount": 3
+        }
+      ],
+      "aliases": [
+        "Shiitake",
+        "Yakitori"
+      ],
+      "status": "candidate",
+      "sampleCount": 28
+    },
+    {
+      "class": "plant",
+      "slot": "back",
+      "partValue": 6,
+      "canonicalName": "Bidens",
+      "variants": [
+        {
+          "name": "Petalworts",
+          "specialGenes": [
+            "Nightmare"
+          ],
+          "sampleCount": 4
+        },
+        {
+          "name": "Petalworts Shiny",
+          "specialGenes": [
+            "NightmareShiny"
+          ],
+          "sampleCount": 2
+        }
+      ],
+      "aliases": [
+        "Bidens",
+        "Petalworts",
+        "Petalworts Shiny"
+      ],
+      "status": "candidate",
+      "sampleCount": 33
+    },
+    {
+      "class": "plant",
+      "slot": "back",
+      "partValue": 8,
+      "canonicalName": "Watering Can",
+      "variants": [],
+      "aliases": [
+        "Watering Can"
+      ],
+      "status": "candidate",
+      "sampleCount": 20
+    },
+    {
+      "class": "plant",
+      "slot": "ears",
+      "partValue": 10,
+      "canonicalName": "Hollow",
+      "variants": [],
+      "aliases": [
+        "Hollow"
+      ],
+      "status": "candidate",
+      "sampleCount": 77
+    },
+    {
+      "class": "plant",
+      "slot": "ears",
+      "partValue": 12,
+      "canonicalName": "Lotus",
+      "variants": [],
+      "aliases": [
+        "Lotus"
+      ],
+      "status": "candidate",
+      "sampleCount": 69
+    },
+    {
+      "class": "plant",
+      "slot": "ears",
+      "partValue": 2,
+      "canonicalName": "Leafy",
+      "variants": [
+        {
+          "name": "The Last Leaf",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 5
+        }
+      ],
+      "aliases": [
+        "Leafy",
+        "The Last Leaf"
+      ],
+      "status": "candidate",
+      "sampleCount": 50
+    },
+    {
+      "class": "plant",
+      "slot": "ears",
+      "partValue": 4,
+      "canonicalName": "Clover",
+      "variants": [
+        {
+          "name": "Possessed Lotus",
+          "specialGenes": [
+            "Nightmare"
+          ],
+          "sampleCount": 3
+        },
+        {
+          "name": "Possessed Lotus Shiny",
+          "specialGenes": [
+            "NightmareShiny"
+          ],
+          "sampleCount": 1
+        }
+      ],
+      "aliases": [
+        "Clover",
+        "Possessed Lotus",
+        "Possessed Lotus Shiny"
+      ],
+      "status": "candidate",
+      "sampleCount": 83
+    },
+    {
+      "class": "plant",
+      "slot": "ears",
+      "partValue": 6,
+      "canonicalName": "Rosa",
+      "variants": [],
+      "aliases": [
+        "Rosa"
+      ],
+      "status": "candidate",
+      "sampleCount": 63
+    },
+    {
+      "class": "plant",
+      "slot": "ears",
+      "partValue": 8,
+      "canonicalName": "Sakura",
+      "variants": [
+        {
+          "name": "Maiko",
+          "specialGenes": [
+            "Japan"
+          ],
+          "sampleCount": 3
+        }
+      ],
+      "aliases": [
+        "Maiko",
+        "Sakura"
+      ],
+      "status": "candidate",
+      "sampleCount": 36
+    },
+    {
+      "class": "plant",
+      "slot": "eyes",
+      "partValue": 10,
+      "canonicalName": "Blossom",
+      "variants": [],
+      "aliases": [
+        "Blossom"
+      ],
+      "status": "candidate",
+      "sampleCount": 66
+    },
+    {
+      "class": "plant",
+      "slot": "eyes",
+      "partValue": 2,
+      "canonicalName": "Papi",
+      "variants": [
+        {
+          "name": "Dreamy Papi",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 7
+        }
+      ],
+      "aliases": [
+        "Dreamy Papi",
+        "Papi"
+      ],
+      "status": "candidate",
+      "sampleCount": 179
+    },
+    {
+      "class": "plant",
+      "slot": "eyes",
+      "partValue": 4,
+      "canonicalName": "Confused",
+      "variants": [
+        {
+          "name": "Hypnotized",
+          "specialGenes": [
+            "Nightmare"
+          ],
+          "sampleCount": 4
+        },
+        {
+          "name": "Hypnotized Shiny",
+          "specialGenes": [
+            "NightmareShiny"
+          ],
+          "sampleCount": 2
+        }
+      ],
+      "aliases": [
+        "Confused",
+        "Hypnotized",
+        "Hypnotized Shiny"
+      ],
+      "status": "candidate",
+      "sampleCount": 91
+    },
+    {
+      "class": "plant",
+      "slot": "eyes",
+      "partValue": 8,
+      "canonicalName": "Cucumber Slice",
+      "variants": [],
+      "aliases": [
+        "Cucumber Slice"
+      ],
+      "status": "candidate",
+      "sampleCount": 47
+    },
+    {
+      "class": "plant",
+      "slot": "horn",
+      "partValue": 10,
+      "canonicalName": "Cactus",
+      "variants": [],
+      "aliases": [
+        "Cactus"
+      ],
+      "status": "candidate",
+      "sampleCount": 151
+    },
+    {
+      "class": "plant",
+      "slot": "horn",
+      "partValue": 12,
+      "canonicalName": "Watermelon",
+      "variants": [],
+      "aliases": [
+        "Watermelon"
+      ],
+      "status": "candidate",
+      "sampleCount": 18
+    },
+    {
+      "class": "plant",
+      "slot": "horn",
+      "partValue": 2,
+      "canonicalName": "Bamboo Shoot",
+      "variants": [
+        {
+          "name": "Golden Bamboo Shoot",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 5
+        }
+      ],
+      "aliases": [
+        "Bamboo Shoot",
+        "Golden Bamboo Shoot"
+      ],
+      "status": "candidate",
+      "sampleCount": 37
+    },
+    {
+      "class": "plant",
+      "slot": "horn",
+      "partValue": 4,
+      "canonicalName": "Beech",
+      "variants": [
+        {
+          "name": "Yorishiro",
+          "specialGenes": [
+            "Japan"
+          ],
+          "sampleCount": 1
+        }
+      ],
+      "aliases": [
+        "Beech",
+        "Yorishiro"
+      ],
+      "status": "candidate",
+      "sampleCount": 33
+    },
+    {
+      "class": "plant",
+      "slot": "horn",
+      "partValue": 6,
+      "canonicalName": "Rose Bud",
+      "variants": [
+        {
+          "name": "Piranhaplant",
+          "specialGenes": [
+            "Nightmare"
+          ],
+          "sampleCount": 9
+        },
+        {
+          "name": "Piranhaplant Shiny",
+          "specialGenes": [
+            "NightmareShiny"
+          ],
+          "sampleCount": 1
+        }
+      ],
+      "aliases": [
+        "Piranhaplant",
+        "Piranhaplant Shiny",
+        "Rose Bud"
+      ],
+      "status": "candidate",
+      "sampleCount": 102
+    },
+    {
+      "class": "plant",
+      "slot": "horn",
+      "partValue": 8,
+      "canonicalName": "Strawberry Shortcake",
+      "variants": [],
+      "aliases": [
+        "Strawberry Shortcake"
+      ],
+      "status": "candidate",
+      "sampleCount": 37
+    },
+    {
+      "class": "plant",
+      "slot": "mouth",
+      "partValue": 10,
+      "canonicalName": "Silence Whisper",
+      "variants": [],
+      "aliases": [
+        "Silence Whisper"
+      ],
+      "status": "candidate",
+      "sampleCount": 41
+    },
+    {
+      "class": "plant",
+      "slot": "mouth",
+      "partValue": 2,
+      "canonicalName": "Serious",
+      "variants": [
+        {
+          "name": "Humorless",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 2
+        }
+      ],
+      "aliases": [
+        "Humorless",
+        "Serious"
+      ],
+      "status": "candidate",
+      "sampleCount": 247
+    },
+    {
+      "class": "plant",
+      "slot": "mouth",
+      "partValue": 4,
+      "canonicalName": "Zigzag",
+      "variants": [],
+      "aliases": [
+        "Zigzag"
+      ],
+      "status": "candidate",
+      "sampleCount": 78
+    },
+    {
+      "class": "plant",
+      "slot": "mouth",
+      "partValue": 8,
+      "canonicalName": "Herbivore",
+      "variants": [],
+      "aliases": [
+        "Herbivore"
+      ],
+      "status": "candidate",
+      "sampleCount": 47
+    },
+    {
+      "class": "plant",
+      "slot": "tail",
+      "partValue": 10,
+      "canonicalName": "Potato Leaf",
+      "variants": [],
+      "aliases": [
+        "Potato Leaf"
+      ],
+      "status": "candidate",
+      "sampleCount": 25
+    },
+    {
+      "class": "plant",
+      "slot": "tail",
+      "partValue": 12,
+      "canonicalName": "Hot Butt",
+      "variants": [],
+      "aliases": [
+        "Hot Butt"
+      ],
+      "status": "candidate",
+      "sampleCount": 83
+    },
+    {
+      "class": "plant",
+      "slot": "tail",
+      "partValue": 2,
+      "canonicalName": "Carrot",
+      "variants": [
+        {
+          "name": "Namek Carrot",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 8
+        }
+      ],
+      "aliases": [
+        "Carrot",
+        "Namek Carrot"
+      ],
+      "status": "candidate",
+      "sampleCount": 189
+    },
+    {
+      "class": "plant",
+      "slot": "tail",
+      "partValue": 4,
+      "canonicalName": "Cattail",
+      "variants": [],
+      "aliases": [
+        "Cattail"
+      ],
+      "status": "candidate",
+      "sampleCount": 41
+    },
+    {
+      "class": "plant",
+      "slot": "tail",
+      "partValue": 6,
+      "canonicalName": "Hatsune",
+      "variants": [],
+      "aliases": [
+        "Hatsune"
+      ],
+      "status": "candidate",
+      "sampleCount": 18
+    },
+    {
+      "class": "plant",
+      "slot": "tail",
+      "partValue": 8,
+      "canonicalName": "Yam",
+      "variants": [],
+      "aliases": [
+        "Yam"
+      ],
+      "status": "candidate",
+      "sampleCount": 47
+    },
+    {
+      "class": "reptile",
+      "slot": "back",
+      "partValue": 10,
+      "canonicalName": "Red Ear",
+      "variants": [
+        {
+          "name": "Turtle Buoy",
+          "specialGenes": [
+            "Summer2022"
+          ],
+          "sampleCount": 38
+        }
+      ],
+      "aliases": [
+        "Red Ear",
+        "Turtle Buoy"
+      ],
+      "status": "candidate",
+      "sampleCount": 76
+    },
+    {
+      "class": "reptile",
+      "slot": "back",
+      "partValue": 12,
+      "canonicalName": "Croc",
+      "variants": [],
+      "aliases": [
+        "Croc"
+      ],
+      "status": "candidate",
+      "sampleCount": 5
+    },
+    {
+      "class": "reptile",
+      "slot": "back",
+      "partValue": 2,
+      "canonicalName": "Bone Sail",
+      "variants": [
+        {
+          "name": "Rugged Sail",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 6
+        }
+      ],
+      "aliases": [
+        "Bone Sail",
+        "Rugged Sail"
+      ],
+      "status": "candidate",
+      "sampleCount": 39
+    },
+    {
+      "class": "reptile",
+      "slot": "back",
+      "partValue": 4,
+      "canonicalName": "Tri Spikes",
+      "variants": [],
+      "aliases": [
+        "Tri Spikes"
+      ],
+      "status": "candidate",
+      "sampleCount": 32
+    },
+    {
+      "class": "reptile",
+      "slot": "back",
+      "partValue": 6,
+      "canonicalName": "Green Thorns",
+      "variants": [
+        {
+          "name": "Nightmare Wings",
+          "specialGenes": [
+            "Nightmare"
+          ],
+          "sampleCount": 8
+        },
+        {
+          "name": "Nightmare Wings Shiny",
+          "specialGenes": [
+            "NightmareShiny"
+          ],
+          "sampleCount": 4
+        }
+      ],
+      "aliases": [
+        "Green Thorns",
+        "Nightmare Wings",
+        "Nightmare Wings Shiny"
+      ],
+      "status": "candidate",
+      "sampleCount": 48
+    },
+    {
+      "class": "reptile",
+      "slot": "back",
+      "partValue": 8,
+      "canonicalName": "Indian Star",
+      "variants": [],
+      "aliases": [
+        "Indian Star"
+      ],
+      "status": "candidate",
+      "sampleCount": 30
+    },
+    {
+      "class": "reptile",
+      "slot": "ears",
+      "partValue": 10,
+      "canonicalName": "Swirl",
+      "variants": [],
+      "aliases": [
+        "Swirl"
+      ],
+      "status": "candidate",
+      "sampleCount": 36
+    },
+    {
+      "class": "reptile",
+      "slot": "ears",
+      "partValue": 12,
+      "canonicalName": "Sidebarb",
+      "variants": [],
+      "aliases": [
+        "Sidebarb"
+      ],
+      "status": "candidate",
+      "sampleCount": 7
+    },
+    {
+      "class": "reptile",
+      "slot": "ears",
+      "partValue": 2,
+      "canonicalName": "Pogona",
+      "variants": [
+        {
+          "name": "Deadly Pogona",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 6
+        }
+      ],
+      "aliases": [
+        "Deadly Pogona",
+        "Pogona"
+      ],
+      "status": "candidate",
+      "sampleCount": 33
+    },
+    {
+      "class": "reptile",
+      "slot": "ears",
+      "partValue": 4,
+      "canonicalName": "Friezard",
+      "variants": [
+        {
+          "name": "Dragon Ears",
+          "specialGenes": [
+            "Nightmare"
+          ],
+          "sampleCount": 3
+        },
+        {
+          "name": "Dragon Ears Shiny",
+          "specialGenes": [
+            "NightmareShiny"
+          ],
+          "sampleCount": 3
+        }
+      ],
+      "aliases": [
+        "Dragon Ears",
+        "Dragon Ears Shiny",
+        "Friezard"
+      ],
+      "status": "candidate",
+      "sampleCount": 28
+    },
+    {
+      "class": "reptile",
+      "slot": "ears",
+      "partValue": 6,
+      "canonicalName": "Curved Spine",
+      "variants": [],
+      "aliases": [
+        "Curved Spine"
+      ],
+      "status": "candidate",
+      "sampleCount": 42
+    },
+    {
+      "class": "reptile",
+      "slot": "ears",
+      "partValue": 8,
+      "canonicalName": "Small Frill",
+      "variants": [],
+      "aliases": [
+        "Small Frill"
+      ],
+      "status": "candidate",
+      "sampleCount": 28
+    },
+    {
+      "class": "reptile",
+      "slot": "eyes",
+      "partValue": 10,
+      "canonicalName": "Topaz",
+      "variants": [
+        {
+          "name": "Kabuki",
+          "specialGenes": [
+            "Japan"
+          ],
+          "sampleCount": 2
+        }
+      ],
+      "aliases": [
+        "Kabuki",
+        "Topaz"
+      ],
+      "status": "candidate",
+      "sampleCount": 41
+    },
+    {
+      "class": "reptile",
+      "slot": "eyes",
+      "partValue": 2,
+      "canonicalName": "Gecko",
+      "variants": [
+        {
+          "name": "Crimson Gecko",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 6
+        }
+      ],
+      "aliases": [
+        "Crimson Gecko",
+        "Gecko"
+      ],
+      "status": "candidate",
+      "sampleCount": 69
+    },
+    {
+      "class": "reptile",
+      "slot": "eyes",
+      "partValue": 4,
+      "canonicalName": "Tricky",
+      "variants": [
+        {
+          "name": "Fiery Gaze",
+          "specialGenes": [
+            "Nightmare"
+          ],
+          "sampleCount": 7
+        },
+        {
+          "name": "Fiery Gaze Shiny",
+          "specialGenes": [
+            "NightmareShiny"
+          ],
+          "sampleCount": 3
+        }
+      ],
+      "aliases": [
+        "Fiery Gaze",
+        "Fiery Gaze Shiny",
+        "Tricky"
+      ],
+      "status": "candidate",
+      "sampleCount": 57
+    },
+    {
+      "class": "reptile",
+      "slot": "eyes",
+      "partValue": 8,
+      "canonicalName": "Scar",
+      "variants": [
+        {
+          "name": "Dokuganryu",
+          "specialGenes": [
+            "Japan"
+          ],
+          "sampleCount": 1
+        }
+      ],
+      "aliases": [
+        "Dokuganryu",
+        "Scar"
+      ],
+      "status": "candidate",
+      "sampleCount": 10
+    },
+    {
+      "class": "reptile",
+      "slot": "horn",
+      "partValue": 10,
+      "canonicalName": "Incisor",
+      "variants": [],
+      "aliases": [
+        "Incisor"
+      ],
+      "status": "candidate",
+      "sampleCount": 17
+    },
+    {
+      "class": "reptile",
+      "slot": "horn",
+      "partValue": 12,
+      "canonicalName": "Bumpy",
+      "variants": [],
+      "aliases": [
+        "Bumpy"
+      ],
+      "status": "candidate",
+      "sampleCount": 16
+    },
+    {
+      "class": "reptile",
+      "slot": "horn",
+      "partValue": 2,
+      "canonicalName": "Unko",
+      "variants": [
+        {
+          "name": "Pinku Unko",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 10
+        },
+        {
+          "name": "Strawberry Ice Cream",
+          "specialGenes": [
+            "Summer2022"
+          ],
+          "sampleCount": 23
+        },
+        {
+          "name": "Vanilla Ice Cream",
+          "specialGenes": [
+            "Summer2022"
+          ],
+          "sampleCount": 36
+        },
+        {
+          "name": "Watermelon Ice Cream",
+          "specialGenes": [
+            "Summer2022"
+          ],
+          "sampleCount": 3
+        }
+      ],
+      "aliases": [
+        "Pinku Unko",
+        "Strawberry Ice Cream",
+        "Unko",
+        "Vanilla Ice Cream",
+        "Watermelon Ice Cream"
+      ],
+      "status": "candidate",
+      "sampleCount": 95
+    },
+    {
+      "class": "reptile",
+      "slot": "horn",
+      "partValue": 4,
+      "canonicalName": "Scaly Spear",
+      "variants": [],
+      "aliases": [
+        "Scaly Spear"
+      ],
+      "status": "candidate",
+      "sampleCount": 43
+    },
+    {
+      "class": "reptile",
+      "slot": "horn",
+      "partValue": 6,
+      "canonicalName": "Cerastes",
+      "variants": [
+        {
+          "name": "Killah Clamp",
+          "specialGenes": [
+            "Nightmare"
+          ],
+          "sampleCount": 5
+        },
+        {
+          "name": "Killah Clamp Shiny",
+          "specialGenes": [
+            "NightmareShiny"
+          ],
+          "sampleCount": 1
+        }
+      ],
+      "aliases": [
+        "Cerastes",
+        "Killah Clamp",
+        "Killah Clamp Shiny"
+      ],
+      "status": "candidate",
+      "sampleCount": 26
+    },
+    {
+      "class": "reptile",
+      "slot": "horn",
+      "partValue": 8,
+      "canonicalName": "Scaly Spoon",
+      "variants": [],
+      "aliases": [
+        "Scaly Spoon"
+      ],
+      "status": "candidate",
+      "sampleCount": 38
+    },
+    {
+      "class": "reptile",
+      "slot": "mouth",
+      "partValue": 10,
+      "canonicalName": "Tiny Turtle",
+      "variants": [
+        {
+          "name": "Dango",
+          "specialGenes": [
+            "Japan"
+          ],
+          "sampleCount": 2
+        },
+        {
+          "name": "Tiny Carrot",
+          "specialGenes": [
+            "Xmas2019"
+          ],
+          "sampleCount": 2
+        }
+      ],
+      "aliases": [
+        "Dango",
+        "Tiny Carrot",
+        "Tiny Turtle"
+      ],
+      "status": "candidate",
+      "sampleCount": 76
+    },
+    {
+      "class": "reptile",
+      "slot": "mouth",
+      "partValue": 2,
+      "canonicalName": "Toothless Bite",
+      "variants": [
+        {
+          "name": "Venom Bite",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 4
+        }
+      ],
+      "aliases": [
+        "Toothless Bite",
+        "Venom Bite"
+      ],
+      "status": "candidate",
+      "sampleCount": 49
+    },
+    {
+      "class": "reptile",
+      "slot": "mouth",
+      "partValue": 4,
+      "canonicalName": "Kotaro",
+      "variants": [],
+      "aliases": [
+        "Kotaro"
+      ],
+      "status": "candidate",
+      "sampleCount": 70
+    },
+    {
+      "class": "reptile",
+      "slot": "mouth",
+      "partValue": 8,
+      "canonicalName": "Razor Bite",
+      "variants": [],
+      "aliases": [
+        "Razor Bite"
+      ],
+      "status": "candidate",
+      "sampleCount": 23
+    },
+    {
+      "class": "reptile",
+      "slot": "tail",
+      "partValue": 10,
+      "canonicalName": "Gila",
+      "variants": [],
+      "aliases": [
+        "Gila"
+      ],
+      "status": "candidate",
+      "sampleCount": 24
+    },
+    {
+      "class": "reptile",
+      "slot": "tail",
+      "partValue": 12,
+      "canonicalName": "Grass Snake",
+      "variants": [],
+      "aliases": [
+        "Grass Snake"
+      ],
+      "status": "candidate",
+      "sampleCount": 24
+    },
+    {
+      "class": "reptile",
+      "slot": "tail",
+      "partValue": 2,
+      "canonicalName": "Wall Gecko",
+      "variants": [
+        {
+          "name": "Escaped Gecko",
+          "specialGenes": [
+            "Mystic"
+          ],
+          "sampleCount": 4
+        }
+      ],
+      "aliases": [
+        "Escaped Gecko",
+        "Wall Gecko"
+      ],
+      "status": "candidate",
+      "sampleCount": 21
+    },
+    {
+      "class": "reptile",
+      "slot": "tail",
+      "partValue": 4,
+      "canonicalName": "Iguana",
+      "variants": [],
+      "aliases": [
+        "Iguana"
+      ],
+      "status": "candidate",
+      "sampleCount": 24
+    },
+    {
+      "class": "reptile",
+      "slot": "tail",
+      "partValue": 6,
+      "canonicalName": "Tiny Dino",
+      "variants": [
+        {
+          "name": "Fir Trunk",
+          "specialGenes": [
+            "Xmas2019"
+          ],
+          "sampleCount": 2
+        }
+      ],
+      "aliases": [
+        "Fir Trunk",
+        "Tiny Dino"
+      ],
+      "status": "candidate",
+      "sampleCount": 59
+    },
+    {
+      "class": "reptile",
+      "slot": "tail",
+      "partValue": 8,
+      "canonicalName": "Snake Jar",
+      "variants": [
+        {
+          "name": "December Surprise",
+          "specialGenes": [
+            "Xmas2018"
+          ],
+          "sampleCount": 1
+        }
+      ],
+      "aliases": [
+        "December Surprise",
+        "Snake Jar"
+      ],
+      "status": "candidate",
+      "sampleCount": 17
+    }
+  ]
+}

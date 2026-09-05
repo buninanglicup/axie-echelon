@@ -64,7 +64,50 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
   - backend `127.0.0.1:8787`
 - Profile-driven multi-tracker development using `.env`; each instance selects a numbered `TRACKER_PROFILE` and receives isolated runtime settings.
 - Five predefined PowerShell launch scripts for local multi-window testing; the profile resolver itself supports additional contiguous profile numbers.
-- Phase 3 candidate-pool implementation: 3a (backend ceiling/cache constants), 3b (full-pool loading), 3c (client-side filtering), 3d (pagination), and 3e rune narrowing are implemented. Non-live visible rows progressively request team data and reuse the existing morph renderer. Body-part filtering remains future work because its catalog, route, and predicate are not implemented. Morph completeness still requires manual verification against real ranked-battle payloads.
+- Phase 3 candidate-pool implementation: 3a (backend ceiling/cache constants), 3b (full-pool loading), 3c (client-side filtering), 3d (pagination), and 3e rune narrowing are implemented. Non-live visible rows progressively request team data and reuse the existing morph renderer. Body-part mapping, predicate, and local scanner groundwork are implemented; async job, route, and UI work remain. Morph completeness still requires manual verification against real ranked-battle payloads.
+- Body-part filtering is the next filter milestone. The current design uses local
+  gene decoding from existing battle-log fields, canonicalizes collectible
+  variants such as `Yen` under base part `Sleepless`, and reuses the rune-scan
+  job model only after decoder/mapping validation. No extra per-fighter API
+  lookup is planned for the normal top-1000 path. See
+  `docs/implementation/body-part-filtering.md`.
+- Body-part mapping validation is complete for the current reviewed evidence. The captured `ListUserFighters.json`
+  fixture currently produces 120 exact dominant ID/class matches across 20
+  fighters with no unknowns or mismatches using the local decoder. This confirms
+  the captured 512-bit layout only; canonical names, variants, and 256-bit
+  coverage remain open for newly encountered variants. The validator is `scripts/validate-body-part-mapping.mjs`
+  and its structural regression is included in `src/geneDecoder.test.js`.
+- A GraphQL name-bearing sample is now captured in
+  `api-responses/body-part-name-validation.json`. It covers five 256-bit Axies
+  and 30 named parts; 28 match decoder IDs through same-class/same-slot card
+  candidates, while `Hazy` and `Yakitori` have no card candidate. These are
+  corroborated samples only, not a complete canonical mapping.
+- Four collectible-focused marketplace profiles produced a larger offline
+  evidence fixture at `api-responses/body-part-profile-validation.json`: 1,596
+  Axies, 9,576 named parts, 192 verified structural keys, and zero decoder
+  class/slot mismatches. The generated
+  `src/data/body-part-mapping-candidate.json` assigns one untagged base name to
+  all 192 keys and preserves collectible names with their observed
+  `specialGenes` metadata as variants. It remains candidate-only until broader
+  captures and canonicalization review are complete.
+- `src/bodyPartMapper.js` now provides a canonical/variant lookup over
+  that candidate file, with focused tests included in `npm test`. It is not yet
+  wired into an HTTP route or the UI.
+- `src/bodyPartFilter.js` now provides the local fighter predicate: it prefers
+  `genes_metamorph`, falls back to `genes`, matches canonical or verified
+  variant names with OR semantics, and exposes whether the gene data was known.
+  Starter/legacy records without mapper entries do not produce confirmed
+  matches. The predicate is tested but not yet wired into a route or UI.
+- `src/server/leaderboard/bodyPartScanner.js` now applies the predicate to
+  narrowed leaderboard candidates while reusing team caching, battle-log
+  enrichment, bounded batches, and progress callbacks. Its focused tests pass;
+  async job lifecycle and HTTP route integration remain next.
+- The larger ignored rune-scan capture contains 2,733 fighter records and 2,727
+  unique gene strings; all decode successfully and 16,342 of 16,362 dominant
+  parts map to the candidate file. The 20 unmapped low-ID parts belong to
+  legacy/starter records, including Axies 1-3 with `genes: "0x0"` and no
+  GraphQL parts. They remain unknown by policy. See
+  `scripts/validate-body-part-log-coverage.mjs`.
 - Leaderboard morph field behavior is documented in `docs/implementation/leaderboard_enrichment.md`: collectible Axies prefer `genes_metamorph`, non-collectible Ronin Axies use `genes`, anomalous collectible nulls fall back to `genes`, and starter Axies are currently name-only pending a starter-specific renderer. These rules apply only to leaderboard team previews; the separate Morph Viewer is unchanged.
 - The leaderboard Rune Filter is a searchable multi-select. It stores stable rune IDs, displays removable image/name chips, prevents duplicates, and applies OR semantics across selected runes. Typing only searches the catalog; selecting or removing a chip updates leaderboard results. The Morph Viewer is not affected.
 
@@ -77,6 +120,8 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
 - `GET /api/leaderboard/rune-scan/:jobId`: poll scan status and partial results.
 - `DELETE /api/leaderboard/rune-scan/:jobId`: request best-effort cancellation.
 - `GET /api/runes`: generated rune catalog.
+- `src/data/cards.json`: manually refreshed card catalog reference; it is not
+  currently used to resolve Axie body-part identities.
 - `GET /api/axie/:id`: Axie lookup and normalization.
 - `GET /api/axie-detail/:id`: GraphQL Axie detail.
 - `GET /api/address/:address`: Ronin-address lookup.
@@ -171,12 +216,15 @@ graph loads with Node. A browser smoke test is still required.
 
 ## Recommended Next Steps
 
-1. Design resumability for terminal partial rune-scan jobs if full coverage
+1. Validate the independently ported body-part gene mapping and canonical
+   variant normalization before adding a body-part scan route. See
+   `docs/implementation/body-part-filtering.md`.
+2. Design resumability for terminal partial rune-scan jobs if full coverage
   after a timeout is required.
-2. Review the ignored real capture locally if actual data-shape inspection is
+3. Review the ignored real capture locally if actual data-shape inspection is
   needed; never commit it.
-3. Reproduce and diagnose the live-mode page reload with browser console and
+4. Reproduce and diagnose the live-mode page reload with browser console and
   network logs.
-4. Run a complete browser smoke test for both lookup and leaderboard flows.
-5. Decide the intended UI behavior when a live battle-time fetch fails.
-6. Add browser/API tests and consider code-splitting PIXI/Spine.
+5. Run a complete browser smoke test for both lookup and leaderboard flows.
+6. Decide the intended UI behavior when a live battle-time fetch fails.
+7. Add browser/API tests and consider code-splitting PIXI/Spine.

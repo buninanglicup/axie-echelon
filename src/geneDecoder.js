@@ -9,6 +9,27 @@ const Tag = {
   Agamogenesis: 'Agamogenesis',
 };
 
+const binClassMap = new Map([
+  ['0000', 'beast'],
+  ['0001', 'bug'],
+  ['0010', 'bird'],
+  ['0011', 'plant'],
+  ['0100', 'aquatic'],
+  ['0101', 'reptile'],
+  ['1000', 'mech'],
+  ['1001', 'dawn'],
+  ['1010', 'dusk'],
+  ['00000', 'beast'],
+  ['00001', 'bug'],
+  ['00010', 'bird'],
+  ['00011', 'plant'],
+  ['00100', 'aquatic'],
+  ['00101', 'reptile'],
+  ['10000', 'mech'],
+  ['10001', 'dawn'],
+  ['10010', 'dusk'],
+]);
+
 const PartSkin = {
   Global: 'global',
   Mystic: 'mystic',
@@ -171,6 +192,27 @@ function parsePartSkin(regionBin, skinBin, xMas) {
   return PartSkin.Global;
 }
 
+function parsePartGeneBits(partBin, hexType) {
+  const skinLength = hexType === 256 ? 2 : 4;
+  const classLength = hexType === 256 ? 4 : 5;
+  const partLength = hexType === 256 ? 6 : 6;
+  const classStart = skinLength;
+  const idStart = hexType === 256 ? 6 : 11;
+  const geneStride = hexType === 256 ? 10 : 13;
+
+  return [0, 1, 2].map((index) => {
+    const start = index * geneStride;
+    const classBits = partBin.slice(start + classStart, start + classStart + classLength);
+    const idBits = partBin.slice(start + idStart, start + idStart + partLength);
+    return {
+      classBits,
+      class: binClassMap.get(classBits) || null,
+      idBits,
+      id: Number.parseInt(idBits, 2)
+    };
+  });
+}
+
 export function decodeGenes(hex) {
   try {
     const hexType = detectHexType(hex);
@@ -199,12 +241,34 @@ export function decodeGenes(hex) {
 
     const partSkins = partBins.map((b) => parsePartSkin(g.region, b, g.xMas));
     const specialGenes = g.specialGenes.map((bits) => binSpecialGeneMap.get(bits) || null);
+    const partEntries = [
+      ['eyes', g.eyes, partSkins[0]],
+      ['mouth', g.mouth, partSkins[3]],
+      ['ears', g.ears, partSkins[1]],
+      ['horn', g.horn, partSkins[2]],
+      ['back', g.back, partSkins[4]],
+      ['tail', g.tail, partSkins[5]]
+    ];
+    const parts = Object.fromEntries(partEntries.map(([type, partBin, dominantSkin]) => {
+      const genes = parsePartGeneBits(partBin, hexType);
+      const skinLength = hexType === 256 ? 2 : 4;
+      const recessiveSkin = hexType === 256
+        ? PartSkin.Global
+        : parsePartSkin(g.region, partBin.slice(0, skinLength), g.xMas);
+      return [type, {
+        dominant: { ...genes[0], skin: dominantSkin },
+        recessive1: { ...genes[1], skin: recessiveSkin },
+        recessive2: { ...genes[2], skin: recessiveSkin }
+      }];
+    }));
 
     return {
+      class: binClassMap.get(g.cls) || null,
       tag: tagVal,
       region: regionVal,
       bodySkin: (binRegionMap.get(g.bodySkin) || '').toString(),
       partSkins,
+      parts,
       specialGenes,
       hexType,
     };
