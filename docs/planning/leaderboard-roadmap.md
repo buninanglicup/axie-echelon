@@ -38,9 +38,9 @@ Current frontend module boundaries:
 
 ### Body-part filtering status
 
-Body-part mapping, local predicate, scanner, and asynchronous job groundwork
-are implemented. The remaining work is HTTP route integration and the
-leaderboard UI. The agreed direction remains local gene decoding from
+Body-part mapping, local predicate, scanner, asynchronous job, and HTTP route
+integration are implemented. The remaining work is the leaderboard UI. The
+agreed direction remains local gene decoding from
 battle-log fighter data, followed by canonical variant matching (`Yen` matches
 base part `Sleepless`, for example). The existing GraphQL Axie detail `parts`
 response is a verification/fallback path only; per-Axie detail requests must
