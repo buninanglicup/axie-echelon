@@ -75,14 +75,16 @@ Sky Mavis REST + GraphQL APIs
 The UI keeps the automatically resolved current state separate from a manual
 historical selection:
 
-| View | Upstream endpoint | Stable scope key |
+| View | Data source | Stable scope key |
 | --- | --- | --- |
 | Current Rare/Epic/Mystic/Final | `/origins/v2/season-leaderboards?milestone=N` | `season:<seasonId>:milestone:<N>` |
 | Current Offseason | `/origins/v2/leaderboards` | `offseason:<seasonId>` |
-| Historical era | `/origins/v2/season-leaderboards?milestone=N` | `season:<seasonId>:milestone:<N>` |
+| Manually selected historical era | Accepted local snapshot, or “Snapshot unavailable” | `season:<seasonId>:milestone:<N>` |
 
 This prevents Final-era cache entries, in-flight requests, and scan-job
-deduplication from bleeding into offseason data.
+deduplication from bleeding into offseason data. A manually selected historical
+era reads its frozen candidate rows and captured teams from the same accepted
+local snapshot; it never substitutes an upstream leaderboard or live team.
 
 ## Technology
 
@@ -128,9 +130,9 @@ git diff --check
 The automated suite covers era boundaries, current/offseason routing,
 scope-separated caches and scan-job deduplication, retries, progress and
 cancellation lifecycle states, rune/body-part filter semantics, stale-response
-protection, and archival snapshot safety. Historical team views use only an
-explicitly accepted, era-bounded local snapshot; they never silently fall back
-to a current live team.
+protection, and archival snapshot safety. Historical row and team views use
+only an explicitly accepted, era-bounded local snapshot; they never silently
+fall back to current upstream leaderboard or team data.
 
 ## Project structure
 

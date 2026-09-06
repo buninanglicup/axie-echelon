@@ -16,11 +16,13 @@ requests one recent `limit=20` page, matching the established live-client
 request shape after the initial `limit=100` archival attempt received upstream
 `400` responses. This is a deliberately best-effort Season 18 recovery
 strategy, not a claim of full history; the client preserves raw data and
-classifies coverage conservatively. The historical team UI reads only an
-explicitly accepted snapshot for a manually selected numeric era. It never
-falls back to live enrichment: unavailable or unverified archival evidence is
-shown as unavailable instead. Verified archival pagination and scheduled
-end-of-era capture remain pending.
+classifies coverage conservatively. A manually selected historical UI reads
+only an explicitly accepted snapshot for its frozen leaderboard rows and team
+evidence. It never falls back to upstream candidates or live enrichment:
+unavailable or unverified archival evidence is shown as unavailable instead.
+Live mode is disabled while viewing an archive. Verified archival pagination,
+snapshot-backed rune/body-part scanning, and scheduled end-of-era capture
+remain pending.
 
 ```text
 data/snapshots/
@@ -40,6 +42,20 @@ Raw and normalized records are written independently. A capture is staged
 first and published by renaming within the same filesystem only after its
 terminal manifest is persisted. `index.json` records capture IDs, revisions,
 statuses, and the explicitly accepted capture.
+
+## Historical leaderboard reads
+
+`GET /api/leaderboard/pool?milestone=N&historical=1` is an internal UI path
+for a manually selected numeric era. It reads the accepted snapshot's frozen
+candidate pages and returns the captured rank/name/MMR records. It does not
+call the upstream candidate client. If an accepted, era-bounded snapshot is
+absent, it returns `HISTORICAL_SNAPSHOT_UNAVAILABLE`; the UI renders a
+snapshot-unavailable state rather than a later seasonal leaderboard.
+
+Historical team rows use the same accepted capture. Historical rune/body-part
+scan controls are intentionally unavailable until a local snapshot scanner is
+implemented, so selecting a historical filter cannot accidentally call a live
+scan job.
 
 ## Compact future-capture snapshots
 

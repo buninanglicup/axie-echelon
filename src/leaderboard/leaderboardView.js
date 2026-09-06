@@ -195,6 +195,13 @@ function setLeaderboardScope(scope, { isManualHistoricalScope = false } = {}) {
     eraName: scope.eraName
   };
   leaderboardState.isManualHistoricalScope = isManualHistoricalScope;
+  if (isManualHistoricalScope && leaderboardState.liveModeEnabled) {
+    // A manual historical tab is an accepted local artifact, never a live
+    // refresh target. Turning live mode off here prevents the legacy route
+    // from silently reaching upstream after the user changes eras.
+    leaderboardState.liveModeEnabled = false;
+    if (liveModeToggle) liveModeToggle.checked = false;
+  }
   leaderboardState.currentEraMilestone = getSelectedEraMilestone(leaderboardState.leaderboardScope);
   updateEraTabs(leaderboardState.currentEraMilestone, leaderboardState.automaticLeaderboardScope);
   updateOffseasonStatus(
@@ -219,6 +226,7 @@ function setLeaderboardScope(scope, { isManualHistoricalScope = false } = {}) {
     leaderboardState.avgMatchDurationMs = null;
     leaderboardState.lastSuccessfulPollAt = null;
   }
+  updateLiveModeControls();
 }
 
 function hidePoolPager() {
@@ -374,7 +382,14 @@ function reloadSelectedLeaderboardScope() {
   leaderboardState.currentPage = 1;
   fetchLeaderboardPool();
   if (hasActiveScanFilter()) {
-    rescanActiveScanFilterIfNeeded();
+    // Snapshot-backed rune/body-part scans are a separate follow-up. Do not
+    // turn a manual historical selection into an upstream scan meanwhile.
+    if (leaderboardState.isManualHistoricalScope) {
+      clearRuneFilter();
+      clearBodyPartFilter();
+    } else {
+      rescanActiveScanFilterIfNeeded();
+    }
   } else {
     renderFilteredView();
   }
@@ -386,8 +401,9 @@ function returnToAutomaticLeaderboardScope() {
   if (!automaticScope) return;
 
   const previousScopeKey = getCurrentLeaderboardScopeKey();
+  const wasManualHistoricalScope = leaderboardState.isManualHistoricalScope;
   setLeaderboardScope(automaticScope, { isManualHistoricalScope: false });
-  if (previousScopeKey !== getCurrentLeaderboardScopeKey()) {
+  if (previousScopeKey !== getCurrentLeaderboardScopeKey() || wasManualHistoricalScope) {
     reloadSelectedLeaderboardScope();
   }
 }
@@ -491,12 +507,19 @@ function startLeaderboardPolling() {
 // remembering whatever window the user had picked before disabling
 // (confirmed UX call, see docs/planning/leaderboard-roadmap.md).
 function updateLiveModeControls() {
+  if (leaderboardState.isManualHistoricalScope) {
+    leaderboardState.liveModeEnabled = false;
+  }
   const { liveModeEnabled } = leaderboardState;
   if (liveOnlyControls) liveOnlyControls.hidden = !liveModeEnabled;
   if (pollingControls) pollingControls.hidden = !liveModeEnabled;
 
   if (liveModeToggle) {
     liveModeToggle.setAttribute("aria-pressed", String(liveModeEnabled));
+    liveModeToggle.disabled = leaderboardState.isManualHistoricalScope;
+    liveModeToggle.title = leaderboardState.isManualHistoricalScope
+      ? "Live mode is unavailable while viewing an archived historical snapshot."
+      : "";
   }
 
   if (liveModeEnabled) {
@@ -561,6 +584,23 @@ function getTeamEnrichmentRequestKey(scope, userID, historical) {
 
 function getLeaderboardPoolSourceKey(scope, historical) {
   return `${getLeaderboardScopeKey(scope)}:${historical ? "historical" : "current"}`;
+}
+
+function renderHistoricalSnapshotUnavailable(message) {
+  leaderboardState.leaderboardPool = [];
+  leaderboardState.leaderboardPoolLoaded = false;
+  hidePoolPager();
+  const leaderboardBody = document.querySelector("#leaderboard-body");
+  if (!leaderboardBody) return;
+  leaderboardBody.replaceChildren();
+  const row = document.createElement("tr");
+  const cell = document.createElement("td");
+  cell.colSpan = 4;
+  cell.className = "historical-snapshot-unavailable";
+  cell.textContent = message || "Historical snapshot unavailable for this era.";
+  row.append(cell);
+  leaderboardBody.append(row);
+  if (leaderboardCount) leaderboardCount.textContent = "Historical snapshot unavailable";
 }
 
 async function runWithConcurrencyLimit(items, limit, worker) {
@@ -645,7 +685,8 @@ async function fetchLeaderboardPool() {
   // reuse it instead of firing a second request.
   const scope = leaderboardState.leaderboardScope;
   const scopeKey = getLeaderboardScopeKey(scope);
-  const sourceKey = getLeaderboardPoolSourceKey(scope, leaderboardState.isManualHistoricalScope);
+  const requestedHistorical = leaderboardState.isManualHistoricalScope;
+  const sourceKey = getLeaderboardPoolSourceKey(scope, requestedHistorical);
   if (
     leaderboardState.leaderboardPoolFetchPromise &&
     leaderboardPoolFetchScopeKey === sourceKey
@@ -657,6 +698,7 @@ async function fetchLeaderboardPool() {
     new URLSearchParams({ rankMax: String(LEADERBOARD_MAX_RANK) }),
     scope
   );
+  if (requestedHistorical) params.set("historical", "1");
   const url = `/api/leaderboard/pool?${params.toString()}`;
 
   const fetchPromise = (async () => {
@@ -664,6 +706,21 @@ async function fetchLeaderboardPool() {
       console.log("Fetching leaderboard pool from:", url);
       const response = await fetchJsonWithRetry(url);
       if (!response.ok) {
+        let errorBody = null;
+        try {
+          errorBody = await response.json();
+        } catch {
+          // Keep the generic status path below for non-JSON failures.
+        }
+        if (
+          requestedHistorical &&
+          errorBody?.code === "HISTORICAL_SNAPSHOT_UNAVAILABLE" &&
+          isCurrentLeaderboardScope(scope, leaderboardState.leaderboardScope) &&
+          sourceKey === getLeaderboardPoolSourceKey(leaderboardState.leaderboardScope, leaderboardState.isManualHistoricalScope)
+        ) {
+          renderHistoricalSnapshotUnavailable(errorBody.error);
+          return;
+        }
         console.error(`Leaderboard pool fetch failed: ${response.status}`);
         return;
       }

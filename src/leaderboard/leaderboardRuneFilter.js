@@ -256,6 +256,15 @@ export function createRuneFilterController({ renderRows, updateActiveFilters, ge
     if (leaderboardBody) leaderboardBody.replaceChildren();
     hideRunePager();
 
+    if (leaderboardState.isManualHistoricalScope) {
+      const statusText = "Historical rune scans are not available for this snapshot yet.";
+      if (runeFilterStatus) runeFilterStatus.textContent = statusText;
+      if (leaderboardBody) {
+        leaderboardBody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:1rem; color:#9bb5c1;">${statusText}</td></tr>`;
+      }
+      return;
+    }
+
     try {
       const params = buildRuneScanParams();
       const response = await fetch(`/api/leaderboard/rune-scan?${params.toString()}`, { method: "POST" });

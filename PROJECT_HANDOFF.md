@@ -44,7 +44,7 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
 
 - Leaderboard display with rank, player name, MMR, win rate, daily change, recent form, team previews, rune badges, profile links, and last ranked-battle time.
 - Live mode polling with configurable interval and activity windows from 0 seconds through 20 minutes.
-- Season/era resolution from `src/data/season.json`; the backend exposes `/api/season/current`. Internally, the numeric value is called `eraMilestone`; at the Sky Mavis API boundary it is sent as `milestone` and explicit `?milestone=` overrides remain supported. Era calculation anchors Final to `seasonEndedAt`, works backward for intermediate boundaries, and anchors Rare to `seasonStartedAt`. Automatic offseason mode uses `/origins/v2/leaderboards` without a milestone, while historical era tabs use `/origins/v2/season-leaderboards?milestone=N`. The frontend checks immediately at startup and once every 24 hours afterward.
+- Season/era resolution from `src/data/season.json`; the backend exposes `/api/season/current`. Internally, the numeric value is called `eraMilestone`; at the Sky Mavis API boundary it is sent as `milestone` and explicit `?milestone=` overrides remain supported. Era calculation anchors Final to `seasonEndedAt`, works backward for intermediate boundaries, and anchors Rare to `seasonStartedAt`. Automatic current-era and offseason views use upstream endpoints; a manually selected historical era reads only its accepted local snapshot and reports “Snapshot unavailable” when none exists. The frontend checks immediately at startup and once every 24 hours afterward.
 - Live-mode freshness model:
   - profile/address data is cached for a long TTL;
   - team composition is cached separately;
@@ -75,8 +75,9 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
   not a claim of complete era history or the player's final team. The worker
   stores provenance metadata, compact evidence state, and immutable unavailable
   records when no valid in-era battle is observed. A manually selected historical
-  era uses only an explicitly accepted, era-bounded snapshot for team previews;
-  it reports unavailable rather than substituting the player's current team.
+  era uses only an explicitly accepted, era-bounded snapshot for frozen
+  leaderboard rows and team previews; it reports unavailable rather than
+  substituting the player's current data. Live mode is disabled for that view.
 - Body-part filtering uses local gene decoding from existing battle-log fields,
   canonicalizes collectible variants such as `Yen` under base part `Sleepless`,
   and reuses the rune-scan job model. No extra per-fighter API lookup is planned
@@ -166,6 +167,9 @@ An Axie is considered collectible when it has at least one verified collectible 
 - Historical archival currently reads one recent 20-log battle-log page per
   player. It is best-effort recovery evidence, not complete era history;
   endpoint pagination and automatic end-of-era scheduling are still pending.
+- Historical rune/body-part scans are deliberately unavailable until they can
+  read the same accepted snapshot locally; they must not invoke the live
+  upstream scan jobs from a historical tab.
 - Frontend and backend each define the rank scan ceiling; they must be kept synchronized manually.
 - Several related in-memory caches coexist during migration: legacy team cache, team-composition cache, enrichment cache, profile cache, page cache, and candidate cache.
 - Compact-mode preference is not persisted across a full page reload.

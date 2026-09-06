@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, afterEach, before, test } from "node:test";
 import express from "express";
-import leaderboardPoolRoutes from "./leaderboardPoolRoutes.js";
+import leaderboardPoolRoutes, { createLeaderboardPoolRouter } from "./leaderboardPoolRoutes.js";
 import { rankCandidateCache } from "./leaderboardCandidates.js";
 
 const nativeFetch = globalThis.fetch;
@@ -25,6 +25,20 @@ afterEach(() => {
   globalThis.fetch = nativeFetch;
   rankCandidateCache.clear();
 });
+
+async function withPoolRouter(dependencies, callback) {
+  const app = express();
+  app.use(createLeaderboardPoolRouter(dependencies));
+  const testServer = await new Promise((resolve) => {
+    const listener = app.listen(0, "127.0.0.1", () => resolve(listener));
+  });
+  const testBaseUrl = `http://127.0.0.1:${testServer.address().port}`;
+  try {
+    return await callback(testBaseUrl);
+  } finally {
+    await new Promise((resolve) => testServer.close(resolve));
+  }
+}
 
 test("returns 503 with Retry-After when the candidate pool is unavailable", async () => {
   let upstreamCalls = 0;
@@ -63,6 +77,61 @@ test("returns filtered, mapped players on a successful upstream response", async
   assert.equal(body.players.length, 5);
   assert.deepEqual(body.players.map((player) => player.rank), [1, 2, 3, 4, 5]);
   assert.equal(body.players[0].enrichment.status, "not_requested");
+});
+
+test("serves an explicit historical era from accepted snapshot candidates without upstream access", async () => {
+  let upstreamCalls = 0;
+  let snapshotCalls = 0;
+
+  await withPoolRouter({
+    fetchCandidates: async () => {
+      upstreamCalls += 1;
+      throw new Error("Historical pool must not call the upstream candidate client.");
+    },
+    getSnapshotCandidates: async () => {
+      snapshotCalls += 1;
+      return {
+        status: "ready",
+        players: [{ rank: 4, userID: "historical-player", name: "Frozen Rank", mmr: 2100 }],
+        snapshot: { captureId: "capture-4", revision: 2, scopeKey: "season:19:milestone:4", eraCoverage: "partial" }
+      };
+    }
+  }, async (url) => {
+    const response = await nativeFetch(`${url}/api/leaderboard/pool?milestone=4&historical=1&rankMax=1000`);
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.source, "historical-snapshot");
+    assert.equal(body.players[0].userID, "historical-player");
+    assert.equal(body.players[0].mmr, 2100);
+    assert.equal(body.snapshot.captureId, "capture-4");
+  });
+
+  assert.equal(snapshotCalls, 1);
+  assert.equal(upstreamCalls, 0);
+});
+
+test("reports an unavailable historical snapshot without upstream fallback", async () => {
+  let upstreamCalls = 0;
+  await withPoolRouter({
+    fetchCandidates: async () => {
+      upstreamCalls += 1;
+      return [];
+    },
+    getSnapshotCandidates: async () => ({
+      status: "unavailable",
+      error: "No accepted historical leaderboard snapshot is available for this era."
+    })
+  }, async (url) => {
+    const response = await nativeFetch(`${url}/api/leaderboard/pool?milestone=3&historical=1`);
+    const body = await response.json();
+
+    assert.equal(response.status, 404);
+    assert.equal(body.code, "HISTORICAL_SNAPSHOT_UNAVAILABLE");
+    assert.match(body.error, /No accepted historical leaderboard snapshot/i);
+  });
+
+  assert.equal(upstreamCalls, 0);
 });
 
 test("uses automatic offseason mode when no milestone is supplied", async () => {

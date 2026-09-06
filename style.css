@@ -2004,6 +2004,12 @@ input {
   margin-top: 5px;
 }
 
+.historical-snapshot-unavailable {
+  padding: 1.25rem;
+  text-align: center;
+  color: #9bb5c1;
+}
+
 .leaderboard-controls {
   display: flex;
   align-items: center;

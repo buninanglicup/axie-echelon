@@ -210,6 +210,12 @@ export function createBodyPartFilterController({ renderRows, updateActiveFilters
     }
     getLeaderboardBody()?.replaceChildren();
     hidePager();
+    if (leaderboardState.isManualHistoricalScope) {
+      const statusText = "Historical body-part scans are not available for this snapshot yet.";
+      if (bodyPartFilterStatus) bodyPartFilterStatus.textContent = statusText;
+      renderMessage(statusText);
+      return;
+    }
     try {
       const response = await fetch(`/api/leaderboard/body-part-scan?${buildScanParams()}`, { method: "POST" });
       if (!isCurrentScanUpdate({ generation, currentGeneration: scanGeneration, filterActive: leaderboardState.bodyPartFilterActive })) return;

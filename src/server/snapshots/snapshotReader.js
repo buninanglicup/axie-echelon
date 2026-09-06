@@ -10,6 +10,17 @@ function snapshotReference(scope, captureId) {
   };
 }
 
+function snapshotMetadata(snapshot) {
+  return {
+    captureId: snapshot.captureId,
+    revision: snapshot.revision,
+    scopeKey: snapshot.scopeKey,
+    capturedAt: snapshot.completedAt,
+    eraCoverage: snapshot.battleLogSummary.eraCoverage,
+    candidateScope: snapshot.candidateScope
+  };
+}
+
 function mapSnapshotFighter(fighter) {
   return {
     axieID: fighter?.axieID,
@@ -59,6 +70,50 @@ export async function findAcceptedSnapshot(repository, leaderboardScope) {
   if (!index?.acceptedCaptureId) return null;
 
   return repository.readManifest(snapshotReference(scope, index.acceptedCaptureId));
+}
+
+// Historical rows must come from the same accepted immutable capture as their
+// team evidence. This deliberately has no live-candidate fallback: a missing
+// snapshot is a product-visible archival gap, not permission to show a later
+// upstream leaderboard under historical labels.
+export async function getHistoricalSnapshotCandidates({
+  repository = new SnapshotRepository(),
+  leaderboardScope,
+  rankMin = 1,
+  rankMax = Infinity
+}) {
+  const snapshot = await findAcceptedSnapshot(repository, leaderboardScope);
+  if (!snapshot) {
+    return {
+      status: "unavailable",
+      source: "historical-snapshot",
+      error: "No accepted historical leaderboard snapshot is available for this era."
+    };
+  }
+
+  const eraStartedAt = Number(snapshot.eraStartedAt);
+  const eraEndedAt = Number(snapshot.eraEndedAt);
+  if (!Number.isFinite(eraStartedAt) || !Number.isFinite(eraEndedAt) || eraStartedAt >= eraEndedAt) {
+    return {
+      status: "unavailable",
+      source: "historical-snapshot",
+      snapshot: snapshotMetadata(snapshot),
+      error: "The accepted snapshot has no verified era window, so it cannot be presented as historical leaderboard data."
+    };
+  }
+
+  const candidates = await repository.readFrozenCandidates(snapshot);
+  const players = candidates.filter((candidate) => {
+    const rank = Number(candidate?.topRank ?? candidate?.rank);
+    return Number.isFinite(rank) && rank >= rankMin && rank <= rankMax;
+  });
+
+  return {
+    status: "ready",
+    source: "historical-snapshot",
+    players,
+    snapshot: snapshotMetadata(snapshot)
+  };
 }
 
 export async function getHistoricalSnapshotEnrichment({
