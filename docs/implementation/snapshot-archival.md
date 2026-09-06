@@ -181,6 +181,22 @@ may be committed. Run the guardrail with:
 npm run check:snapshots
 ```
 
+## Metadata-only verification
+
+The project includes a read-only verifier for local snapshot metadata:
+
+```text
+npm run snapshot:verify
+npm run snapshot:verify -- --root /path/to/alternate-snapshot-root
+```
+
+This command is intentionally metadata-only. It reads only `index.json` and
+`manifest.json` files, checks scope names, accepted capture references, revision
+and status consistency, and reports warnings/errors without reading raw battle-log
+payloads, raw candidate-page files, `.env` files, credentials, or request headers.
+It does not validate raw payload contents or raw checksums, and it does not
+repair, prune, or accept snapshots.
+
 ## Retention and backup policy
 
 Snapshot artifacts are intentionally local-only under the gitignored

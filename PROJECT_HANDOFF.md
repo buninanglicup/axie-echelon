@@ -88,9 +88,11 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
   full copy of `data/snapshots/` with the same scope tree and index/revision
   metadata intact. Restoration must target one scope tree and must not merge
   unrelated directories or seasons. Verification checks metadata only without
-  exposing raw battle payloads or credentials. Destructive-pruning tooling is a
-  separate future concern and remains explicitly out of scope for the current
-  policy.
+  exposing raw battle payloads or credentials. `npm run snapshot:verify`
+  performs a read-only metadata check of `index.json` and `manifest.json` files
+  only; it does not read raw payloads or validate raw checksums. Destructive-
+  pruning tooling is a separate future concern and remains explicitly out of
+  scope for the current policy.
 - Historical UI smoke coverage is manual-only in this repo. There is no
   maintained browser automation attached to the project scripts: the existing
   Playwright helper is ad hoc and not declared in `package.json`. The current
