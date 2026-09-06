@@ -233,9 +233,9 @@ been accepted:
 5. Confirm the historical Rune and Body-Part scan flows use the accepted local
    snapshot evidence only and keep their async job states, filter semantics, and
    source separation from live scans.
-6. Confirm there is no live-mode control in historical view; the UI does not
-   provide or silently activate a live leaderboard refresh while the snapshot is
-   selected.
+6. Confirm Live Mode is disabled while viewing history and live-only controls
+   are hidden; the UI must not silently activate a live leaderboard refresh
+   while a snapshot is selected.
 7. Return to Current and confirm the current/upstream view resumes without stale
    historical rows or mixed snapshot metadata.
 8. Confirm the unavailable snapshot state renders clearly when no accepted

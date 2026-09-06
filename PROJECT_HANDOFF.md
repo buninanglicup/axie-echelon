@@ -96,8 +96,8 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
   Playwright helper is ad hoc and not declared in `package.json`. The current
   smoke pass covers current/offseason behavior, selecting a historical numeric
   era, accepted-snapshot loading, team provenance, historical Rune/Body-Part
-  scans, the absence of live-mode controls in historical view, return-to-Current,
-  and unavailable snapshot behavior.
+  scans, confirming Live Mode is disabled while viewing history and live-only
+  controls are hidden, return-to-Current, and unavailable snapshot behavior.
 - Body-part filtering uses local gene decoding from existing battle-log fields,
   canonicalizes collectible variants such as `Yen` under base part `Sleepless`,
   and reuses the rune-scan job model. No extra per-fighter API lookup is planned
