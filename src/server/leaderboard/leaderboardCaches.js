@@ -14,6 +14,7 @@ import {
   RANK_CANDIDATE_CACHE_TTL_MS,
   AVG_MATCH_DURATION_CACHE_TTL_MS
 } from "./leaderboardConstants.js";
+import { getLeaderboardScopedUserKey } from "../../leaderboard/leaderboardScope.js";
 
 export const teamCache = new Map();
 export const teamCompositionCache = new Map();
@@ -21,33 +22,40 @@ export const pageCache = new Map();
 export const inFlightPageRefreshes = new Set();
 const inFlightRefreshes = new Set();
 
-export function getCachedTeam(clientId) {
-  const entry = teamCache.get(clientId);
-  if (!entry || Date.now() - entry.timestamp > TEAM_CACHE_TTL_MS) { teamCache.delete(clientId); return null; }
+export function teamCacheKey(clientId, leaderboardScope) {
+  return getLeaderboardScopedUserKey(leaderboardScope, clientId);
+}
+
+export function getCachedTeam(clientId, leaderboardScope) {
+  const key = teamCacheKey(clientId, leaderboardScope);
+  const entry = teamCache.get(key);
+  if (!entry || Date.now() - entry.timestamp > TEAM_CACHE_TTL_MS) { teamCache.delete(key); return null; }
   return entry.team;
 }
-export function setCachedTeam(clientId, team) { teamCache.set(clientId, { team, timestamp: Date.now() }); }
-export function isTeamCacheStale(clientId) {
-  const entry = teamCache.get(clientId);
+export function setCachedTeam(clientId, team, leaderboardScope) { teamCache.set(teamCacheKey(clientId, leaderboardScope), { team, timestamp: Date.now() }); }
+export function isTeamCacheStale(clientId, leaderboardScope) {
+  const entry = teamCache.get(teamCacheKey(clientId, leaderboardScope));
   return !entry || Date.now() - entry.timestamp > TEAM_CACHE_TTL_MS * TEAM_CACHE_REFRESH_THRESHOLD;
 }
-export function scheduleTeamRefresh(clientId) {
-  if (inFlightRefreshes.has(clientId)) return;
-  inFlightRefreshes.add(clientId);
+export function scheduleTeamRefresh(clientId, leaderboardScope) {
+  const key = teamCacheKey(clientId, leaderboardScope);
+  if (inFlightRefreshes.has(key)) return;
+  inFlightRefreshes.add(key);
   fetchBattleLogsForClientDeduped(clientId, 20, "low")
-    .then((team) => { if (team) setCachedTeam(clientId, team); })
+    .then((team) => { if (team) setCachedTeam(clientId, team, leaderboardScope); })
     .catch((error) => {
       if (DEBUG_ON) console.warn(`[scheduleTeamRefresh] Failed for ${clientId}: ${error.message}`);
     })
-    .finally(() => inFlightRefreshes.delete(clientId));
+    .finally(() => inFlightRefreshes.delete(key));
 }
-export function getCachedTeamComposition(clientId) {
-  const entry = teamCompositionCache.get(clientId);
-  if (!entry || Date.now() - entry.timestamp > TEAM_COMPOSITION_CACHE_TTL_MS) { teamCompositionCache.delete(clientId); return null; }
+export function getCachedTeamComposition(clientId, leaderboardScope) {
+  const key = teamCacheKey(clientId, leaderboardScope);
+  const entry = teamCompositionCache.get(key);
+  if (!entry || Date.now() - entry.timestamp > TEAM_COMPOSITION_CACHE_TTL_MS) { teamCompositionCache.delete(key); return null; }
   return entry.fighters;
 }
-export function setCachedTeamComposition(clientId, fighters) {
-  if (Array.isArray(fighters) && fighters.length) teamCompositionCache.set(clientId, { fighters, timestamp: Date.now() });
+export function setCachedTeamComposition(clientId, fighters, leaderboardScope) {
+  if (Array.isArray(fighters) && fighters.length) teamCompositionCache.set(teamCacheKey(clientId, leaderboardScope), { fighters, timestamp: Date.now() });
 }
 export function getCachedPage(key) {
   const entry = pageCache.get(key);

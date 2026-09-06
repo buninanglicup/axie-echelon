@@ -1,5 +1,6 @@
 import express from "express";
 import { getOrFetchPlayerEnrichment } from "./enrichmentCache.js";
+import { resolveLeaderboardScope } from "../seasonRoutes.js";
 
 const router = express.Router();
 
@@ -10,7 +11,7 @@ router.get("/api/leaderboard/team/:userID", async (request, response) => {
       return response.status(400).json({ error: "userID is required." });
     }
     const priority = request.query.priority === "low" ? "low" : "high";
-    const enrichment = await getOrFetchPlayerEnrichment(userID, priority);
+    const enrichment = await getOrFetchPlayerEnrichment(userID, priority, resolveLeaderboardScope(request));
     response.json(enrichment);
   } catch (error) {
     console.error("[/api/leaderboard/team] Error:", error.message);

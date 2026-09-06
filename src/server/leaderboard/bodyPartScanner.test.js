@@ -9,7 +9,7 @@ process.env.BATTLELOG_FETCH_ATTEMPTS = "1";
 
 const { scanLeaderboardForBodyParts } = await import("./bodyPartScanner.js");
 const { rankCandidateCache } = await import("./leaderboardCandidates.js");
-const { teamCache } = await import("./leaderboardCaches.js");
+const { teamCache, teamCacheKey } = await import("./leaderboardCaches.js");
 
 const originalFetch = globalThis.fetch;
 const fixture = JSON.parse(fs.readFileSync(new URL("../../../api-responses/body-part-name-validation.json", import.meta.url), "utf8"));
@@ -96,7 +96,7 @@ test("applies name and rank narrowing before enrichment", async () => {
 test("uses a valid stale cached team without scheduling a refresh during a scan", async () => {
   let battleLogCalls = 0;
   let unknownCount = null;
-  teamCache.set("user-1", {
+  teamCache.set(teamCacheKey("user-1", "stale-cache-test"), {
     timestamp: Date.now() - 6 * 60 * 1000,
     team: {
       fighters: [

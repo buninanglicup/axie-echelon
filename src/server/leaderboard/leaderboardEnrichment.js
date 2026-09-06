@@ -226,13 +226,13 @@ export async function fetchAndEnrichLeaderboard(limit, offset, leaderboardScope,
 
           if (fresh) {
             if (DEBUG_ON) console.log(`[/api/leaderboard] LIVE MODE: fresh fetch OK for ${formatUserLog(userID, player.name)}`);
-            setCachedTeamComposition(userID, fresh.fighters);
+            setCachedTeamComposition(userID, fresh.fighters, scope);
             team = fresh;
             lastRankedBattleTime = fresh.lastRankedBattleTime || null;
             recentRankedBattles = fresh.recentRankedBattles || []; // same never-stale rule as lastRankedBattleTime
           } else {
             battleTimeFetchFailed = true;
-            const cachedComposition = getCachedTeamComposition(userID);
+            const cachedComposition = getCachedTeamComposition(userID, scope);
             if (cachedComposition) {
               if (DEBUG_ON) console.log(`[/api/leaderboard] LIVE MODE: fresh fetch FAILED for ${formatUserLog(userID, player.name)}, falling back to cached composition (battle time reported as unknown)`);
               team = { fighters: cachedComposition, lastRankedBattleTime: null };
@@ -250,26 +250,26 @@ export async function fetchAndEnrichLeaderboard(limit, offset, leaderboardScope,
           // lastRankedBattleTime, since the activity filter (the only
           // consumer that cares about timestamp freshness) is disabled
           // outside live mode by design.
-          team = getCachedTeam(userID);
+          team = getCachedTeam(userID, scope);
 
           if (!team) {
             team = await fetchBattleLogsForClientDeduped(userID, 20);
 
             if (team) {
               if (DEBUG_ON) console.log(`[/api/leaderboard] team attached for ${formatUserLog(userID, player.name)} (from fresh fetch)`);
-              setCachedTeam(userID, team);
+              setCachedTeam(userID, team, scope);
               // Opportunistically warm the long-TTL composition cache too,
               // so that if the user later flips live mode ON, this player's
               // team is already known instead of showing blank until their
               // first live-mode poll succeeds.
-              setCachedTeamComposition(userID, team.fighters);
+              setCachedTeamComposition(userID, team.fighters, scope);
             } else {
               if (DEBUG_ON) console.log(`[/api/leaderboard] No team extracted for ${formatUserLog(userID, player.name)}`);
             }
           } else {
             if (DEBUG_ON) console.log(`[/api/leaderboard] team (from cache) attached for ${formatUserLog(userID, player.name)}`);
-            if (isTeamCacheStale(userID)) {
-              scheduleTeamRefresh(userID);
+            if (isTeamCacheStale(userID, scope)) {
+              scheduleTeamRefresh(userID, scope);
             }
           }
 

@@ -59,6 +59,7 @@ import {
   createHistoricalLeaderboardScope,
   getCurrentLeaderboardControl,
   getLeaderboardScopeKey,
+  getLeaderboardScopedUserKey,
   getSelectedEraMilestone,
   getVisibleEraMilestones,
   isCurrentLeaderboardScope
@@ -270,7 +271,11 @@ function renderFilteredPool() {
   }
   renderPoolPager(pageInfo);
   updateActiveFilters();
-  enrichVisiblePoolPage(pageInfo.items, leaderboardState.currentPage, getCurrentLeaderboardScopeKey());
+  enrichVisiblePoolPage(
+    pageInfo.items,
+    leaderboardState.currentPage,
+    leaderboardState.leaderboardScope
+  );
 }
 
 function renderPoolPager({ page, totalPages }) {
@@ -535,7 +540,7 @@ async function fetchJsonWithRetry(url, attempts = 8) {
 let leaderboardPoolFetchScopeKey = null;
 const POOL_TEAM_ENRICHMENT_CONCURRENCY = 8;
 const POOL_TEAM_ENRICHMENT_RERENDER_DEBOUNCE_MS = 200;
-const enrichmentInFlightUserIDs = new Set();
+const enrichmentInFlightKeys = new Set();
 let poolEnrichmentRerenderTimer = null;
 
 async function runWithConcurrencyLimit(items, limit, worker) {
@@ -561,20 +566,26 @@ function scheduleEnrichmentRerender() {
   }, POOL_TEAM_ENRICHMENT_RERENDER_DEBOUNCE_MS);
 }
 
-async function enrichVisiblePoolPage(pageItems, requestedPage, requestedScopeKey) {
+async function enrichVisiblePoolPage(pageItems, requestedPage, requestedScope) {
+  const requestedScopeKey = getLeaderboardScopeKey(requestedScope);
   const targets = pageItems.filter(
     (player) =>
       player.userID &&
       !player.team &&
       !player.enrichmentAttempted &&
-      !enrichmentInFlightUserIDs.has(player.userID)
+      !enrichmentInFlightKeys.has(getLeaderboardScopedUserKey(requestedScope, player.userID))
   );
   if (targets.length === 0) return;
 
   await runWithConcurrencyLimit(targets, POOL_TEAM_ENRICHMENT_CONCURRENCY, async (player) => {
-    enrichmentInFlightUserIDs.add(player.userID);
+    const enrichmentKey = getLeaderboardScopedUserKey(requestedScope, player.userID);
+    enrichmentInFlightKeys.add(enrichmentKey);
     try {
-      const response = await fetch(`/api/leaderboard/team/${encodeURIComponent(player.userID)}?priority=high`);
+      const teamParams = appendLeaderboardScopeParams(
+        new URLSearchParams({ priority: "high" }),
+        requestedScope
+      );
+      const response = await fetch(`/api/leaderboard/team/${encodeURIComponent(player.userID)}?${teamParams.toString()}`);
       if (!response.ok) {
         player.enrichmentAttempted = true;
         return;
@@ -596,7 +607,7 @@ async function enrichVisiblePoolPage(pageItems, requestedPage, requestedScopeKey
       console.warn(`Team enrichment failed for ${player.userID}`, error);
       player.enrichmentAttempted = true;
     } finally {
-      enrichmentInFlightUserIDs.delete(player.userID);
+      enrichmentInFlightKeys.delete(enrichmentKey);
     }
   });
 

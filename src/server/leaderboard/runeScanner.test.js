@@ -8,7 +8,7 @@ process.env.BATTLELOG_FETCH_ATTEMPTS = "1";
 
 const { scanLeaderboardForRune } = await import("./runeScanner.js");
 const { rankCandidateCache } = await import("./leaderboardCandidates.js");
-const { teamCache } = await import("./leaderboardCaches.js");
+const { teamCache, teamCacheKey } = await import("./leaderboardCaches.js");
 
 const originalFetch = globalThis.fetch;
 
@@ -85,7 +85,7 @@ test("a failing battle-log fetch does not drop other candidates' matches", async
 
 test("uses a valid stale cached team without scheduling a refresh during a scan", async () => {
   let battleLogCalls = 0;
-  teamCache.set("user-1", {
+  teamCache.set(teamCacheKey("user-1", "stale-cache-test"), {
     timestamp: Date.now() - 6 * 60 * 1000,
     team: { fighters: [{ axieID: 1, position: 0, runes: ["rune-x"] }] }
   });

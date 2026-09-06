@@ -30,14 +30,14 @@ function teamMatchesBodyParts(team, selectedNames) {
   };
 }
 
-async function enrichCandidateForBodyParts(player, selectedNames) {
+async function enrichCandidateForBodyParts(player, selectedNames, leaderboardScope) {
   const userID = player.userID;
   if (!userID) return null;
 
-  let team = getCachedTeam(userID);
+  let team = getCachedTeam(userID, leaderboardScope);
   if (!team) {
     team = await fetchBattleLogsForClientDeduped(userID, 20, "low");
-    if (team) setCachedTeam(userID, team);
+    if (team) setCachedTeam(userID, team, leaderboardScope);
   }
   // A still-valid cache entry is the scan's snapshot. Refreshing a stale
   // entry here cannot affect this scan's result, but would compete with
@@ -86,7 +86,7 @@ export async function scanLeaderboardForBodyParts(
     const batch = narrowedCandidates.slice(start, start + RUNE_SCAN_ENRICHMENT_BATCH_SIZE);
     const batchResults = await mapWithConcurrency(
       batch,
-      (player) => enrichCandidateForBodyParts(player, requestedNames),
+      (player) => enrichCandidateForBodyParts(player, requestedNames, leaderboardScope),
       BATTLELOG_FETCH_CONCURRENCY
     );
     const batchMatches = batchResults.filter((result) => result?.match).map((result) => result.match);

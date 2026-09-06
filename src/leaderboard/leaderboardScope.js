@@ -40,6 +40,13 @@ export function getLeaderboardScopeKey(scope) {
   return `season:${normalized.seasonId}:milestone:${normalized.milestone}`;
 }
 
+// A per-player async result belongs to both the player and the selected
+// leaderboard source. This prevents an in-flight Final-era response from
+// suppressing or being mistaken for the same player's offseason response.
+export function getLeaderboardScopedUserKey(scope, userID) {
+  return `${getLeaderboardScopeKey(scope)}:user:${String(userID)}`;
+}
+
 // The current resolver result and the selected data source are intentionally
 // separate concepts. During offseason, a numbered era remains a historical
 // season source, not an alias for the current offseason ladder.

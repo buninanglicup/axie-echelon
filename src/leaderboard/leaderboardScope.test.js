@@ -7,6 +7,7 @@ import {
   getCurrentLeaderboardControl,
   getLeaderboardEndpointPath,
   getLeaderboardScopeKey,
+  getLeaderboardScopedUserKey,
   getSelectedEraMilestone,
   getVisibleEraMilestones,
   isCurrentLeaderboardScope
@@ -34,6 +35,15 @@ test("rejects stale responses from a different leaderboard scope", () => {
   assert.equal(isCurrentLeaderboardScope(finalScope, finalScope), true);
   assert.equal(isCurrentLeaderboardScope(finalScope, offseasonScope), false);
   assert.equal(isCurrentLeaderboardScope(offseasonScope, finalScope), false);
+});
+
+test("keeps per-player asynchronous work separate for Final and offseason", () => {
+  assert.equal(getLeaderboardScopedUserKey(finalScope, "user-1"), "season:19:milestone:4:user:user-1");
+  assert.equal(getLeaderboardScopedUserKey(offseasonScope, "user-1"), "offseason:19:user:user-1");
+  assert.notEqual(
+    getLeaderboardScopedUserKey(finalScope, "user-1"),
+    getLeaderboardScopedUserKey(offseasonScope, "user-1")
+  );
 });
 
 test("automatic offseason leaves numeric tabs unselected while Final remains historical", () => {
