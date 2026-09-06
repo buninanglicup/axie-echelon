@@ -186,6 +186,7 @@ function setAutomaticLeaderboardScope(scope) {
 
 function setLeaderboardScope(scope, { isManualHistoricalScope = false } = {}) {
   const previousScopeKey = getCurrentLeaderboardScopeKey();
+  const previousHistoricalMode = leaderboardState.isManualHistoricalScope;
   leaderboardState.leaderboardScope = {
     seasonId: scope.seasonId,
     seasonName: scope.seasonName,
@@ -201,7 +202,17 @@ function setLeaderboardScope(scope, { isManualHistoricalScope = false } = {}) {
     leaderboardState.isManualHistoricalScope
   );
 
-  if (previousScopeKey !== getCurrentLeaderboardScopeKey()) {
+  const teamHeading = document.querySelector("#leaderboard-team-heading");
+  if (teamHeading) {
+    teamHeading.textContent = isManualHistoricalScope
+      ? "HISTORICAL TEAM SNAPSHOT"
+      : "LATEST RANK TEAM";
+    teamHeading.title = isManualHistoricalScope
+      ? "Archived best-effort team data; it never falls back to a live team."
+      : "Current or recent ranked team data.";
+  }
+
+  if (previousScopeKey !== getCurrentLeaderboardScopeKey() || previousHistoricalMode !== isManualHistoricalScope) {
     leaderboardState.leaderboardData = [];
     leaderboardState.leaderboardPool = [];
     leaderboardState.leaderboardPoolLoaded = false;
@@ -274,7 +285,8 @@ function renderFilteredPool() {
   enrichVisiblePoolPage(
     pageInfo.items,
     leaderboardState.currentPage,
-    leaderboardState.leaderboardScope
+    leaderboardState.leaderboardScope,
+    leaderboardState.isManualHistoricalScope
   );
 }
 
@@ -543,6 +555,14 @@ const POOL_TEAM_ENRICHMENT_RERENDER_DEBOUNCE_MS = 200;
 const enrichmentInFlightKeys = new Set();
 let poolEnrichmentRerenderTimer = null;
 
+function getTeamEnrichmentRequestKey(scope, userID, historical) {
+  return `${getLeaderboardScopedUserKey(scope, userID)}:${historical ? "historical" : "live"}`;
+}
+
+function getLeaderboardPoolSourceKey(scope, historical) {
+  return `${getLeaderboardScopeKey(scope)}:${historical ? "historical" : "current"}`;
+}
+
 async function runWithConcurrencyLimit(items, limit, worker) {
   let index = 0;
   const workerCount = Math.min(limit, items.length);
@@ -566,25 +586,26 @@ function scheduleEnrichmentRerender() {
   }, POOL_TEAM_ENRICHMENT_RERENDER_DEBOUNCE_MS);
 }
 
-async function enrichVisiblePoolPage(pageItems, requestedPage, requestedScope) {
+async function enrichVisiblePoolPage(pageItems, requestedPage, requestedScope, requestedHistorical) {
   const requestedScopeKey = getLeaderboardScopeKey(requestedScope);
   const targets = pageItems.filter(
     (player) =>
       player.userID &&
       !player.team &&
       !player.enrichmentAttempted &&
-      !enrichmentInFlightKeys.has(getLeaderboardScopedUserKey(requestedScope, player.userID))
+      !enrichmentInFlightKeys.has(getTeamEnrichmentRequestKey(requestedScope, player.userID, requestedHistorical))
   );
   if (targets.length === 0) return;
 
   await runWithConcurrencyLimit(targets, POOL_TEAM_ENRICHMENT_CONCURRENCY, async (player) => {
-    const enrichmentKey = getLeaderboardScopedUserKey(requestedScope, player.userID);
+    const enrichmentKey = getTeamEnrichmentRequestKey(requestedScope, player.userID, requestedHistorical);
     enrichmentInFlightKeys.add(enrichmentKey);
     try {
       const teamParams = appendLeaderboardScopeParams(
         new URLSearchParams({ priority: "high" }),
         requestedScope
       );
+      if (requestedHistorical) teamParams.set("historical", "1");
       const response = await fetch(`/api/leaderboard/team/${encodeURIComponent(player.userID)}?${teamParams.toString()}`);
       if (!response.ok) {
         player.enrichmentAttempted = true;
@@ -595,13 +616,18 @@ async function enrichVisiblePoolPage(pageItems, requestedPage, requestedScope) {
 
       if (
         leaderboardState.currentPage !== requestedPage ||
-        getCurrentLeaderboardScopeKey() !== requestedScopeKey
+        getCurrentLeaderboardScopeKey() !== requestedScopeKey ||
+        leaderboardState.isManualHistoricalScope !== requestedHistorical
       ) {
         return;
       }
 
       if (data && data.team) {
         player.team = data.team;
+        player.teamSource = data.source || "live";
+        player.snapshot = data.snapshot || null;
+      } else if (requestedHistorical && data?.status === "unavailable") {
+        player.historicalTeamUnavailable = true;
       }
     } catch (error) {
       console.warn(`Team enrichment failed for ${player.userID}`, error);
@@ -619,9 +645,10 @@ async function fetchLeaderboardPool() {
   // reuse it instead of firing a second request.
   const scope = leaderboardState.leaderboardScope;
   const scopeKey = getLeaderboardScopeKey(scope);
+  const sourceKey = getLeaderboardPoolSourceKey(scope, leaderboardState.isManualHistoricalScope);
   if (
     leaderboardState.leaderboardPoolFetchPromise &&
-    leaderboardPoolFetchScopeKey === scopeKey
+    leaderboardPoolFetchScopeKey === sourceKey
   ) {
     return leaderboardState.leaderboardPoolFetchPromise;
   }
@@ -641,7 +668,8 @@ async function fetchLeaderboardPool() {
         return;
       }
       const data = await response.json();
-      if (!isCurrentLeaderboardScope(scope, leaderboardState.leaderboardScope)) return;
+      if (!isCurrentLeaderboardScope(scope, leaderboardState.leaderboardScope) ||
+          sourceKey !== getLeaderboardPoolSourceKey(leaderboardState.leaderboardScope, leaderboardState.isManualHistoricalScope)) return;
       const players = Array.isArray(data.players) ? data.players : [];
       leaderboardState.leaderboardPool = players;
       leaderboardState.leaderboardPoolLoaded = true;
@@ -657,7 +685,7 @@ async function fetchLeaderboardPool() {
     }
   })();
 
-  leaderboardPoolFetchScopeKey = scopeKey;
+  leaderboardPoolFetchScopeKey = sourceKey;
   leaderboardState.leaderboardPoolFetchPromise = fetchPromise;
   return fetchPromise;
 }

@@ -286,12 +286,41 @@ export class SnapshotRepository {
     return candidates.slice(0, current.candidateScope.rankEnd - current.candidateScope.rankStart + 1);
   }
 
+  async readCandidatePage(manifest, pageNumber) {
+    const current = await this.readManifest(manifest);
+    if (!Number.isInteger(pageNumber) || pageNumber < 1 || pageNumber > current.candidateScope.pagesFetched) {
+      throw new Error("Candidate page is outside the frozen snapshot range.");
+    }
+    const directory = path.join(await this.getCaptureDirectory(current), "candidate-pages");
+    const prefix = String(pageNumber).padStart(4, "0");
+    return {
+      raw: JSON.parse(await readFile(path.join(directory, `${prefix}.raw.json`), "utf8")),
+      normalized: JSON.parse(await readFile(path.join(directory, `${prefix}.normalized.json`), "utf8"))
+    };
+  }
+
   async hasBattleLog(manifest, userId) {
     const current = await this.readManifest(manifest);
     const directory = path.join(await this.getCaptureDirectory(current), "battle-logs");
     const id = playerFileId(userId);
     return (await exists(path.join(directory, `${id}.raw.json`))) &&
       (await exists(path.join(directory, `${id}.normalized.json`)));
+  }
+
+  async readNormalizedBattleLog(manifest, userId) {
+    const current = await this.readManifest(manifest);
+    const directory = path.join(await this.getCaptureDirectory(current), "battle-logs");
+    const filePath = path.join(directory, `${playerFileId(userId)}.normalized.json`);
+    if (!(await exists(filePath))) return null;
+    return JSON.parse(await readFile(filePath, "utf8"));
+  }
+
+  async readRawBattleLog(manifest, userId) {
+    const current = await this.readManifest(manifest);
+    const directory = path.join(await this.getCaptureDirectory(current), "battle-logs");
+    const filePath = path.join(directory, `${playerFileId(userId)}.raw.json`);
+    if (!(await exists(filePath))) return null;
+    return JSON.parse(await readFile(filePath, "utf8"));
   }
 
   async hasFailure(manifest, userId) {

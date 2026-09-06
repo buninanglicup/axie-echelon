@@ -91,7 +91,9 @@ deduplication from bleeding into offseason data.
 - **Data integration:** Sky Mavis REST and GraphQL APIs
 - **Testing:** Node's built-in test runner with deterministic fixtures and
   fetch adapters
-- **Persistence:** intentionally in-memory caches plus browser `sessionStorage`
+- **Persistence:** live in-memory caches plus browser `sessionStorage`; optional
+  immutable historical snapshots are stored locally under gitignored
+  `data/snapshots/`
 
 ## Run locally
 
@@ -123,10 +125,12 @@ npm run build
 git diff --check
 ```
 
-The automated suite currently contains 99 deterministic tests. It covers era
-boundaries, current/offseason routing, scope-separated caches and scan-job
-deduplication, retries, progress and cancellation lifecycle states, rune/body
-part filter semantics, and stale-response protection.
+The automated suite covers era boundaries, current/offseason routing,
+scope-separated caches and scan-job deduplication, retries, progress and
+cancellation lifecycle states, rune/body-part filter semantics, stale-response
+protection, and archival snapshot safety. Historical team views use only an
+explicitly accepted, era-bounded local snapshot; they never silently fall back
+to a current live team.
 
 ## Project structure
 

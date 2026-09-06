@@ -8,7 +8,12 @@ import { captureArchivalBattleLogs } from "./archivalBattleLogWorker.js";
 
 test("persists successful players and sanitized failures, then resumes only unfinished players", async () => {
   const repository = new SnapshotRepository(await mkdtemp(path.join(os.tmpdir(), "axie-worker-")));
-  const manifest = await repository.createCapture({ seasonId: 19, milestone: 4 });
+  const manifest = await repository.createCapture({
+    seasonId: 19,
+    milestone: 4,
+    eraStartedAt: 1787110200,
+    eraEndedAt: 1788319800
+  });
   await repository.writeCandidatePage(manifest, 1, {}, [
     { userID: "user-1", rank: 1 },
     { userID: "user-2", rank: 2 },
@@ -53,7 +58,12 @@ test("persists successful players and sanitized failures, then resumes only unfi
 
 test("cancels after persisted progress without scheduling the next player", async () => {
   const repository = new SnapshotRepository(await mkdtemp(path.join(os.tmpdir(), "axie-worker-cancel-")));
-  const manifest = await repository.createCapture({ seasonId: 19, milestone: 2 });
+  const manifest = await repository.createCapture({
+    seasonId: 19,
+    milestone: 2,
+    eraStartedAt: 1784691000,
+    eraEndedAt: 1785900600
+  });
   await repository.writeCandidatePage(manifest, 1, {}, [
     { userID: "user-1", rank: 1 },
     { userID: "user-2", rank: 2 }
@@ -81,4 +91,14 @@ test("cancels after persisted progress without scheduling the next player", asyn
   assert.equal(result.status, "cancelled");
   assert.equal(result.progress.completedPlayers, 1);
   assert.equal(calls, 1);
+});
+
+test("rejects an archival capture that lacks an era window", async () => {
+  const repository = new SnapshotRepository(await mkdtemp(path.join(os.tmpdir(), "axie-worker-unbounded-")));
+  const manifest = await repository.createCapture({ seasonId: 19, milestone: 4 });
+
+  await assert.rejects(
+    captureArchivalBattleLogs({ repository, manifest }),
+    /requires a verified era window/i
+  );
 });

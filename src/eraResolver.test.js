@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { getCurrentEraForConfiguredSeason, getEraBoundaries } from "./eraResolver.js";
+import { getConfiguredEraWindow, getCurrentEraForConfiguredSeason, getEraBoundaries } from "./eraResolver.js";
 
 const seasonStartedAt = 1783483200;
 const seasonEndedAt = 1788319800;
@@ -54,4 +54,13 @@ test("enters offseason at the configured season end without a milestone", () => 
   assert.equal(atEnd.offSeasonMode, true);
   assert.equal(atEnd.milestone, null);
   assert.equal(atEnd.eraName, "Offseason");
+});
+
+test("derives a historical Final window from the configured boundaries", () => {
+  const final = getConfiguredEraWindow(4);
+
+  assert.equal(final.seasonId, 19);
+  assert.equal(final.eraName, "Final");
+  assert.equal(final.eraStartedAt, seasonEndedAt - (14 * day));
+  assert.equal(final.eraEndedAt, seasonEndedAt);
 });

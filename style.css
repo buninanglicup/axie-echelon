@@ -1993,6 +1993,17 @@ input {
   font-size: 12px;
 }
 
+.historical-team-provenance,
+.historical-team-unavailable {
+  color: #9bb5c1;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.historical-team-provenance {
+  margin-top: 5px;
+}
+
 .leaderboard-controls {
   display: flex;
   align-items: center;

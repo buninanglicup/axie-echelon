@@ -1,6 +1,6 @@
 # Axie Echelon: Current Project Handoff
 
-**Last verified:** 2026-09-04
+**Last verified:** 2026-09-06
 
 This is the canonical current-status document. `PHASE1_SPLIT_SUMMARY.md` records the historical refactor. Older snapshots are retained under `docs/history/`; they are not current project instructions.
 
@@ -29,7 +29,9 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
 - Frontend: vanilla JavaScript, Vite 6.x, plain CSS, PIXI.js 7, Spine runtime.
 - Backend: Node.js ES modules and Express 4.
 - Data source: Sky Mavis REST and GraphQL APIs.
-- Persistence: none; backend caches are in-memory, browser leaderboard data uses `sessionStorage`.
+- Persistence: live backend caches are in-memory and browser leaderboard data
+  uses `sessionStorage`. Optional immutable historical snapshots are local-only
+  under gitignored `data/snapshots/`; they are never repository fixtures.
 - Communication: frontend calls backend REST endpoints through the Vite `/api` proxy.
 - Entry points: `src/main.js` and `server.js`.
 - Feature boundaries:
@@ -65,6 +67,12 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
 - Profile-driven multi-tracker development using `.env`; each instance selects a numbered `TRACKER_PROFILE` and receives isolated runtime settings.
 - Five predefined PowerShell launch scripts for local multi-window testing; the profile resolver itself supports additional contiguous profile numbers.
 - Phase 3 candidate-pool implementation: 3a (backend ceiling/cache constants), 3b (full-pool loading), 3c (client-side filtering), 3d (pagination), and 3e rune/body-part narrowing are implemented. Non-live visible rows progressively request team data and reuse the existing morph renderer. Automatic offseason and historical era scopes use separate endpoint/cache identities. Morph completeness still requires manual verification against real ranked-battle payloads.
+- Historical snapshot archival now freezes the top 1,000 seasonal candidates
+  and stores separate raw/normalized battle-log records locally with atomic
+  publication, revision metadata, resumable progress, conservative coverage,
+  and a snapshot tracking guardrail. A manually selected historical era uses
+  only an explicitly accepted, era-bounded snapshot for team previews; it
+  reports unavailable rather than substituting the player's current team.
 - Body-part filtering uses local gene decoding from existing battle-log fields,
   canonicalizes collectible variants such as `Yen` under base part `Sleepless`,
   and reuses the rune-scan job model. No extra per-fighter API lookup is planned
@@ -151,6 +159,9 @@ An Axie is considered collectible when it has at least one verified collectible 
 - Live activity filtering excludes players whose current battle-time fetch fails because their timestamp is intentionally `null`. This is a deliberate accuracy policy but remains a product decision: show them as unavailable versus exclude them.
 - Rune multi-select and OR matching are working. Top-30 and top-100 scans return results, including multiple selected runes. Top-1000 scans can become `partial` when the 300-second watchdog expires because live battle-log retries honor upstream `Retry-After` delays. Diagnostics show candidate fetching is fast, battle-log enrichment is the bottleneck, and concurrency four currently outperforms two in candidates per minute.
 - Rune-scan output is paginated client-side and scans the configured top-1000 candidate pool. A `complete` job guarantees full requested coverage; a `partial` job explicitly does not. Partial jobs are not resumable yet.
+- Historical archival currently reads one recent 20-log battle-log page per
+  player. It is best-effort recovery evidence, not complete era history;
+  endpoint pagination and automatic end-of-era scheduling are still pending.
 - Frontend and backend each define the rank scan ceiling; they must be kept synchronized manually.
 - Several related in-memory caches coexist during migration: legacy team cache, team-composition cache, enrichment cache, profile cache, page cache, and candidate cache.
 - Compact-mode preference is not persisted across a full page reload.
@@ -191,7 +202,12 @@ An Axie is considered collectible when it has at least one verified collectible 
 - `src/server/leaderboard/leaderboardCaches.js`: cache implementations and sweep.
 - `src/server/leaderboard/battleLogClient.js`: battle-log API calls, retry, and deduplication.
 - `src/server/leaderboard/leaderboardRoutes.js`: leaderboard endpoint definitions.
-- `src/eraResolver.js`: validates the configured season and computes its current era/milestone.
+- `src/eraResolver.js`: validates the configured season, computes the current
+  era/milestone, and exposes the shared configured window for archival use.
+- `src/server/snapshots/`: local immutable snapshot repository, candidate
+  freezer, archival battle-log worker, reader, and reclassifier.
+- `scripts/snapshot-capture.mjs`: local `start`, `status`, `resume`, `accept`,
+  and credential-free `reclassify` archival commands.
 - `src/data/season.json`: manually maintained season start, end, era durations, and era names.
 - `scripts/list-seasons.mjs`: maintenance helper for generating the next season configuration.
 - `src/server/leaderboard/enrichmentCache.js`: on-demand enrichment state model.
@@ -219,7 +235,7 @@ npm test
 npm run build
 ```
 
-The explicit suite passes 99 tests and the Vite build succeeds. All current
+The explicit suite passes on the maintained local environment. All current
 relative JavaScript import targets resolve, and the backend leaderboard module
 graph loads with Node. Live browser smoke testing on 2026-09-05 verified:
 
@@ -237,14 +253,16 @@ reports only the documented low-ID starter/legacy unknowns.
 
 ## Recommended Next Steps
 
-1. Design resumability for terminal partial rune-scan jobs if full coverage
+1. Add verified battle-log pagination and boundary-triggered/catch-up capture
+   scheduling before claiming complete historical era coverage.
+2. Design resumability for terminal partial rune-scan jobs if full coverage
    after a timeout is required.
-2. Review ignored real captures locally when new body-part variants or
+3. Review ignored real captures locally when new body-part variants or
    unsupported starter records appear; never commit raw captures.
-3. Reproduce and diagnose the live-mode page reload if it occurs again.
-4. Complete browser smoke coverage for the Morph Viewer and address lookup.
-5. Decide the intended UI behavior when a live battle-time fetch fails.
-6. Add browser/API tests and consider code-splitting PIXI/Spine.
+4. Reproduce and diagnose the live-mode page reload if it occurs again.
+5. Complete browser smoke coverage for the Morph Viewer and address lookup.
+6. Decide the intended UI behavior when a live battle-time fetch fails.
+7. Add browser/API tests and consider code-splitting PIXI/Spine.
 
 Track these items in this section of `PROJECT_HANDOFF.md`; implementation
 details and historical planning notes remain in `docs/planning/` and

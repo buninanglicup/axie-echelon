@@ -359,6 +359,17 @@ export function renderLeaderboardRows(leaderboardBody, players) {
       }
 
       teamCell.append(previewGrid);
+      if (player.teamSource === "historical-snapshot") {
+        const provenance = document.createElement("div");
+        provenance.className = "historical-team-provenance";
+        provenance.textContent = player.snapshot?.eraCoverage === "partial"
+          ? "Best-effort historical snapshot"
+          : "Historical team snapshot";
+        teamCell.append(provenance);
+      }
+    } else if (player.historicalTeamUnavailable) {
+      teamCell.textContent = "Historical team unavailable";
+      teamCell.className = "historical-team-unavailable";
     } else {
       teamCell.textContent = "-";
       teamCell.style.color = "#888";

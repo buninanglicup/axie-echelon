@@ -16,8 +16,11 @@ requests one recent `limit=20` page, matching the established live-client
 request shape after the initial `limit=100` archival attempt received upstream
 `400` responses. This is a deliberately best-effort Season 18 recovery
 strategy, not a claim of full history; the client preserves raw data and
-classifies coverage conservatively. Historical UI integration, verified
-archival pagination, and scheduled end-of-era capture remain pending.
+classifies coverage conservatively. The historical team UI reads only an
+explicitly accepted snapshot for a manually selected numeric era. It never
+falls back to live enrichment: unavailable or unverified archival evidence is
+shown as unavailable instead. Verified archival pagination and scheduled
+end-of-era capture remain pending.
 
 ```text
 data/snapshots/
@@ -65,6 +68,23 @@ pending/retryable players; a completed capture never changes or refreshes.
 A later recovery creates a new capture ID and revision, preserving the earlier
 evidence.
 
+### Correcting a capture without refetching
+
+Snapshots made before an era window was recorded are not suitable for a
+historical team view: the stored ranked-battle count could include battles
+outside that era. `reclassify` creates a new, linked revision from the source
+capture's immutable local raw files and normalizes it against the configured
+era window. It makes no upstream request and leaves the source unchanged:
+
+```text
+npm run snapshot:capture -- reclassify --season 19 --milestone 4 --capture <source-capture-id>
+```
+
+Review the resulting status and explicitly accept the derived capture before
+the historical UI can use it. Its `eraCoverage` remains conservative; a
+bounded count is not proof that the one-page API response contains the entire
+era.
+
 Manifest updates are serialized per capture and protected by an exclusive
 filesystem lock. Lock files contain only capture ID, process ID, and start
 time. Abandoned staging captures remain available for operator recovery.
@@ -92,6 +112,7 @@ npm run snapshot:capture -- start --season 19 --milestone 4
 npm run snapshot:capture -- status --season 19 --milestone 4 --capture <capture-id>
 npm run snapshot:capture -- resume --season 19 --milestone 4 --capture <capture-id>
 npm run snapshot:capture -- accept --season 19 --milestone 4 --capture <capture-id>
+npm run snapshot:capture -- reclassify --season 19 --milestone 4 --capture <source-capture-id>
 ```
 
 The MVP always captures ranks 1-1000. `--dry-run` checks the ignored,
@@ -110,3 +131,8 @@ battle logs” unless coverage metadata proves otherwise.
 completed capture as the explicitly accepted revision in its era scope index.
 This is a review decision: accepting a capture does not alter its immutable
 raw or normalized files, and a later recovery capture may supersede it.
+
+`reclassify` is also local and credential-free. It requires a completed source
+capture in the same configured season and milestone, copies its raw evidence
+into a new revision, and recalculates normalized ranked battles using the
+shared `src/eraResolver.js` boundary source.

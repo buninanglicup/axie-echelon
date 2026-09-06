@@ -65,10 +65,13 @@ The leaderboard battle-log payload exposes both `genes` and
 - Retries occur on transient upstream failures like `429`, `500`, `502`, `503`, and timeouts. `Retry-After` is honored when present, with bounded per-request and cumulative retry delays.
 
 ### 3. Deeper ranked-match scan
-- Battle-log enrichment now requests up to `20` recent logs (API limit) instead of `10`.
+- Battle-log enrichment requests `20` recent logs (the application's chosen
+  page size) instead of `10`.
 - The code still stops on the first valid ranked match.
 - This increases the chance of finding a ranked team when the latest ranked battle is older in the log.
-- Note: Skymavis API limits battle-log query to max 20 items per request.
+- Note: the documented endpoint allows a higher limit, but the live client uses
+  20 and stops after the first valid ranked match. Historical archival is a
+  separate, explicitly best-effort one-page workflow.
 
 ### 4. Debug visibility
 - When `DEBUG_ON=true`, the server logs:
@@ -81,7 +84,7 @@ The leaderboard battle-log payload exposes both `genes` and
 |---|---|---|
 | Temporary API failures or rate-limits | Bounded retries + timeout + Retry-After | fewer false misses without retry storms |
 | Rapid repeated refreshes | In-memory cache | repeated requests reuse successful teams, reducing flicker |
-| Ranked match not in first 10 logs | Increase battle-log limit to 30 | higher probability of finding the right team |
+| Ranked match not in first 10 logs | Increase battle-log limit to 20 | higher probability of finding the right team |
 
 ## Configuration
 ### Defaults set in backend modules

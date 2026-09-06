@@ -66,6 +66,26 @@ function getEraBoundaries() {
   return boundaries;
 }
 
+// Historical capture and future scheduling must use this same source as the
+// automatic resolver. `seasonStartedAt` remains the authoritative Rare start,
+// while all later era boundaries are calculated backward from `seasonEndedAt`.
+export function getConfiguredEraWindow(milestone) {
+  const numericMilestone = Number(milestone);
+  if (!Number.isInteger(numericMilestone) || numericMilestone < 1 || numericMilestone > 4) {
+    throw new Error("An era window requires milestone 1 through 4.");
+  }
+
+  const boundary = getEraBoundaries()[numericMilestone - 1];
+  return {
+    seasonId: seasonConfig.seasonId,
+    seasonName: seasonConfig.seasonName,
+    milestone: String(numericMilestone),
+    eraName: seasonConfig.eraNames?.[numericMilestone - 1] || `Era ${numericMilestone}`,
+    eraStartedAt: Math.floor(boundary.startMs / 1000),
+    eraEndedAt: Math.floor(boundary.endMs / 1000)
+  };
+}
+
 // Resolve the current era within the season declared in season.json. The
 // returned milestone is the numeric value Sky Mavis expects for its API.
 export function getCurrentEraForConfiguredSeason(now = Date.now()) {

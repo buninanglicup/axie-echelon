@@ -8,8 +8,10 @@ import { SnapshotRepository } from "../src/server/snapshots/snapshotRepository.j
 import { freezeSeasonCandidates } from "../src/server/snapshots/candidateFreezer.js";
 import { captureArchivalBattleLogs } from "../src/server/snapshots/archivalBattleLogWorker.js";
 import { fetchArchivalBattleLogs } from "../src/server/snapshots/archivalBattleLogClient.js";
+import { reclassifySnapshot } from "../src/server/snapshots/snapshotReclassifier.js";
 import { LEADERBOARD_MAX_RANK } from "../src/server/leaderboard/leaderboardConstants.js";
 import { requireSnapshotApiKey } from "../src/server/snapshots/snapshotCapturePreflight.js";
+import { getConfiguredEraWindow } from "../src/eraResolver.js";
 
 const execFileAsync = promisify(execFile);
 const RANK_MIN = 1;
@@ -22,7 +24,8 @@ function usage() {
     "  node scripts/snapshot-capture.mjs start --season 19 --milestone 4 [--dry-run]\n" +
     "  node scripts/snapshot-capture.mjs status --season 19 --milestone 4 --capture <id>\n" +
     "  node scripts/snapshot-capture.mjs resume --season 19 --milestone 4 --capture <id>\n" +
-    "  node scripts/snapshot-capture.mjs accept --season 19 --milestone 4 --capture <id>\n"
+    "  node scripts/snapshot-capture.mjs accept --season 19 --milestone 4 --capture <id>\n" +
+    "  node scripts/snapshot-capture.mjs reclassify --season 19 --milestone 4 --capture <id>\n"
   );
 }
 
@@ -45,10 +48,10 @@ function parseArgs(argv) {
   const milestone = Number(options.milestone);
   if (!Number.isInteger(season) || season < 1) throw new Error("--season must be a positive integer.");
   if (!Number.isInteger(milestone) || milestone < 1 || milestone > 4) throw new Error("--milestone must be 1, 2, 3, or 4.");
-  if (options.command !== "start" && options.command !== "status" && options.command !== "resume" && options.command !== "accept") {
+  if (!new Set(["start", "status", "resume", "accept", "reclassify"]).has(options.command)) {
     throw new Error(`Unknown command: ${options.command || "(missing command)"}`);
   }
-  if ((options.command === "status" || options.command === "resume" || options.command === "accept") && !options.capture) {
+  if ((options.command === "status" || options.command === "resume" || options.command === "accept" || options.command === "reclassify") && !options.capture) {
     throw new Error(`--capture is required for ${options.command}.`);
   }
   return { ...options, season, milestone };
@@ -92,9 +95,18 @@ async function readCapture(options) {
   });
 }
 
+function getConfiguredWindow(options) {
+  const eraWindow = getConfiguredEraWindow(options.milestone);
+  if (eraWindow.seasonId !== options.season) {
+    throw new Error(`Configured season ${eraWindow.seasonId} does not match --season ${options.season}.`);
+  }
+  return eraWindow;
+}
+
 async function dryRun(options) {
   await preflight();
   const apiKey = requireCredentials();
+  const eraWindow = getConfiguredWindow(options);
   const controller = new AbortController();
   const apiUrl = process.env.MAVIS_API_URL || "https://api-gateway.skymavis.com";
   const response = await fetch(
@@ -109,7 +121,9 @@ async function dryRun(options) {
   const battleLogProbe = await fetchArchivalBattleLogs({
     userId: probeCandidate.userID,
     apiUrl,
-    apiKey
+    apiKey,
+    eraStartedAt: eraWindow.eraStartedAt,
+    eraEndedAt: eraWindow.eraEndedAt
   });
   console.log(JSON.stringify({
     dryRun: true,
@@ -143,6 +157,14 @@ async function run() {
     printStatus(manifest, await repository.readIndex(manifest));
     return;
   }
+  if (options.command === "reclassify") {
+    await preflight();
+    const sourceManifest = await readCapture(options);
+    const eraWindow = getConfiguredWindow(options);
+    const manifest = await reclassifySnapshot({ repository, sourceManifest, eraWindow });
+    printStatus(manifest, await repository.readIndex(manifest));
+    return;
+  }
   await preflight();
   const apiKey = requireCredentials();
   if (options.command === "start" && options.dryRun) {
@@ -151,9 +173,13 @@ async function run() {
   }
   let manifest;
   if (options.command === "start") {
+    const eraWindow = getConfiguredWindow(options);
     manifest = await repository.createCapture({
       seasonId: options.season,
       milestone: options.milestone,
+      eraName: eraWindow.eraName,
+      eraStartedAt: eraWindow.eraStartedAt,
+      eraEndedAt: eraWindow.eraEndedAt,
       candidateScope: { rankStart: RANK_MIN, rankEnd: RANK_MAX, configuredCeiling: RANK_MAX }
     });
   } else {

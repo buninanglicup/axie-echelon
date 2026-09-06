@@ -13,6 +13,14 @@ function aggregateCoverage(records) {
     : coverage.some((value) => value === "partial") ? "partial" : "unknown";
 }
 
+function assertVerifiedEraWindow(manifest) {
+  const start = Number(manifest?.eraStartedAt);
+  const end = Number(manifest?.eraEndedAt);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end) {
+    throw new Error("Archival battle-log capture requires a verified era window.");
+  }
+}
+
 export async function captureArchivalBattleLogs({
   repository,
   manifest,
@@ -20,6 +28,7 @@ export async function captureArchivalBattleLogs({
   concurrency = 2,
   signal
 }) {
+  assertVerifiedEraWindow(manifest);
   const candidates = await repository.readFrozenCandidates(manifest);
   let completedPlayers = 0;
   let failedPlayers = 0;
