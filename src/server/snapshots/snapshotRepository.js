@@ -233,15 +233,24 @@ export class SnapshotRepository {
     const id = playerFileId(userId);
     const directory = path.join(await this.getCaptureDirectory(current), "battle-logs");
     const rawPath = path.join(directory, `${id}.raw.json`);
-    if (await exists(rawPath)) throw new Error(`Battle-log record for ${userId} is already written.`);
+    const normalizedPath = path.join(directory, `${id}.normalized.json`);
+    if (await exists(rawPath) || await exists(normalizedPath)) throw new Error(`Battle-log record for ${userId} is already written.`);
     const rawResponse = record?.rawResponse ?? null;
     const checksum = record?.checksum || createHash("sha256").update(JSON.stringify(rawResponse), "utf8").digest("hex");
-    await writeJsonAtomically(rawPath, { userID: userId, checksum, capturedAt: record?.capturedAt || new Date().toISOString(), status: record?.status || "fetched", httpStatus: record?.httpStatus ?? null, requestedLimit: record?.requestedLimit ?? 20, rawResponse });
-    await writeJsonAtomically(path.join(directory, `${id}.normalized.json`), {
-      userID: userId,
-      capturedAt: record?.capturedAt || new Date().toISOString(),
-      ...(record?.normalized || {})
-    });
+    const capturedAt = record?.capturedAt || new Date().toISOString();
+    try {
+      // The raw record is the completion marker. Write the normalized view
+      // first so a raw record always has its matching application-facing view.
+      await writeJsonAtomically(normalizedPath, {
+        userID: userId,
+        capturedAt,
+        ...(record?.normalized || {})
+      });
+      await writeJsonAtomically(rawPath, { userID: userId, checksum, capturedAt, status: record?.status || "fetched", httpStatus: record?.httpStatus ?? null, requestedLimit: record?.requestedLimit ?? 20, rawResponse });
+    } catch (error) {
+      if (!(await exists(rawPath))) await rm(normalizedPath, { force: true });
+      throw error;
+    }
   }
 
   async writeFailure(manifest, userId, failure, attempt = 1) {
@@ -273,7 +282,18 @@ export class SnapshotRepository {
 
   async hasBattleLog(manifest, userId) {
     const current = await this.readManifest(manifest);
-    return exists(path.join(await this.getCaptureDirectory(current), "battle-logs", `${playerFileId(userId)}.raw.json`));
+    const directory = path.join(await this.getCaptureDirectory(current), "battle-logs");
+    const id = playerFileId(userId);
+    return (await exists(path.join(directory, `${id}.raw.json`))) &&
+      (await exists(path.join(directory, `${id}.normalized.json`)));
+  }
+
+  async hasFailure(manifest, userId) {
+    const current = await this.readManifest(manifest);
+    const directory = path.join(await this.getCaptureDirectory(current), "failures");
+    if (!(await exists(directory))) return false;
+    const prefix = `${playerFileId(userId)}-attempt-`;
+    return (await readdir(directory)).some((entry) => entry.startsWith(prefix) && entry.endsWith(".json"));
   }
 }
 

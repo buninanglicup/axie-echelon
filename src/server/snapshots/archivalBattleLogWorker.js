@@ -21,69 +21,73 @@ export async function captureArchivalBattleLogs({
   signal
 }) {
   const candidates = await repository.readFrozenCandidates(manifest);
+  let completedPlayers = 0;
+  let failedPlayers = 0;
+  let attemptedPlayers = manifest.progress.attemptedPlayers || 0;
+  const pending = [];
+  for (const candidate of candidates) {
+    if (!candidate.userID) continue;
+    if (await repository.hasBattleLog(manifest, candidate.userID)) {
+      completedPlayers += 1;
+      continue;
+    }
+    if (await repository.hasFailure(manifest, candidate.userID)) failedPlayers += 1;
+    pending.push(candidate);
+  }
   const current = await repository.updateManifest(manifest, {
     status: "running",
     progress: {
       ...manifest.progress,
-      pendingPlayers: candidates.length,
-      attemptedPlayers: manifest.progress.attemptedPlayers || 0
+      pendingPlayers: pending.length,
+      completedPlayers,
+      failedPlayers,
+      attemptedPlayers
     }
   });
-  let completedPlayers = current.progress.completedPlayers || 0;
-  let failedPlayers = current.progress.failedPlayers || 0;
-  let attemptedPlayers = current.progress.attemptedPlayers || 0;
   let battleLogsFetchedCount = current.battleLogSummary.battleLogsFetchedCount || 0;
   let rankedBattlesInEraCount = current.battleLogSummary.rankedBattlesInEraCount || 0;
   let missingTimestampCount = current.battleLogSummary.missingTimestampCount || 0;
   const oldestBattleTimes = [];
   const newestBattleTimes = [];
-  let coverageValues = [];
-  const records = [];
-  const pending = [];
-  for (const candidate of candidates) {
-    if (!candidate.userID || await repository.hasBattleLog(current, candidate.userID)) continue;
-    pending.push(candidate);
+  let coverageValues = [current.battleLogSummary.eraCoverage];
+  let processedThisRun = 0;
+
+  async function persistProgress() {
+    await repository.updateManifest(current, {
+      progress: {
+        ...current.progress,
+        pendingPlayers: Math.max(0, pending.length - processedThisRun),
+        completedPlayers,
+        failedPlayers,
+        attemptedPlayers
+      },
+      battleLogSummary: {
+        ...current.battleLogSummary,
+        battleLogsFetchedCount,
+        rankedBattlesInEraCount,
+        oldestBattleReturnedAt: oldestBattleTimes.sort()[0] || current.battleLogSummary.oldestBattleReturnedAt,
+        newestBattleReturnedAt: newestBattleTimes.sort().at(-1) || current.battleLogSummary.newestBattleReturnedAt,
+        missingTimestampCount,
+        eraCoverage: aggregateCoverage(coverageValues)
+      }
+    });
   }
+
   let cursor = 0;
   async function worker() {
     while (cursor < pending.length) {
       if (signal?.aborted) throw cancellationError();
       const candidate = pending[cursor++];
+      const hadFailure = await repository.hasFailure(current, candidate.userID);
+      let record;
       try {
-        const record = await fetchClient({
+        record = await fetchClient({
           userId: candidate.userID,
           eraStartedAt: current.eraStartedAt,
           eraEndedAt: current.eraEndedAt,
           signal
         });
         await repository.writeBattleLog(current, candidate.userID, record);
-        records.push(record);
-        completedPlayers += 1;
-        attemptedPlayers += 1;
-        battleLogsFetchedCount += record.normalized.battleLogsFetchedCount;
-        rankedBattlesInEraCount += record.normalized.rankedBattlesInEraCount;
-        missingTimestampCount += record.normalized.missingTimestampCount;
-        if (record.normalized.oldestBattleReturnedAt) oldestBattleTimes.push(record.normalized.oldestBattleReturnedAt);
-        if (record.normalized.newestBattleReturnedAt) newestBattleTimes.push(record.normalized.newestBattleReturnedAt);
-        coverageValues.push(record.normalized.eraCoverage);
-        await repository.updateManifest(current, {
-          progress: {
-            ...current.progress,
-            pendingPlayers: Math.max(0, candidates.length - completedPlayers - failedPlayers),
-            completedPlayers,
-            failedPlayers,
-            attemptedPlayers
-          },
-          battleLogSummary: {
-            ...current.battleLogSummary,
-            battleLogsFetchedCount,
-            rankedBattlesInEraCount,
-            oldestBattleReturnedAt: oldestBattleTimes.sort()[0] || current.battleLogSummary.oldestBattleReturnedAt,
-            newestBattleReturnedAt: newestBattleTimes.sort().at(-1) || current.battleLogSummary.newestBattleReturnedAt,
-            missingTimestampCount,
-            eraCoverage: aggregateCoverage(coverageValues)
-          }
-        });
       } catch (error) {
         if (signal?.aborted) throw cancellationError();
         const failureAttempt = attemptedPlayers + 1;
@@ -93,18 +97,27 @@ export async function captureArchivalBattleLogs({
           message: error.message,
           retryable: error.retryable
         }, failureAttempt);
-        failedPlayers += 1;
+        if (!hadFailure) failedPlayers += 1;
         attemptedPlayers += 1;
-        await repository.updateManifest(current, {
-          progress: {
-            ...current.progress,
-            pendingPlayers: Math.max(0, candidates.length - completedPlayers - failedPlayers),
-            completedPlayers,
-            failedPlayers,
-            attemptedPlayers
-          }
-        });
+        processedThisRun += 1;
+        await persistProgress();
+        continue;
       }
+
+      // A player record is durable before progress is updated. If the latter
+      // fails, a later resume derives completion from the saved raw and
+      // normalized files instead of recording a false player failure.
+      completedPlayers += 1;
+      if (hadFailure) failedPlayers -= 1;
+      attemptedPlayers += 1;
+      processedThisRun += 1;
+      battleLogsFetchedCount += record.normalized.battleLogsFetchedCount;
+      rankedBattlesInEraCount += record.normalized.rankedBattlesInEraCount;
+      missingTimestampCount += record.normalized.missingTimestampCount;
+      if (record.normalized.oldestBattleReturnedAt) oldestBattleTimes.push(record.normalized.oldestBattleReturnedAt);
+      if (record.normalized.newestBattleReturnedAt) newestBattleTimes.push(record.normalized.newestBattleReturnedAt);
+      coverageValues.push(record.normalized.eraCoverage);
+      await persistProgress();
     }
   }
   try {

@@ -18,9 +18,16 @@ test("persists successful players and sanitized failures, then resumes only unfi
     candidateScope: { ...manifest.candidateScope, pagesFetched: 1, frozenCandidateCount: 3 }
   });
   let calls = 0;
+  let userTwoCalls = 0;
   const fetchClient = async ({ userId }) => {
     calls += 1;
     if (userId === "user-2") {
+      userTwoCalls += 1;
+      if (userTwoCalls > 1) return { rawResponse: { _items: [] }, normalized: {
+        battleLogsFetchedCount: 0, rankedBattlesInEraCount: 0,
+        oldestBattleReturnedAt: null, newestBattleReturnedAt: null,
+        missingTimestampCount: 0, eraCoverage: "unknown"
+      }, checksum: "hash" };
       const error = new Error("busy");
       error.status = 429;
       error.retryable = true;
@@ -38,7 +45,9 @@ test("persists successful players and sanitized failures, then resumes only unfi
   assert.equal(calls, 3);
 
   const second = await captureArchivalBattleLogs({ repository, manifest: first, fetchClient, concurrency: 1 });
-  assert.equal(second.progress.completedPlayers, 2);
+  assert.equal(second.status, "completed");
+  assert.equal(second.progress.completedPlayers, 3);
+  assert.equal(second.progress.failedPlayers, 0);
   assert.equal(calls, 4);
 });
 

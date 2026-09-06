@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -30,6 +30,16 @@ test("uses stable hashes for hostile and long player IDs", () => {
   const id = "../CON:\\very-long-player-id";
   assert.match(playerFileId(id), /^[a-f0-9]{64}$/);
   assert.equal(playerFileId(id), playerFileId(id));
+});
+
+test("treats a battle log as complete only when both raw and normalized files exist", async () => {
+  const repository = await createRepository();
+  const manifest = await repository.createCapture({ seasonId: 19, milestone: 4 });
+  await repository.writeBattleLog(manifest, "user-1", { rawResponse: {}, normalized: {} });
+  const directory = await repository.getCaptureDirectory(manifest);
+  await rm(path.join(directory, "battle-logs", `${playerFileId("user-1")}.normalized.json`));
+
+  assert.equal(await repository.hasBattleLog(manifest, "user-1"), false);
 });
 
 test("creates a new revision linked to the prior capture for the same era scope", async () => {
