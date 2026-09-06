@@ -1,4 +1,4 @@
-import { access, constants } from "node:fs/promises";
+import { access, constants, mkdir } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import path from "node:path";
@@ -8,6 +8,7 @@ import { SnapshotRepository } from "../src/server/snapshots/snapshotRepository.j
 import { freezeSeasonCandidates } from "../src/server/snapshots/candidateFreezer.js";
 import { captureArchivalBattleLogs } from "../src/server/snapshots/archivalBattleLogWorker.js";
 import { LEADERBOARD_MAX_RANK } from "../src/server/leaderboard/leaderboardConstants.js";
+import { requireSnapshotApiKey } from "../src/server/snapshots/snapshotCapturePreflight.js";
 
 const execFileAsync = promisify(execFile);
 const RANK_MIN = 1;
@@ -53,12 +54,14 @@ function parseArgs(argv) {
 
 async function preflight() {
   const root = path.resolve("data", "snapshots");
-  const ignored = await execFileAsync("git", ["check-ignore", "-q", root]);
-  await access(root, constants.W_OK).catch(async (error) => {
-    if (error.code !== "ENOENT") throw error;
-    await access(path.dirname(root), constants.W_OK);
-  });
+  await execFileAsync("git", ["check-ignore", "--no-index", "-q", "data/snapshots/"]);
+  await mkdir(root, { recursive: true });
+  await access(root, constants.W_OK);
   return root;
+}
+
+function requireCredentials() {
+  return requireSnapshotApiKey(process.env.AXIE_ECHELON_API_KEY);
 }
 
 function printStatus(manifest) {
@@ -88,11 +91,12 @@ async function readCapture(options) {
 
 async function dryRun(options) {
   await preflight();
+  const apiKey = requireCredentials();
   const controller = new AbortController();
   const apiUrl = process.env.MAVIS_API_URL || "https://api-gateway.skymavis.com";
   const response = await fetch(
     `${apiUrl}/origins/v2/season-leaderboards?limit=1&offset=0&milestone=${options.milestone}`,
-    { headers: { "x-api-key": process.env.AXIE_ECHELON_API_KEY }, signal: controller.signal }
+    { headers: { "x-api-key": apiKey }, signal: controller.signal }
   );
   if (!response.ok) throw new Error(`Dry-run candidate availability check failed: ${response.status}`);
   const payload = await response.json();
@@ -117,6 +121,7 @@ async function run() {
     return;
   }
   await preflight();
+  const apiKey = requireCredentials();
   if (options.command === "start" && options.dryRun) {
     await dryRun(options);
     return;
@@ -136,7 +141,7 @@ async function run() {
   process.once("SIGINT", stop);
   process.once("SIGTERM", stop);
   try {
-    manifest = await freezeSeasonCandidates({ repository, manifest, rankMin: RANK_MIN, rankMax: RANK_MAX, signal: controller.signal });
+    manifest = await freezeSeasonCandidates({ repository, manifest, rankMin: RANK_MIN, rankMax: RANK_MAX, apiKey, signal: controller.signal });
     if (manifest.status === "cancelled" || manifest.status === "failed") {
       printStatus(manifest);
       return;
