@@ -14,25 +14,26 @@ test("requests the archival battle-log endpoint at limit 100 and preserves cover
     }
   });
 
-  test("retries a transient 429 before persisting the archival response", async () => {
-    let calls = 0;
-    const result = await fetchArchivalBattleLogs({
-      userId: "user-429",
-      apiUrl: "https://example.test",
-      apiKey: "test",
-      fetchImpl: async () => {
-        calls += 1;
-        if (calls === 1) return new Response("busy", { status: 429, headers: { "retry-after": "0" } });
-        return new Response(JSON.stringify({ _items: [] }), { status: 200 });
-      }
-    });
-    assert.equal(calls, 2);
-    assert.equal(result.httpStatus, 200);
-  });
   assert.equal(requested.pathname, "/origin/v2/community/users/user%2F1/battle-logs");
   assert.equal(requested.searchParams.get("limit"), "100");
   assert.equal(result.normalized.eraCoverage, "partial");
   assert.equal(result.checksum.length, 64);
+});
+
+test("retries a transient 429 before persisting the archival response", async () => {
+  let calls = 0;
+  const result = await fetchArchivalBattleLogs({
+    userId: "user-429",
+    apiUrl: "https://example.test",
+    apiKey: "test",
+    fetchImpl: async () => {
+      calls += 1;
+      if (calls === 1) return new Response("busy", { status: 429, headers: { "retry-after": "0" } });
+      return new Response(JSON.stringify({ _items: [] }), { status: 200 });
+    }
+  });
+  assert.equal(calls, 2);
+  assert.equal(result.httpStatus, 200);
 });
 
 test("classifies timestamp-ambiguous responses as unknown", () => {
