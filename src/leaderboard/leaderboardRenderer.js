@@ -24,6 +24,63 @@ function createStatusSpan(text, className) {
   return span;
 }
 
+function formatHistoricalTimestamp(value) {
+  const date = new Date(value);
+  if (!value || Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+}
+
+function historicalCoverageText(coverage) {
+  if (coverage === "partial") {
+    return "Coverage: partial — recent battle logs only; not exhaustive era history.";
+  }
+  if (coverage === "unknown") {
+    return "Coverage: unknown — completeness could not be verified; not exhaustive era history.";
+  }
+  return "Coverage: complete under this capture's documented policy.";
+}
+
+function historicalUnavailableText(evidence) {
+  if (evidence?.teamEvidenceReason === "INVALID_TRACKED_PLAYER_TEAM_FIGHTERS") {
+    return "Captured battle data did not contain a usable team for this player.";
+  }
+  if (evidence?.teamEvidenceReason === "NO_VALID_IN_ERA_RANKED_BATTLE_FOUND_FOR_PLAYER") {
+    return "No valid in-era ranked battle was observed for this player.";
+  }
+  return "No captured ranked team is available for this player.";
+}
+
+function appendHistoricalTeamProvenance(container, player) {
+  const evidence = player.historicalTeamEvidence;
+  const snapshot = player.snapshot;
+  const provenance = document.createElement("div");
+  provenance.className = "historical-team-provenance";
+
+  const summary = document.createElement("div");
+  summary.className = "historical-team-provenance-summary";
+  summary.textContent = evidence?.teamEvidence === "legacy"
+    ? "Captured historical ranked team"
+    : "Captured team from the latest observed ranked battle in this era.";
+  provenance.append(summary);
+
+  const selectedBattle = formatHistoricalTimestamp(evidence?.selectedBattleTimestamp);
+  const capturedAt = formatHistoricalTimestamp(evidence?.capturedAt || snapshot?.capturedAt);
+  const dates = [
+    selectedBattle && `Battle: ${selectedBattle}`,
+    capturedAt && `Captured: ${capturedAt}`
+  ].filter(Boolean);
+  if (dates.length > 0) {
+    const dateLine = document.createElement("div");
+    dateLine.textContent = dates.join(" · ");
+    provenance.append(dateLine);
+  }
+
+  const coverage = document.createElement("div");
+  coverage.textContent = historicalCoverageText(snapshot?.eraCoverage);
+  provenance.append(coverage);
+  container.append(provenance);
+}
+
 function formatStatusClock(deltaMs) {
   const totalSeconds = Math.floor(Math.abs(deltaMs) / 1000);
   const minutes = Math.floor(totalSeconds / 60);
@@ -360,16 +417,16 @@ export function renderLeaderboardRows(leaderboardBody, players) {
 
       teamCell.append(previewGrid);
       if (player.teamSource === "historical-snapshot") {
-        const provenance = document.createElement("div");
-        provenance.className = "historical-team-provenance";
-        provenance.textContent = player.snapshot?.eraCoverage === "partial"
-          ? "Best-effort historical snapshot"
-          : "Historical team snapshot";
-        teamCell.append(provenance);
+        appendHistoricalTeamProvenance(teamCell, player);
       }
     } else if (player.historicalTeamUnavailable) {
-      teamCell.textContent = "Historical team unavailable";
       teamCell.className = "historical-team-unavailable";
+      const title = document.createElement("div");
+      title.textContent = "Historical team unavailable";
+      const detail = document.createElement("div");
+      detail.className = "historical-team-unavailable-detail";
+      detail.textContent = historicalUnavailableText(player.historicalTeamEvidence);
+      teamCell.append(title, detail);
     } else {
       teamCell.textContent = "-";
       teamCell.style.color = "#888";

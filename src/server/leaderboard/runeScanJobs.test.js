@@ -13,7 +13,8 @@ const {
   cancelRuneScanJob,
   runeScanJobStore,
   JOB_STATUS,
-  __setRuneScannerForTesting
+  __setRuneScannerForTesting,
+  __setHistoricalRuneScannerForTesting
 } = await import(
   "./runeScanJobs.js"
 );
@@ -24,6 +25,7 @@ const originalFetch = globalThis.fetch;
 
 afterEach(() => {
   __setRuneScannerForTesting();
+  __setHistoricalRuneScannerForTesting();
   globalThis.fetch = originalFetch;
   rankCandidateCache.clear();
   teamCache.clear();
@@ -322,4 +324,30 @@ test("does not deduplicate identical rune scans across Final and offseason scope
     waitForStatus(finalJob.jobId, [JOB_STATUS.COMPLETE, JOB_STATUS.FAILED]),
     waitForStatus(offseasonJob.jobId, [JOB_STATUS.COMPLETE, JOB_STATUS.FAILED])
   ]);
+});
+
+test("does not deduplicate an accepted-snapshot scan with a live scan for the same era", async () => {
+  const seenSources = [];
+  __setRuneScannerForTesting(async (runeIds, leaderboardScope, { onProgress }) => {
+    seenSources.push("upstream");
+    onProgress([], 1, 1);
+    return [];
+  });
+  __setHistoricalRuneScannerForTesting(async (runeIds, leaderboardScope, { onProgress }) => {
+    seenSources.push("historical-snapshot");
+    onProgress([], 1, 1);
+    return [];
+  });
+  const finalScope = { seasonId: 19, offSeasonMode: false, milestone: 4, eraName: "Final" };
+  const historical = startRuneScanJob({ runeIds: ["rune-x"], leaderboardScope: finalScope, historical: true, rankMin: 1, rankMax: 1 });
+  const live = startRuneScanJob({ runeIds: ["rune-x"], leaderboardScope: finalScope, rankMin: 1, rankMax: 1 });
+
+  assert.notEqual(historical.jobId, live.jobId);
+  assert.equal(historical.source, "historical-snapshot");
+  assert.equal(live.source, "upstream");
+  await Promise.all([
+    waitForStatus(historical.jobId, [JOB_STATUS.COMPLETE, JOB_STATUS.FAILED]),
+    waitForStatus(live.jobId, [JOB_STATUS.COMPLETE, JOB_STATUS.FAILED])
+  ]);
+  assert.deepEqual(seenSources.sort(), ["historical-snapshot", "upstream"]);
 });

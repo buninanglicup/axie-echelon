@@ -17,9 +17,9 @@
 // of the same design.
 //
 // Body-part-scan-specific notes:
-// - Dedup key: milestone|sorted(bodyPartNames)|rankMin|rankMax|name. Same
-//   shape as the rune-scan dedup key, with bodyPartNames in place of
-//   runeIds.
+// - Dedup key: source|scope|sorted(bodyPartNames)|rankMin|rankMax|name. Same
+//   shape as the rune-scan dedup key, with bodyPartNames in place of runeIds.
+//   The source separates accepted local snapshot scans from live upstream work.
 // - This module intentionally does NOT import RUNE_SCAN_ENRICHMENT_BATCH_SIZE
 //   or RUNE_SCAN_BATCH_PAUSE_MS from leaderboardConstants.js: those govern
 //   bodyPartScanner.js's internal batching and are irrelevant to job-state
@@ -33,6 +33,7 @@
 
 import { randomUUID } from "node:crypto";
 import { scanLeaderboardForBodyParts as defaultScanLeaderboardForBodyParts } from "./bodyPartScanner.js";
+import { scanHistoricalSnapshotForBodyParts as defaultScanHistoricalSnapshotForBodyParts } from "../snapshots/historicalSnapshotScanner.js";
 import { DEBUG_ON } from "../shared/env.js";
 import { LEADERBOARD_MAX_RANK } from "./leaderboardConstants.js";
 import { getLeaderboardScopeKey, normalizeLeaderboardScope } from "../../leaderboard/leaderboardScope.js";
@@ -54,6 +55,7 @@ const BODY_PART_SCAN_JOB_MAX_DURATION_MS = Number(process.env.BODY_PART_SCAN_JOB
 
 // Swappable at runtime only via __setBodyPartScannerForTesting (test-only).
 let scanLeaderboardForBodyParts = defaultScanLeaderboardForBodyParts;
+let scanHistoricalSnapshotForBodyParts = defaultScanHistoricalSnapshotForBodyParts;
 
 class BodyPartScanCancelledError extends Error {
   constructor(jobId) {
@@ -90,9 +92,9 @@ function normalizeBodyPartNames(bodyPartNames) {
   return [...namesByKey.values()];
 }
 
-function buildDedupKey({ bodyPartNames, leaderboardScope, rankMin, rankMax, name }) {
+function buildDedupKey({ bodyPartNames, leaderboardScope, rankMin, rankMax, name, source }) {
   const sortedBodyPartNames = [...new Set(bodyPartNames.map((value) => String(value).toLowerCase()))].sort();
-  return `${getLeaderboardScopeKey(leaderboardScope)}|${sortedBodyPartNames.join(",")}|${rankMin}|${rankMax}|${String(name || "").trim().toLowerCase()}`;
+  return `${source}|${getLeaderboardScopeKey(leaderboardScope)}|${sortedBodyPartNames.join(",")}|${rankMin}|${rankMax}|${String(name || "").trim().toLowerCase()}`;
 }
 
 function toPublicJob(job) {
@@ -102,6 +104,7 @@ function toPublicJob(job) {
     bodyPartNames: job.bodyPartNames,
     eraMilestone: job.eraMilestone,
     leaderboardScope: job.leaderboardScope,
+    source: job.source,
     rankMin: job.rankMin,
     rankMax: job.rankMax,
     name: job.name,
@@ -148,7 +151,10 @@ function runJob(job) {
     job.updatedAt = Date.now();
   };
 
-  const scanPromise = scanLeaderboardForBodyParts(job.bodyPartNames, job.leaderboardScope, {
+  const scanner = job.source === "historical-snapshot"
+    ? scanHistoricalSnapshotForBodyParts
+    : scanLeaderboardForBodyParts;
+  const scanPromise = scanner(job.bodyPartNames, job.leaderboardScope, {
     rankMin: job.rankMin,
     rankMax: job.rankMax,
     name: job.name,
@@ -202,14 +208,16 @@ export function startBodyPartScanJob({
   eraMilestone,
   rankMin = 1,
   rankMax = LEADERBOARD_MAX_RANK,
-  name = ""
+  name = "",
+  historical = false
 }) {
   const normalizedBodyPartNames = normalizeBodyPartNames(bodyPartNames);
   if (normalizedBodyPartNames.length === 0) {
     throw new Error("At least one body-part name is required.");
   }
   const scope = normalizeLeaderboardScope(leaderboardScope ?? eraMilestone);
-  const dedupKey = buildDedupKey({ bodyPartNames: normalizedBodyPartNames, leaderboardScope: scope, rankMin, rankMax, name });
+  const source = historical ? "historical-snapshot" : "upstream";
+  const dedupKey = buildDedupKey({ bodyPartNames: normalizedBodyPartNames, leaderboardScope: scope, rankMin, rankMax, name, source });
 
   const existingJobId = dedupIndex.get(dedupKey);
   if (existingJobId) {
@@ -228,6 +236,7 @@ export function startBodyPartScanJob({
     bodyPartNames: normalizedBodyPartNames,
     eraMilestone: scope.milestone,
     leaderboardScope: scope,
+    source,
     rankMin,
     rankMax,
     name,
@@ -310,4 +319,8 @@ jobSweepTimer.unref?.();
 // Test-only seam (see file header). Not part of the public job API.
 export function __setBodyPartScannerForTesting(scanFn) {
   scanLeaderboardForBodyParts = scanFn || defaultScanLeaderboardForBodyParts;
+}
+
+export function __setHistoricalBodyPartScannerForTesting(scanFn) {
+  scanHistoricalSnapshotForBodyParts = scanFn || defaultScanHistoricalSnapshotForBodyParts;
 }

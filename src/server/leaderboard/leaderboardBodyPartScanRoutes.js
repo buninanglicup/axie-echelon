@@ -22,6 +22,13 @@ router.post("/api/leaderboard/body-part-scan", (request, response) => {
   }
 
   const leaderboardScope = resolveLeaderboardScope(request);
+  const historical = request.query.historical === "1";
+  if (historical && leaderboardScope.offSeasonMode) {
+    return response.status(400).json({
+      error: "Historical scans require a numeric era milestone.",
+      code: "HISTORICAL_SNAPSHOT_SCOPE_REQUIRED"
+    });
+  }
   const requestedRankMin = Math.max(1, Number(request.query.rankMin) || 1);
   const rankMin = Math.min(requestedRankMin, LEADERBOARD_MAX_RANK);
   const requestedRankMax = Math.max(rankMin, Number(request.query.rankMax) || LEADERBOARD_MAX_RANK);
@@ -34,7 +41,7 @@ router.post("/api/leaderboard/body-part-scan", (request, response) => {
     );
   }
 
-  const job = startBodyPartScanJob({ bodyPartNames, leaderboardScope, rankMin, rankMax, name });
+  const job = startBodyPartScanJob({ bodyPartNames, leaderboardScope, rankMin, rankMax, name, historical });
   response.status(202).json(job);
 });
 

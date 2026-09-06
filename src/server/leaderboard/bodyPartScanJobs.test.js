@@ -15,7 +15,8 @@ const {
   cancelBodyPartScanJob,
   bodyPartScanJobStore,
   JOB_STATUS,
-  __setBodyPartScannerForTesting
+  __setBodyPartScannerForTesting,
+  __setHistoricalBodyPartScannerForTesting
 } = await import("./bodyPartScanJobs.js");
 
 // This suite deliberately mocks scanLeaderboardForBodyParts itself rather
@@ -30,6 +31,7 @@ const scanLeaderboardForBodyParts = mock.fn();
 
 afterEach(() => {
   __setBodyPartScannerForTesting(scanLeaderboardForBodyParts);
+  __setHistoricalBodyPartScannerForTesting();
   scanLeaderboardForBodyParts.mock.resetCalls();
   bodyPartScanJobStore.clear();
 });
@@ -367,4 +369,30 @@ test("does not deduplicate identical body-part scans across Final and offseason 
     waitForStatus(finalJob.jobId, [JOB_STATUS.COMPLETE, JOB_STATUS.FAILED]),
     waitForStatus(offseasonJob.jobId, [JOB_STATUS.COMPLETE, JOB_STATUS.FAILED])
   ]);
+});
+
+test("does not deduplicate an accepted-snapshot scan with a live scan for the same era", async () => {
+  const seenSources = [];
+  __setBodyPartScannerForTesting(async (bodyPartNames, leaderboardScope, { onProgress }) => {
+    seenSources.push("upstream");
+    onProgress([], 1, 1);
+    return [];
+  });
+  __setHistoricalBodyPartScannerForTesting(async (bodyPartNames, leaderboardScope, { onProgress }) => {
+    seenSources.push("historical-snapshot");
+    onProgress([], 1, 1, 0);
+    return [];
+  });
+  const finalScope = { seasonId: 19, offSeasonMode: false, milestone: 4, eraName: "Final" };
+  const historical = startBodyPartScanJob({ bodyPartNames: ["Hazy"], leaderboardScope: finalScope, historical: true, rankMin: 1, rankMax: 1 });
+  const live = startBodyPartScanJob({ bodyPartNames: ["Hazy"], leaderboardScope: finalScope, rankMin: 1, rankMax: 1 });
+
+  assert.notEqual(historical.jobId, live.jobId);
+  assert.equal(historical.source, "historical-snapshot");
+  assert.equal(live.source, "upstream");
+  await Promise.all([
+    waitForStatus(historical.jobId, [JOB_STATUS.COMPLETE, JOB_STATUS.FAILED]),
+    waitForStatus(live.jobId, [JOB_STATUS.COMPLETE, JOB_STATUS.FAILED])
+  ]);
+  assert.deepEqual(seenSources.sort(), ["historical-snapshot", "upstream"]);
 });

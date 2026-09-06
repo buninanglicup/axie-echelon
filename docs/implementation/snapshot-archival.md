@@ -20,9 +20,9 @@ classifies coverage conservatively. A manually selected historical UI reads
 only an explicitly accepted snapshot for its frozen leaderboard rows and team
 evidence. It never falls back to upstream candidates or live enrichment:
 unavailable or unverified archival evidence is shown as unavailable instead.
-Live mode is disabled while viewing an archive. Verified archival pagination,
-snapshot-backed rune/body-part scanning, and scheduled end-of-era capture
-remain pending.
+Live mode is disabled while viewing an archive. Verified archival pagination
+remains pending; compact scans and end-of-era capture are deliberately
+best-effort rather than claims of exhaustive era history.
 
 ```text
 data/snapshots/
@@ -52,10 +52,24 @@ call the upstream candidate client. If an accepted, era-bounded snapshot is
 absent, it returns `HISTORICAL_SNAPSHOT_UNAVAILABLE`; the UI renders a
 snapshot-unavailable state rather than a later seasonal leaderboard.
 
-Historical team rows use the same accepted capture. Historical rune/body-part
-scan controls are intentionally unavailable until a local snapshot scanner is
-implemented, so selecting a historical filter cannot accidentally call a live
-scan job.
+Historical team rows and filters use the same accepted capture. A manual
+historical rune/body-part request uses the normal asynchronous job lifecycle
+with `historical=1`, but its scanner reads only local frozen candidates and
+normalized captured teams; it never calls the candidate, enrichment, or
+battle-log clients. Its deduplication source is distinct from an upstream scan
+even when both requests have the same numeric era scope.
+
+Historical team previews show only normalized provenance: the selected battle
+timestamp, the time that player's evidence was captured, and the capture's
+coverage classification. `partial` and `unknown` explicitly say that the
+archive is not exhaustive era history. Raw battle payloads, checksums, request
+headers, and credentials are never sent to the browser.
+
+Historical filter semantics remain unchanged: multiple runes are OR, multiple
+body parts are OR, and the frontend intersects rune and body-part result sets
+with AND. A player without accepted archived team evidence is an unknown
+non-match, not proof that the player did not use a rune or body part. Results
+therefore mean “matches in captured historical teams,” not complete era usage.
 
 ## Compact future-capture snapshots
 

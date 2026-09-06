@@ -6,9 +6,10 @@
 // enrichment, or battle-log priority; it only tracks job state.
 //
 // Design notes (2026-09-04):
-// - Dedup key: milestone|sorted(runeIds)|rankMin|rankMax|name. Two requests
-//   for the same scan share one job instead of re-scanning the same range
-//   twice. Only queued/running jobs are indexed for dedup -- once a job
+// - Dedup key: source|scope|sorted(runeIds)|rankMin|rankMax|name. Two requests
+//   for the same source and scan share one job instead of re-scanning the same
+//   range. Local historical scans never deduplicate with live upstream work.
+//   Only queued/running jobs are indexed for dedup -- once a job
 //   finishes (any terminal status), a new request for the same shape
 //   starts a fresh job rather than replaying a stale result.
 // - Status is the only completeness signal callers should rely on --
@@ -34,6 +35,7 @@
 
 import { randomUUID } from "node:crypto";
 import { scanLeaderboardForRune as defaultScanLeaderboardForRune } from "./runeScanner.js";
+import { scanHistoricalSnapshotForRunes as defaultScanHistoricalSnapshotForRunes } from "../snapshots/historicalSnapshotScanner.js";
 import { DEBUG_ON } from "../shared/env.js";
 import { LEADERBOARD_MAX_RANK } from "./leaderboardConstants.js";
 import { getLeaderboardScopeKey, normalizeLeaderboardScope } from "../../leaderboard/leaderboardScope.js";
@@ -56,6 +58,7 @@ const RUNE_SCAN_JOB_MAX_DURATION_MS = Number(process.env.RUNE_SCAN_JOB_MAX_DURAT
 // Swappable only for lifecycle tests. It keeps scope/dedup tests independent
 // of the candidate-pool and battle-log fetch stack.
 let scanLeaderboardForRune = defaultScanLeaderboardForRune;
+let scanHistoricalSnapshotForRunes = defaultScanHistoricalSnapshotForRunes;
 
 class RuneScanCancelledError extends Error {
   constructor(jobId) {
@@ -81,9 +84,9 @@ const dedupIndex = new Map(); // dedupKey -> jobId, queued/running jobs only
 const pendingQueue = []; // jobIds waiting for a concurrency slot
 let runningCount = 0;
 
-function buildDedupKey({ runeIds, leaderboardScope, rankMin, rankMax, name }) {
+function buildDedupKey({ runeIds, leaderboardScope, rankMin, rankMax, name, source }) {
   const sortedRuneIds = [...new Set(runeIds.map(String))].sort();
-  return `${getLeaderboardScopeKey(leaderboardScope)}|${sortedRuneIds.join(",")}|${rankMin}|${rankMax}|${name || ""}`;
+  return `${source}|${getLeaderboardScopeKey(leaderboardScope)}|${sortedRuneIds.join(",")}|${rankMin}|${rankMax}|${name || ""}`;
 }
 
 function toPublicJob(job) {
@@ -93,6 +96,7 @@ function toPublicJob(job) {
     runeIds: job.runeIds,
     eraMilestone: job.eraMilestone,
     leaderboardScope: job.leaderboardScope,
+    source: job.source,
     rankMin: job.rankMin,
     rankMax: job.rankMax,
     name: job.name,
@@ -137,7 +141,10 @@ function runJob(job) {
     job.updatedAt = Date.now();
   };
 
-  const scanPromise = scanLeaderboardForRune(job.runeIds, job.leaderboardScope, {
+  const scanner = job.source === "historical-snapshot"
+    ? scanHistoricalSnapshotForRunes
+    : scanLeaderboardForRune;
+  const scanPromise = scanner(job.runeIds, job.leaderboardScope, {
     rankMin: job.rankMin,
     rankMax: job.rankMax,
     name: job.name,
@@ -191,13 +198,15 @@ export function startRuneScanJob({
   eraMilestone,
   rankMin = 1,
   rankMax = LEADERBOARD_MAX_RANK,
-  name = ""
+  name = "",
+  historical = false
 }) {
   const normalizedRuneIds = [
     ...new Set((Array.isArray(runeIds) ? runeIds : [runeIds]).map(String).map((value) => value.trim()).filter(Boolean))
   ];
   const scope = normalizeLeaderboardScope(leaderboardScope ?? eraMilestone);
-  const dedupKey = buildDedupKey({ runeIds: normalizedRuneIds, leaderboardScope: scope, rankMin, rankMax, name });
+  const source = historical ? "historical-snapshot" : "upstream";
+  const dedupKey = buildDedupKey({ runeIds: normalizedRuneIds, leaderboardScope: scope, rankMin, rankMax, name, source });
 
   const existingJobId = dedupIndex.get(dedupKey);
   if (existingJobId) {
@@ -216,6 +225,7 @@ export function startRuneScanJob({
     runeIds: normalizedRuneIds,
     eraMilestone: scope.milestone,
     leaderboardScope: scope,
+    source,
     rankMin,
     rankMax,
     name,
@@ -296,4 +306,8 @@ jobSweepTimer.unref?.();
 
 export function __setRuneScannerForTesting(scanFn) {
   scanLeaderboardForRune = scanFn || defaultScanLeaderboardForRune;
+}
+
+export function __setHistoricalRuneScannerForTesting(scanFn) {
+  scanHistoricalSnapshotForRunes = scanFn || defaultScanHistoricalSnapshotForRunes;
 }

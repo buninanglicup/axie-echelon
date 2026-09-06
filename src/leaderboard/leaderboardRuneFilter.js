@@ -115,6 +115,7 @@ export function createRuneFilterController({ renderRows, updateActiveFilters, ge
     if (rankMax) params.set("rankMax", String(rankMax));
     const trimmedName = (playerNameQuery || "").trim();
     if (trimmedName) params.set("name", trimmedName);
+    if (leaderboardState.isManualHistoricalScope) params.set("historical", "1");
     return params;
   }
 
@@ -177,7 +178,11 @@ export function createRuneFilterController({ renderRows, updateActiveFilters, ge
       const progress = job.totalCandidates ? `${job.processedCount}/${job.totalCandidates} checked` : `${job.processedCount} checked`;
       return `Scanning top ${totalLabel} ranked players for "${runeNames}"... ${progress}, ${job.matches.length} found so far.`;
     }
-    if (job.status === "complete") return `${job.matches.length} player(s) running any selected rune within top ${totalLabel}.`;
+    if (job.status === "complete") {
+      return job.source === "historical-snapshot"
+        ? `${job.matches.length} player(s) match any selected rune in captured historical teams.`
+        : `${job.matches.length} player(s) running any selected rune within top ${totalLabel}.`;
+    }
     if (job.status === "partial") {
       const progress = job.totalCandidates ? `${job.processedCount}/${job.totalCandidates}` : `${job.processedCount}`;
       return `Scan for "${runeNames}" timed out after checking ${progress} players -- showing ${job.matches.length} match(es) found so far. Coverage is incomplete.`;
@@ -189,6 +194,7 @@ export function createRuneFilterController({ renderRows, updateActiveFilters, ge
   function errorTextForJob(job) {
     if (job.error?.code === "RUNE_SCAN_TIMEOUT") return `The rune scan took too long and was stopped. Try narrowing the rank range.`;
     if (job.error?.code === "LEADERBOARD_UPSTREAM_UNAVAILABLE") return `The leaderboard data source is temporarily unavailable -- try again shortly.`;
+    if (job.error?.code === "HISTORICAL_SNAPSHOT_UNAVAILABLE") return "This historical snapshot is no longer available for local scanning.";
     return `Failed to scan for the selected runes.`;
   }
 
@@ -255,15 +261,6 @@ export function createRuneFilterController({ renderRows, updateActiveFilters, ge
     const leaderboardBody = getLeaderboardBody();
     if (leaderboardBody) leaderboardBody.replaceChildren();
     hideRunePager();
-
-    if (leaderboardState.isManualHistoricalScope) {
-      const statusText = "Historical rune scans are not available for this snapshot yet.";
-      if (runeFilterStatus) runeFilterStatus.textContent = statusText;
-      if (leaderboardBody) {
-        leaderboardBody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:1rem; color:#9bb5c1;">${statusText}</td></tr>`;
-      }
-      return;
-    }
 
     try {
       const params = buildRuneScanParams();

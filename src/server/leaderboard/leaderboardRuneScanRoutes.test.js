@@ -11,7 +11,7 @@ process.env.MAX_CONCURRENT_RUNE_SCAN_JOBS = "2";
 const leaderboardRuneScanRoutes = (await import("./leaderboardRuneScanRoutes.js")).default;
 const { rankCandidateCache } = await import("./leaderboardCandidates.js");
 const { teamCache } = await import("./leaderboardCaches.js");
-const { runeScanJobStore } = await import("./runeScanJobs.js");
+const { runeScanJobStore, __setHistoricalRuneScannerForTesting } = await import("./runeScanJobs.js");
 
 const nativeFetch = globalThis.fetch;
 let server;
@@ -31,6 +31,7 @@ after(async () => {
 });
 
 afterEach(() => {
+  __setHistoricalRuneScannerForTesting();
   globalThis.fetch = nativeFetch;
   rankCandidateCache.clear();
   teamCache.clear();
@@ -175,4 +176,24 @@ test("DELETE cancels a running job at the next batch boundary", async () => {
 test("DELETE 404s for an unknown jobId", async () => {
   const response = await nativeFetch(`${baseUrl}/api/leaderboard/rune-scan/not-a-real-job-id`, { method: "DELETE" });
   assert.equal(response.status, 404);
+});
+
+test("POST uses a local snapshot job when historical=1", async () => {
+  let called = 0;
+  __setHistoricalRuneScannerForTesting(async (runeIds, scope, { onProgress }) => {
+    called += 1;
+    const matches = [{ rank: 1, userID: "snapshot-player", source: "historical-snapshot" }];
+    onProgress(matches, 1, 1);
+    return matches;
+  });
+
+  const response = await nativeFetch(
+    `${baseUrl}/api/leaderboard/rune-scan?runeId=rune-x&milestone=4&historical=1`,
+    { method: "POST" }
+  );
+  assert.equal(response.status, 202);
+  const job = await response.json();
+  assert.equal(job.source, "historical-snapshot");
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(called, 1);
 });

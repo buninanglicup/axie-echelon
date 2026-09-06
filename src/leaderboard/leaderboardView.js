@@ -382,14 +382,10 @@ function reloadSelectedLeaderboardScope() {
   leaderboardState.currentPage = 1;
   fetchLeaderboardPool();
   if (hasActiveScanFilter()) {
-    // Snapshot-backed rune/body-part scans are a separate follow-up. Do not
-    // turn a manual historical selection into an upstream scan meanwhile.
-    if (leaderboardState.isManualHistoricalScope) {
-      clearRuneFilter();
-      clearBodyPartFilter();
-    } else {
-      rescanActiveScanFilterIfNeeded();
-    }
+    // Both live and manually selected historical scopes use the existing job
+    // lifecycle. Historical jobs read accepted local evidence only and have a
+    // distinct source key, so this rescan cannot reuse an upstream result.
+    rescanActiveScanFilterIfNeeded();
   } else {
     renderFilteredView();
   }
@@ -666,8 +662,11 @@ async function enrichVisiblePoolPage(pageItems, requestedPage, requestedScope, r
         player.team = data.team;
         player.teamSource = data.source || "live";
         player.snapshot = data.snapshot || null;
+        player.historicalTeamEvidence = data.evidence || null;
       } else if (requestedHistorical && data?.status === "unavailable") {
         player.historicalTeamUnavailable = true;
+        player.snapshot = data.snapshot || null;
+        player.historicalTeamEvidence = data.evidence || null;
       }
     } catch (error) {
       console.warn(`Team enrichment failed for ${player.userID}`, error);

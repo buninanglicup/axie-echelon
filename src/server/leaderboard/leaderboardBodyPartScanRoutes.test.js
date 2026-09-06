@@ -6,6 +6,7 @@ const leaderboardBodyPartScanRoutes = (await import("./leaderboardBodyPartScanRo
 const leaderboardRuneScanRoutes = (await import("./leaderboardRuneScanRoutes.js")).default;
 const {
   __setBodyPartScannerForTesting,
+  __setHistoricalBodyPartScannerForTesting,
   bodyPartScanJobStore
 } = await import("./bodyPartScanJobs.js");
 
@@ -29,6 +30,7 @@ after(async () => {
 
 afterEach(() => {
   __setBodyPartScannerForTesting(async () => []);
+  __setHistoricalBodyPartScannerForTesting();
   bodyPartScanJobStore.clear();
 });
 
@@ -136,4 +138,20 @@ test("the existing rune scan route remains mounted and responds normally", async
   const response = await nativeFetch(`${baseUrl}/api/leaderboard/rune-scan`, { method: "POST" });
   assert.equal(response.status, 400);
   assert.equal((await response.json()).code, "RUNE_ID_REQUIRED");
+});
+
+test("POST uses a local snapshot job when historical=1", async () => {
+  __setHistoricalBodyPartScannerForTesting(async (bodyPartNames, scope, { onProgress }) => {
+    const matches = [{ rank: 1, userID: "snapshot-player", source: "historical-snapshot" }];
+    onProgress(matches, 1, 1, 0);
+    return matches;
+  });
+
+  const response = await nativeFetch(
+    `${baseUrl}/api/leaderboard/body-part-scan?bodyPartName=Hazy&milestone=4&historical=1`,
+    { method: "POST" }
+  );
+  assert.equal(response.status, 202);
+  const job = await response.json();
+  assert.equal(job.source, "historical-snapshot");
 });

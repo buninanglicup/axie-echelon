@@ -28,7 +28,8 @@ available for returning to the automatic leaderboard.*
   season eras. During offseason, the current source is distinct from Final
   rather than being treated as a fake fifth era.
 - Scan the top-ranked pool for one or more runes or body parts, with progress,
-  partial results, cancellation, and terminal job states.
+  partial results, cancellation, and terminal job states. Historical tabs scan
+  accepted local captured-team evidence only; they never use live enrichment.
 - Combine rune and body-part scans correctly: selections within a filter use
   **OR** semantics, while rune and body-part filters intersect with **AND**
   semantics.
@@ -85,6 +86,8 @@ This prevents Final-era cache entries, in-flight requests, and scan-job
 deduplication from bleeding into offseason data. A manually selected historical
 era reads its frozen candidate rows and captured teams from the same accepted
 local snapshot; it never substitutes an upstream leaderboard or live team.
+Historical rune/body-part filters use that same local evidence, so a missing
+captured team is an unknown non-match rather than a live fallback.
 
 ## Technology
 

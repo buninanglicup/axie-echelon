@@ -94,6 +94,7 @@ export function createBodyPartFilterController({ renderRows, updateActiveFilters
     if (leaderboardState.rankMax) params.set("rankMax", String(leaderboardState.rankMax));
     const name = (leaderboardState.playerNameQuery || "").trim();
     if (name) params.set("name", name);
+    if (leaderboardState.isManualHistoricalScope) params.set("historical", "1");
     return params;
   }
 
@@ -146,7 +147,11 @@ export function createBodyPartFilterController({ renderRows, updateActiveFilters
     if (job.status === "queued") return `Queued to scan ${total} ranked players for ${names}.`;
     const unknown = job.unknownCount ? `, ${job.unknownCount} unknown fighter(s) skipped` : "";
     if (job.status === "running") return `Scanning ${total} ranked players for ${names}: ${job.processedCount}/${job.totalCandidates ?? "?"} checked, ${job.matches.length} found${unknown}.`;
-    if (job.status === "complete") return `${job.matches.length} player(s) match any selected body part${unknown}.`;
+    if (job.status === "complete") {
+      return job.source === "historical-snapshot"
+        ? `${job.matches.length} player(s) match any selected body part in captured historical teams${unknown}.`
+        : `${job.matches.length} player(s) match any selected body part${unknown}.`;
+    }
     if (job.status === "partial") return `Coverage is incomplete: ${job.processedCount}/${job.totalCandidates ?? "?"} checked; showing ${job.matches.length} match(es)${unknown}.`;
     if (job.status === "cancelled") return "Body-part scan cancelled.";
     return "Body-part scan failed.";
@@ -178,7 +183,11 @@ export function createBodyPartFilterController({ renderRows, updateActiveFilters
       return;
     }
     activeJobId = null;
-    if (job.status === "failed" && lastScanMatches.length === 0) renderMessage("Failed to scan for the selected body parts.");
+    if (job.status === "failed" && lastScanMatches.length === 0) {
+      renderMessage(job.error?.code === "HISTORICAL_SNAPSHOT_UNAVAILABLE"
+        ? "This historical snapshot is no longer available for local scanning."
+        : "Failed to scan for the selected body parts.");
+    }
   }
 
   async function pollJob(jobId, generation) {
@@ -210,12 +219,6 @@ export function createBodyPartFilterController({ renderRows, updateActiveFilters
     }
     getLeaderboardBody()?.replaceChildren();
     hidePager();
-    if (leaderboardState.isManualHistoricalScope) {
-      const statusText = "Historical body-part scans are not available for this snapshot yet.";
-      if (bodyPartFilterStatus) bodyPartFilterStatus.textContent = statusText;
-      renderMessage(statusText);
-      return;
-    }
     try {
       const response = await fetch(`/api/leaderboard/body-part-scan?${buildScanParams()}`, { method: "POST" });
       if (!isCurrentScanUpdate({ generation, currentGeneration: scanGeneration, filterActive: leaderboardState.bodyPartFilterActive })) return;

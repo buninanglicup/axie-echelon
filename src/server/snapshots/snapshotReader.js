@@ -21,6 +21,27 @@ function snapshotMetadata(snapshot) {
   };
 }
 
+function getSelectedBattleTimestamp(normalizedBattleLog) {
+  if (normalizedBattleLog?.selectedBattleTimestamp) return normalizedBattleLog.selectedBattleTimestamp;
+
+  const battles = Array.isArray(normalizedBattleLog?.rankedBattles)
+    ? [...normalizedBattleLog.rankedBattles]
+    : [];
+  battles.sort((left, right) => Date.parse(right?.timestamp || 0) - Date.parse(left?.timestamp || 0));
+  return battles[0]?.timestamp || null;
+}
+
+// Keep evidence separate from the team itself. This is application-facing
+// provenance only; raw battle payloads remain in the local snapshot artifact.
+function historicalTeamEvidence(normalizedBattleLog, hasTeam) {
+  return {
+    teamEvidence: normalizedBattleLog?.teamEvidence || (hasTeam ? "legacy" : "unavailable"),
+    teamEvidenceReason: normalizedBattleLog?.teamEvidenceReason || null,
+    selectedBattleTimestamp: getSelectedBattleTimestamp(normalizedBattleLog),
+    capturedAt: normalizedBattleLog?.capturedAt || null
+  };
+}
+
 function mapSnapshotFighter(fighter) {
   return {
     axieID: fighter?.axieID,
@@ -149,17 +170,13 @@ export async function getHistoricalSnapshotEnrichment({
 
   const normalizedBattleLog = await repository.readNormalizedBattleLog(snapshot, userID);
   const team = extractHistoricalTeam(userID, normalizedBattleLog);
+  const evidence = historicalTeamEvidence(normalizedBattleLog, Boolean(team));
   if (!team) {
     return {
       status: "unavailable",
       source: "historical-snapshot",
-      snapshot: {
-        captureId: snapshot.captureId,
-        revision: snapshot.revision,
-        scopeKey: snapshot.scopeKey,
-        capturedAt: snapshot.completedAt,
-        eraCoverage: snapshot.battleLogSummary.eraCoverage
-      },
+      snapshot: snapshotMetadata(snapshot),
+      evidence,
       error: "No archived ranked team is available for this player."
     };
   }
@@ -169,12 +186,7 @@ export async function getHistoricalSnapshotEnrichment({
     source: "historical-snapshot",
     team,
     fetchedAt: normalizedBattleLog.capturedAt,
-    snapshot: {
-      captureId: snapshot.captureId,
-      revision: snapshot.revision,
-      scopeKey: snapshot.scopeKey,
-      capturedAt: snapshot.completedAt,
-      eraCoverage: snapshot.battleLogSummary.eraCoverage
-    }
+    snapshot: snapshotMetadata(snapshot),
+    evidence
   };
 }

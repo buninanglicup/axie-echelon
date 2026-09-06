@@ -52,9 +52,12 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
   - `lastRankedBattleTime` is read from the current live battle-log fetch and is never reused from an older timestamp when that fetch fails;
   - failed live fetches return `battleTimeFetchFailed: true` and may retain the last-known team composition.
 - Compact leaderboard mode for substantially denser rows.
-- Rune catalog and asynchronous rune scanning across the configured top-1000
-  rank range, with polling, partial results, cancellation, deduplication,
-  Retry-After-aware battle-log retries, and client-side result pagination.
+- Rune catalog and asynchronous rune/body-part scanning across the configured
+  top-1000 rank range, with polling, partial results, cancellation,
+  deduplication, Retry-After-aware battle-log retries, and client-side result
+  pagination. A manually selected historical era uses the same job states but
+  scans only accepted local captured-team evidence; its source cannot dedupe
+  with an upstream scan for the same era.
 - Axie ID lookup and Ronin-address lookup with client/server pagination.
 - Collectible classification for Origin, MEO, Agamogenesis, Nightmare, Mystic, Shiny, Summer, Japan, and Xmas.
 - Ronin address lookup prefers marketplace GraphQL ownership results and falls back to the Origins user-fighters API when GraphQL returns no Axies.
@@ -167,10 +170,13 @@ An Axie is considered collectible when it has at least one verified collectible 
 - Rune-scan output is paginated client-side and scans the configured top-1000 candidate pool. A `complete` job guarantees full requested coverage; a `partial` job explicitly does not. Partial jobs are not resumable yet.
 - Historical archival currently reads one recent 20-log battle-log page per
   player. It is best-effort recovery evidence, not complete era history;
-  endpoint pagination and automatic end-of-era scheduling are still pending.
-- Historical rune/body-part scans are deliberately unavailable until they can
-  read the same accepted snapshot locally; they must not invoke the live
-  upstream scan jobs from a historical tab.
+  endpoint pagination remains pending. The end-of-era scheduler is opt-in and
+  disabled by default. Historical previews show normalized selected-battle and
+  capture timestamps plus the capture coverage classification; they do not
+  expose raw battle data.
+- Historical rune/body-part scans match only accepted captured teams. Missing
+  evidence is an unknown non-match, never a live-enrichment fallback or proof
+  of complete historical usage.
 - Frontend and backend each define the rank scan ceiling; they must be kept synchronized manually.
 - Several related in-memory caches coexist during migration: legacy team cache, team-composition cache, enrichment cache, profile cache, page cache, and candidate cache.
 - Compact-mode preference is not persisted across a full page reload.
@@ -265,19 +271,16 @@ reports only the documented low-ID starter/legacy unknowns.
 
 1. Add verified battle-log pagination before claiming complete historical era
    coverage. The current scheduler is intentionally compact and best-effort.
-2. Add local snapshot-backed rune and body-part scans for historical tabs.
-3. Improve historical provenance text with capture time, selected-battle time,
-   and the coverage explanation.
-4. Add lightweight browser smoke coverage for historical UI flows.
-5. Decide retention and backup policy for ignored snapshot files.
-6. Design resumability for terminal partial rune-scan jobs if full coverage
+2. Add lightweight browser smoke coverage for historical UI flows.
+3. Decide retention and backup policy for ignored snapshot files.
+4. Design resumability for terminal partial rune-scan jobs if full coverage
    after a timeout is required.
-7. Review ignored real captures locally when new body-part variants or
+5. Review ignored real captures locally when new body-part variants or
    unsupported starter records appear; never commit raw captures.
-8. Reproduce and diagnose the live-mode page reload if it occurs again.
-9. Complete browser smoke coverage for the Morph Viewer and address lookup.
-10. Decide the intended UI behavior when a live battle-time fetch fails.
-11. Add browser/API tests and consider code-splitting PIXI/Spine.
+6. Reproduce and diagnose the live-mode page reload if it occurs again.
+7. Complete browser smoke coverage for the Morph Viewer and address lookup.
+8. Decide the intended UI behavior when a live battle-time fetch fails.
+9. Add browser/API tests and consider code-splitting PIXI/Spine.
 
 Track these items in this section of `PROJECT_HANDOFF.md`; implementation
 details and historical planning notes remain in `docs/planning/` and

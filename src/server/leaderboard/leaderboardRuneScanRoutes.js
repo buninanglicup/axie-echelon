@@ -25,6 +25,13 @@ router.post("/api/leaderboard/rune-scan", (request, response) => {
   }
 
   const leaderboardScope = resolveLeaderboardScope(request);
+  const historical = request.query.historical === "1";
+  if (historical && leaderboardScope.offSeasonMode) {
+    return response.status(400).json({
+      error: "Historical scans require a numeric era milestone.",
+      code: "HISTORICAL_SNAPSHOT_SCOPE_REQUIRED"
+    });
+  }
   const rankMin = Math.max(1, Number(request.query.rankMin) || 1);
   const requestedRankMax = Math.max(rankMin, Number(request.query.rankMax) || LEADERBOARD_MAX_RANK);
   const rankMax = Math.min(requestedRankMax, LEADERBOARD_MAX_RANK);
@@ -40,7 +47,7 @@ router.post("/api/leaderboard/rune-scan", (request, response) => {
   // the scan itself runs in the background via runeScanJobs.js. 202 signals
   // "accepted for async processing," matching that -- the response body is
   // the job snapshot the client will keep polling with GET.
-  const job = startRuneScanJob({ runeIds, leaderboardScope, rankMin, rankMax, name });
+  const job = startRuneScanJob({ runeIds, leaderboardScope, rankMin, rankMax, name, historical });
   response.status(202).json(job);
 });
 

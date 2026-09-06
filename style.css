@@ -2004,6 +2004,14 @@ input {
   margin-top: 5px;
 }
 
+.historical-team-provenance-summary {
+  color: #c5e9ff;
+}
+
+.historical-team-unavailable-detail {
+  margin-top: 3px;
+}
+
 .historical-snapshot-unavailable {
   padding: 1.25rem;
   text-align: center;

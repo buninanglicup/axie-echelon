@@ -83,6 +83,9 @@ test("reads compact selected-team evidence from an accepted historical snapshot"
   assert.equal(result.status, "ready");
   assert.equal(result.team.fighters[0].axieID, 27);
   assert.equal(result.team.fighters[0].genes_metamorph, "compact-genes");
+  assert.equal(result.evidence.teamEvidence, "observed");
+  assert.equal(result.evidence.selectedBattleTimestamp, "2026-09-01T10:00:00.000Z");
+  assert.ok(result.evidence.capturedAt);
 });
 
 test("reads frozen candidate rows from an accepted snapshot without a live candidate source", async () => {
@@ -126,6 +129,38 @@ test("returns unavailable when an era has no accepted snapshot", async () => {
 
   assert.equal(result.status, "unavailable");
   assert.match(result.error, /No accepted historical team snapshot/i);
+});
+
+test("returns normalized unavailable evidence instead of a live-team fallback", async () => {
+  const repository = new SnapshotRepository(await mkdtemp(path.join(os.tmpdir(), "axie-snapshot-reader-unavailable-")));
+  const manifest = await repository.createCapture({
+    seasonId: 19,
+    milestone: 4,
+    eraStartedAt: 1787110200,
+    eraEndedAt: 1788319800
+  });
+  await repository.writeBattleLog(manifest, "player-1", {
+    rawResponse: null,
+    normalized: {
+      teamEvidence: "unavailable",
+      teamEvidenceReason: "NO_VALID_IN_ERA_RANKED_BATTLE_FOUND_FOR_PLAYER",
+      selectedBattleTimestamp: null,
+      selectedTeam: null
+    }
+  });
+  const completed = await repository.publishCapture(manifest);
+  await repository.acceptCapture(completed);
+
+  const result = await getHistoricalSnapshotEnrichment({
+    repository,
+    leaderboardScope: { seasonId: 19, offSeasonMode: false, milestone: 4, eraName: "Final" },
+    userID: "player-1"
+  });
+
+  assert.equal(result.status, "unavailable");
+  assert.equal(result.evidence.teamEvidence, "unavailable");
+  assert.equal(result.evidence.teamEvidenceReason, "NO_VALID_IN_ERA_RANKED_BATTLE_FOUND_FOR_PLAYER");
+  assert.equal(result.snapshot.eraCoverage, "unknown");
 });
 
 test("does not present an unbounded accepted capture as historical team data", async () => {
