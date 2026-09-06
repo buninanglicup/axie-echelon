@@ -29,4 +29,17 @@ export const USE_TEST_ACCOUNT = (process.env.USE_TEST_ACCOUNT || "false").toLowe
 export const TEST_ACCOUNT_ID = "1ec9eb6f-4702-677d-a60c-5b43771e8057";
 export const TEST_OWNER_ADDRESS = "0xf7fa15bc10b1e55d1a3632ae80aae36c520dce01";
 
+function positiveIntegerEnv(name, fallback) {
+  const parsed = Number(process.env[name]);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+// This is intentionally disabled unless the local operator opts in. Snapshot
+// captures create large, private artifacts and must never begin just because a
+// developer starts the normal application server.
+export const SNAPSHOT_CAPTURE_SCHEDULER_ENABLED = (process.env.SNAPSHOT_CAPTURE_SCHEDULER_ENABLED || "false").toLowerCase() === "true";
+export const SNAPSHOT_CAPTURE_GRACE_MINUTES = positiveIntegerEnv("SNAPSHOT_CAPTURE_GRACE_MINUTES", 15);
+export const SNAPSHOT_CAPTURE_CHECK_INTERVAL_MINUTES = positiveIntegerEnv("SNAPSHOT_CAPTURE_CHECK_INTERVAL_MINUTES", 15);
+export const SNAPSHOT_CAPTURE_CATCH_UP = (process.env.SNAPSHOT_CAPTURE_CATCH_UP || "false").toLowerCase() === "true";
+
 export const ACTIVE_TRACKER_PROFILE = activeProfile.id;

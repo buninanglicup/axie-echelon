@@ -26,12 +26,20 @@ import "./src/server/shared/env.js";
 import express from "express";
 import cors from "cors";
 import path from "node:path";
-import { allowedOrigin, port } from "./src/server/shared/env.js";
+import {
+  allowedOrigin,
+  port,
+  SNAPSHOT_CAPTURE_SCHEDULER_ENABLED,
+  SNAPSHOT_CAPTURE_GRACE_MINUTES,
+  SNAPSHOT_CAPTURE_CHECK_INTERVAL_MINUTES,
+  SNAPSHOT_CAPTURE_CATCH_UP
+} from "./src/server/shared/env.js";
 import axieRoutes from "./src/server/axieRoutes.js";
 import seasonRoutes from "./src/server/seasonRoutes.js";
 import leaderboardRoutes from "./src/server/leaderboard/leaderboardRoutes.js";
 import leaderboardRuneScanRoutes from "./src/server/leaderboard/leaderboardRuneScanRoutes.js";
 import leaderboardBodyPartScanRoutes from "./src/server/leaderboard/leaderboardBodyPartScanRoutes.js";
+import { createEndOfEraSnapshotScheduler } from "./src/server/snapshots/endOfEraSnapshotScheduler.js";
 
 console.log(`Starting server on port ${port} (${process.env.PORT ? 'PORT env override' : 'default port 8787'})`);
 
@@ -60,12 +68,27 @@ app.use(leaderboardBodyPartScanRoutes);
 // We intentionally do not fetch the catalog at startup.
 
 function start() {
+  const snapshotScheduler = SNAPSHOT_CAPTURE_SCHEDULER_ENABLED
+    ? createEndOfEraSnapshotScheduler({
+      gracePeriodMs: SNAPSHOT_CAPTURE_GRACE_MINUTES * 60 * 1000,
+      checkIntervalMs: SNAPSHOT_CAPTURE_CHECK_INTERVAL_MINUTES * 60 * 1000,
+      catchUp: SNAPSHOT_CAPTURE_CATCH_UP
+    })
+    : null;
   const server = app.listen(port, () => {
     console.log(`API server running at http://127.0.0.1:${port}`);
+    if (snapshotScheduler) {
+      console.log(
+        `[snapshot scheduler] Enabled: checks every ${SNAPSHOT_CAPTURE_CHECK_INTERVAL_MINUTES} minute(s) ` +
+        `after a ${SNAPSHOT_CAPTURE_GRACE_MINUTES}-minute grace period${SNAPSHOT_CAPTURE_CATCH_UP ? " (catch-up enabled)" : ""}.`
+      );
+      snapshotScheduler.start();
+    }
   });
 
   function handleShutdown(signal) {
     console.log(`Received ${signal}. Shutting down server...`);
+    snapshotScheduler?.stop();
     server.close(() => {
       console.log("Server closed.");
       process.exit(0);

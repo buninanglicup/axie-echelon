@@ -168,6 +168,10 @@ vite.config.js        Frontend dev server and API proxy
 
 - Add comprehensive browser-level smoke coverage for the leaderboard and
   lookup flows.
+- Enable the documented local end-of-era scheduler only when you are ready to
+  capture private snapshot artifacts; it is off by default and still requires
+  manual review/acceptance. See
+  [snapshot archival](docs/implementation/snapshot-archival.md).
 - Investigate the intermittent live-mode page reload behavior.
 - Consider resumable scan jobs for requests that reach the watchdog timeout.
 - Split the PIXI/Spine bundle further to reduce initial load cost.

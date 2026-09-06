@@ -195,6 +195,43 @@ export class SnapshotRepository {
     await writeJsonAtomically(indexPath, index);
   }
 
+  // A capture manifest lock serializes writes within one revision. The
+  // scheduler also needs a broader lock while it decides whether a scope
+  // should create or resume a revision, because several tracker instances
+  // may share the same local snapshot directory.
+  async withScopeLock(input, operation) {
+    const seasonId = Number(input?.seasonId);
+    if (!Number.isInteger(seasonId) || seasonId < 1) throw new Error("A snapshot scope lock requires a positive seasonId.");
+    const milestone = assertMilestone(input?.milestone);
+    const scopeKey = input?.scopeKey || `season:${seasonId}:milestone:${milestone}`;
+    assertScopeKey(scopeKey, seasonId, milestone);
+
+    const scope = scopeDirectory(this.rootDir, seasonId, milestone);
+    await mkdir(scope, { recursive: true });
+    const lockPath = path.join(scope, ".capture-scheduler.lock");
+    let handle;
+    try {
+      handle = await open(lockPath, "wx");
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error;
+      const lockAgeMs = Date.now() - (await stat(lockPath)).mtimeMs;
+      if (lockAgeMs <= this.lockMaxAgeMs) {
+        const locked = new Error(`Snapshot scope ${scopeKey} is already locked.`);
+        locked.code = "SNAPSHOT_SCOPE_LOCKED";
+        throw locked;
+      }
+      await rm(lockPath);
+      handle = await open(lockPath, "wx");
+    }
+    try {
+      await handle.writeFile(JSON.stringify({ scopeKey, pid: process.pid, startedAt: new Date().toISOString() }));
+      return await operation();
+    } finally {
+      await handle.close();
+      await rm(lockPath, { force: true });
+    }
+  }
+
   async readIndex(manifest) {
     const indexPath = path.join(this.getScopeDirectory(manifest), "index.json");
     if (!(await exists(indexPath))) return null;

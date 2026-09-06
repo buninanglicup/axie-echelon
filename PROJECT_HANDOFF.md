@@ -45,6 +45,7 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
 - Leaderboard display with rank, player name, MMR, win rate, daily change, recent form, team previews, rune badges, profile links, and last ranked-battle time.
 - Live mode polling with configurable interval and activity windows from 0 seconds through 20 minutes.
 - Season/era resolution from `src/data/season.json`; the backend exposes `/api/season/current`. Internally, the numeric value is called `eraMilestone`; at the Sky Mavis API boundary it is sent as `milestone` and explicit `?milestone=` overrides remain supported. Era calculation anchors Final to `seasonEndedAt`, works backward for intermediate boundaries, and anchors Rare to `seasonStartedAt`. Automatic current-era and offseason views use upstream endpoints; a manually selected historical era reads only its accepted local snapshot and reports “Snapshot unavailable” when none exists. The frontend checks immediately at startup and once every 24 hours afterward.
+- An opt-in local end-of-era snapshot scheduler can freeze and archive the most recently ended era after a grace period. It uses the shared resolver boundaries, resumes incomplete captures, and uses a scope lock for tracker-instance coordination. It is disabled by default, never accepts a capture automatically, and supports deliberate historical catch-up only through an explicit environment setting. See `docs/implementation/snapshot-archival.md`.
 - Live-mode freshness model:
   - profile/address data is cached for a long TTL;
   - team composition is cached separately;
@@ -213,7 +214,8 @@ An Axie is considered collectible when it has at least one verified collectible 
 - `src/eraResolver.js`: validates the configured season, computes the current
   era/milestone, and exposes the shared configured window for archival use.
 - `src/server/snapshots/`: local immutable snapshot repository, candidate
-  freezer, archival battle-log worker, reader, and reclassifier.
+  freezer, archival battle-log worker, reader, reclassifier, and opt-in
+  end-of-era scheduler.
 - `scripts/snapshot-capture.mjs`: local `start`, `status`, `resume`, `accept`,
   and credential-free `reclassify` archival commands.
 - `src/data/season.json`: manually maintained season start, end, era durations, and era names.
@@ -261,16 +263,21 @@ reports only the documented low-ID starter/legacy unknowns.
 
 ## Recommended Next Steps
 
-1. Add verified battle-log pagination and boundary-triggered/catch-up capture
-   scheduling before claiming complete historical era coverage.
-2. Design resumability for terminal partial rune-scan jobs if full coverage
+1. Add verified battle-log pagination before claiming complete historical era
+   coverage. The current scheduler is intentionally compact and best-effort.
+2. Add local snapshot-backed rune and body-part scans for historical tabs.
+3. Improve historical provenance text with capture time, selected-battle time,
+   and the coverage explanation.
+4. Add lightweight browser smoke coverage for historical UI flows.
+5. Decide retention and backup policy for ignored snapshot files.
+6. Design resumability for terminal partial rune-scan jobs if full coverage
    after a timeout is required.
-3. Review ignored real captures locally when new body-part variants or
+7. Review ignored real captures locally when new body-part variants or
    unsupported starter records appear; never commit raw captures.
-4. Reproduce and diagnose the live-mode page reload if it occurs again.
-5. Complete browser smoke coverage for the Morph Viewer and address lookup.
-6. Decide the intended UI behavior when a live battle-time fetch fails.
-7. Add browser/API tests and consider code-splitting PIXI/Spine.
+8. Reproduce and diagnose the live-mode page reload if it occurs again.
+9. Complete browser smoke coverage for the Morph Viewer and address lookup.
+10. Decide the intended UI behavior when a live battle-time fetch fails.
+11. Add browser/API tests and consider code-splitting PIXI/Spine.
 
 Track these items in this section of `PROJECT_HANDOFF.md`; implementation
 details and historical planning notes remain in `docs/planning/` and

@@ -201,3 +201,43 @@ raw or normalized files, and a later recovery capture may supersede it.
 capture in the same configured season and milestone, copies its raw evidence
 into a new revision, and recalculates normalized ranked battles using the
 shared `src/eraResolver.js` boundary source.
+
+## Opt-in end-of-era scheduler
+
+The normal application server never starts a capture by itself. An operator
+can opt in on one local tracker instance by setting non-secret environment
+variables for that process and then starting the server:
+
+```powershell
+$env:SNAPSHOT_CAPTURE_SCHEDULER_ENABLED = "true"
+$env:SNAPSHOT_CAPTURE_GRACE_MINUTES = "15"
+$env:SNAPSHOT_CAPTURE_CHECK_INTERVAL_MINUTES = "15"
+npm run start
+```
+
+The scheduler uses `getConfiguredEraWindow` from `src/eraResolver.js`, so its
+windows use the same authoritative Rare start, calculated intermediate
+boundaries, and exact Final/offseason boundary as the application. It checks
+at intervals rather than requiring a process to be running at one exact clock
+time. Once an era has ended and its grace period has elapsed, it freezes the
+top 1,000 seasonal candidates and captures the compact battle-log evidence.
+
+By default, an instance enabled after downtime considers only the most
+recently ended era. This prevents an unexpected four-era recovery run after a
+season. To deliberately recover every missing ended era, add:
+
+```powershell
+$env:SNAPSHOT_CAPTURE_CATCH_UP = "true"
+```
+
+Each scheduler decision is protected by a scope-level filesystem lock, while
+manifest writes retain their per-capture lock. Multiple local instances sharing
+the same snapshot directory therefore do not create competing revisions for
+the same era. A completed revision is **not** accepted automatically: the
+scheduler reports it as awaiting review, and the operator must run `accept`
+before historical UI reads it. An interrupted run is cancelled/resumable and
+the next eligible scheduler check resumes its latest incomplete revision.
+
+Only enable this on a machine with the ignored snapshot directory and local API
+key already configured. The scheduler does not change `.env`, does not print
+credentials, and does not upload or commit snapshot artifacts.

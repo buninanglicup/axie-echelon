@@ -69,3 +69,19 @@ test("publishes captures and makes all records immutable", async () => {
   await assert.rejects(() => repository.writeBattleLog(completed, "user-1", { rawResponse: {} }), /immutable/);
   await assert.rejects(() => repository.writeCandidatePage(completed, 1, {}, {}), /immutable/);
 });
+
+test("uses a scope lock to prevent competing scheduler decisions", async () => {
+  const repository = await createRepository();
+  const scope = { seasonId: 19, milestone: 4, scopeKey: "season:19:milestone:4" };
+  let release;
+  const held = repository.withScopeLock(scope, () => new Promise((resolve) => { release = resolve; }));
+
+  await new Promise((resolve) => setImmediate(resolve));
+  await assert.rejects(
+    () => repository.withScopeLock(scope, async () => {}),
+    (error) => error.code === "SNAPSHOT_SCOPE_LOCKED"
+  );
+  release();
+  await held;
+  await repository.withScopeLock(scope, async () => {});
+});
