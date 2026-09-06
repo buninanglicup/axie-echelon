@@ -195,6 +195,12 @@ export class SnapshotRepository {
     await writeJsonAtomically(indexPath, index);
   }
 
+  async readIndex(manifest) {
+    const indexPath = path.join(this.getScopeDirectory(manifest), "index.json");
+    if (!(await exists(indexPath))) return null;
+    return JSON.parse(await readFile(indexPath, "utf8"));
+  }
+
   async acceptCapture(manifest) {
     const current = await this.readManifest(manifest);
     if (current.status !== "completed") throw new Error("Only completed captures can be accepted.");

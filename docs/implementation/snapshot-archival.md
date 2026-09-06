@@ -91,6 +91,7 @@ npm run snapshot:capture -- start --season 19 --milestone 4 --dry-run
 npm run snapshot:capture -- start --season 19 --milestone 4
 npm run snapshot:capture -- status --season 19 --milestone 4 --capture <capture-id>
 npm run snapshot:capture -- resume --season 19 --milestone 4 --capture <capture-id>
+npm run snapshot:capture -- accept --season 19 --milestone 4 --capture <capture-id>
 ```
 
 The MVP always captures ranks 1-1000. `--dry-run` checks the ignored,
@@ -104,3 +105,8 @@ capture; `resume` retries only unfinished players. Final output reports the
 capture ID, candidate scope, successful/failed/pending players, and coverage
 totals. Season 18 results must be labelled “best-effort currently available
 battle logs” unless coverage metadata proves otherwise.
+
+`accept` is a local, credential-free operator action. It can mark only a
+completed capture as the explicitly accepted revision in its era scope index.
+This is a review decision: accepting a capture does not alter its immutable
+raw or normalized files, and a later recovery capture may supersede it.

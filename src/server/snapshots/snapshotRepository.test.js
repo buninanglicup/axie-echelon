@@ -64,6 +64,7 @@ test("publishes captures and makes all records immutable", async () => {
   const completed = await repository.publishCapture(manifest);
   assert.equal(completed.status, "completed");
   await repository.acceptCapture(completed);
+  assert.equal((await repository.readIndex(completed)).acceptedCaptureId, completed.captureId);
   await assert.rejects(() => repository.updateManifest(completed, { status: "running" }), /immutable/);
   await assert.rejects(() => repository.writeBattleLog(completed, "user-1", { rawResponse: {} }), /immutable/);
   await assert.rejects(() => repository.writeCandidatePage(completed, 1, {}, {}), /immutable/);

@@ -21,7 +21,8 @@ function usage() {
     "Usage:\n" +
     "  node scripts/snapshot-capture.mjs start --season 19 --milestone 4 [--dry-run]\n" +
     "  node scripts/snapshot-capture.mjs status --season 19 --milestone 4 --capture <id>\n" +
-    "  node scripts/snapshot-capture.mjs resume --season 19 --milestone 4 --capture <id>\n"
+    "  node scripts/snapshot-capture.mjs resume --season 19 --milestone 4 --capture <id>\n" +
+    "  node scripts/snapshot-capture.mjs accept --season 19 --milestone 4 --capture <id>\n"
   );
 }
 
@@ -44,10 +45,10 @@ function parseArgs(argv) {
   const milestone = Number(options.milestone);
   if (!Number.isInteger(season) || season < 1) throw new Error("--season must be a positive integer.");
   if (!Number.isInteger(milestone) || milestone < 1 || milestone > 4) throw new Error("--milestone must be 1, 2, 3, or 4.");
-  if (options.command !== "start" && options.command !== "status" && options.command !== "resume") {
+  if (options.command !== "start" && options.command !== "status" && options.command !== "resume" && options.command !== "accept") {
     throw new Error(`Unknown command: ${options.command || "(missing command)"}`);
   }
-  if ((options.command === "status" || options.command === "resume") && !options.capture) {
+  if ((options.command === "status" || options.command === "resume" || options.command === "accept") && !options.capture) {
     throw new Error(`--capture is required for ${options.command}.`);
   }
   return { ...options, season, milestone };
@@ -65,12 +66,13 @@ function requireCredentials() {
   return requireSnapshotApiKey(process.env.AXIE_ECHELON_API_KEY);
 }
 
-function printStatus(manifest) {
+function printStatus(manifest, index = null) {
   const { candidateScope, progress, battleLogSummary } = manifest;
   console.log(JSON.stringify({
     captureId: manifest.captureId,
     scopeKey: manifest.scopeKey,
     revision: manifest.revision,
+    accepted: index?.acceptedCaptureId === manifest.captureId,
     status: manifest.status,
     candidateScope,
     progress,
@@ -131,7 +133,14 @@ async function dryRun(options) {
 async function run() {
   const options = parseArgs(process.argv.slice(2));
   if (options.command === "status") {
-    printStatus(await readCapture(options));
+    const manifest = await readCapture(options);
+    printStatus(manifest, await repository.readIndex(manifest));
+    return;
+  }
+  if (options.command === "accept") {
+    await preflight();
+    const manifest = await repository.acceptCapture(await readCapture(options));
+    printStatus(manifest, await repository.readIndex(manifest));
     return;
   }
   await preflight();
