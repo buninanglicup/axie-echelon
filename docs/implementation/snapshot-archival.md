@@ -10,6 +10,12 @@ It does not use the volatile candidate cache, fetch battle logs, or change the
 UI. Each successful page updates the manifest, so cancellation or restart can
 resume at the next page without refetching frozen pages.
 
+Candidate freezing and the archival battle-log client/worker are implemented
+as separate phases. The worker remains separate from live enrichment: it
+requests the recent `limit=100` payload, preserves raw data, and classifies
+coverage conservatively. Historical UI integration and scheduled capture remain
+pending.
+
 ```text
 data/snapshots/
   season-19-milestone-4/

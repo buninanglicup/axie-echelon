@@ -229,7 +229,11 @@ export class SnapshotRepository {
     const rawResponse = record?.rawResponse ?? null;
     const checksum = record?.checksum || createHash("sha256").update(JSON.stringify(rawResponse), "utf8").digest("hex");
     await writeJsonAtomically(rawPath, { userID: userId, checksum, capturedAt: record?.capturedAt || new Date().toISOString(), status: record?.status || "fetched", httpStatus: record?.httpStatus ?? null, requestedLimit: record?.requestedLimit ?? 100, rawResponse });
-    await writeJsonAtomically(path.join(directory, `${id}.normalized.json`), { userID: userId, ...(record?.normalized || {}) });
+    await writeJsonAtomically(path.join(directory, `${id}.normalized.json`), {
+      userID: userId,
+      capturedAt: record?.capturedAt || new Date().toISOString(),
+      ...(record?.normalized || {})
+    });
   }
 
   async writeFailure(manifest, userId, failure, attempt = 1) {
@@ -244,6 +248,24 @@ export class SnapshotRepository {
     const directory = path.join(scopeDirectory(this.rootDir, seasonId, assertMilestone(milestone)), "staging");
     if (!(await exists(directory))) return [];
     return (await readdir(directory)).filter((entry) => entry !== ".");
+  }
+
+  async readFrozenCandidates(manifest) {
+    const current = await this.readManifest(manifest);
+    const directory = path.join(await this.getCaptureDirectory(current), "candidate-pages");
+    const candidates = [];
+    for (let page = 1; page <= current.candidateScope.pagesFetched; page += 1) {
+      const filePath = path.join(directory, `${String(page).padStart(4, "0")}.normalized.json`);
+      const pageCandidates = JSON.parse(await readFile(filePath, "utf8"));
+      if (!Array.isArray(pageCandidates)) throw new Error(`Candidate page ${page} is not normalized as an array.`);
+      candidates.push(...pageCandidates);
+    }
+    return candidates.slice(0, current.candidateScope.rankEnd - current.candidateScope.rankStart + 1);
+  }
+
+  async hasBattleLog(manifest, userId) {
+    const current = await this.readManifest(manifest);
+    return exists(path.join(await this.getCaptureDirectory(current), "battle-logs", `${playerFileId(userId)}.raw.json`));
   }
 }
 
