@@ -181,6 +181,70 @@ may be committed. Run the guardrail with:
 npm run check:snapshots
 ```
 
+## Retention and backup policy
+
+Snapshot artifacts are intentionally local-only under the gitignored
+`data/snapshots/` directory. The project does not implement automatic deletion,
+pruning, or overwriting of snapshot revisions. A conservative default policy is:
+
+- accepted snapshots and superseded revisions are immutable once finalized;
+- retention is manual and operator-controlled; no automated pruning is enabled in
+  source or startup configuration;
+- backups preserve the entire `data/snapshots/` tree, including scope
+  directories, manifest files, capture index entries, and revision metadata;
+- restoration must target one original scope tree and must not merge unrelated
+  scope directories or snapshots from different seasons/era milestones;
+- backup verification must confirm directory shape and revision metadata without
+  exposing raw contents, credentials, or request-sensitive values;
+- future destructive-pruning tooling must remain a separate, explicitly
+  disabled feature from the retention policy described here.
+
+This policy deliberately separates retention and backup from any future
+"cleanup" automation. Retention is about durable operator custody; pruning is a
+separate feature that must never be enabled implicitly or by default.
+
+Backups should be validated by checking metadata-only indicators such as scope
+keys, capture IDs, accepted revision markers, and manifest counts, without
+opening or printing raw battle payloads or any local `.env` or credential data.
+The backup process should preserve the on-disk directory structure exactly as it
+exists locally and should never rewrite or merge unrelated snapshot trees.
+
+## Historical UI smoke checklist
+
+There is no maintained browser automation in this repository: the existing
+`verify-browser-leaderboard.js` helper is an ad hoc Playwright script and is not
+wired into `package.json` or the project dependency set. The project therefore
+uses a concise manual smoke checklist rather than claiming automated browser
+coverage.
+
+Run the checklist against a local dev instance after a historical snapshot has
+been accepted:
+
+1. Start the app normally and confirm the automatic current/offseason view is
+   still live/upstream-driven.
+2. Select a historical numeric era from the UI (not current/offseason). Confirm
+   the view transitions to historical mode and does not silently start live
+   upstream candidate or team enrichment.
+3. Confirm an accepted snapshot loads the frozen rank/name/MMR rows and no live
+   fallback is used when the historical snapshot is accepted.
+4. Open a historical player row and confirm the provenance display shows the
+   selected ranked-battle timestamp, the evidence capture time, and the
+   coverage explanation (`partial` or `unknown` where appropriate).
+5. Confirm the historical Rune and Body-Part scan flows use the accepted local
+   snapshot evidence only and keep their async job states, filter semantics, and
+   source separation from live scans.
+6. Confirm there is no live-mode control in historical view; the UI does not
+   provide or silently activate a live leaderboard refresh while the snapshot is
+   selected.
+7. Return to Current and confirm the current/upstream view resumes without stale
+   historical rows or mixed snapshot metadata.
+8. Confirm the unavailable snapshot state renders clearly when no accepted
+   historical evidence exists for the selected era.
+
+This checklist is intentionally minimal and repeatable; it focuses on the core
+contract of historical snapshots while preserving the existing live/current
+leaderboard behavior and the local-only archival boundary.
+
 ## Local operator workflow
 
 Install dependencies, then run the capture command from the repository root:

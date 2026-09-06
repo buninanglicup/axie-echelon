@@ -82,6 +82,22 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
   era uses only an explicitly accepted, era-bounded snapshot for frozen
   leaderboard rows and team previews; it reports unavailable rather than
   substituting the player's current data. Live mode is disabled for that view.
+- Snapshot retention is conservative and operator-driven. Accepted snapshots and
+  superseded revisions remain immutable; the project does not automatically
+  delete, prune, or overwrite snapshot directories. Backup policy requires a
+  full copy of `data/snapshots/` with the same scope tree and index/revision
+  metadata intact. Restoration must target one scope tree and must not merge
+  unrelated directories or seasons. Verification checks metadata only without
+  exposing raw battle payloads or credentials. Destructive-pruning tooling is a
+  separate future concern and remains explicitly out of scope for the current
+  policy.
+- Historical UI smoke coverage is manual-only in this repo. There is no
+  maintained browser automation attached to the project scripts: the existing
+  Playwright helper is ad hoc and not declared in `package.json`. The current
+  smoke pass covers current/offseason behavior, selecting a historical numeric
+  era, accepted-snapshot loading, team provenance, historical Rune/Body-Part
+  scans, the absence of live-mode controls in historical view, return-to-Current,
+  and unavailable snapshot behavior.
 - Body-part filtering uses local gene decoding from existing battle-log fields,
   canonicalizes collectible variants such as `Yen` under base part `Sleepless`,
   and reuses the rune-scan job model. No extra per-fighter API lookup is planned
