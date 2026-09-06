@@ -85,12 +85,14 @@ export async function captureArchivalBattleLogs({
           }
         });
       } catch (error) {
+        if (signal?.aborted) throw cancellationError();
+        const failureAttempt = attemptedPlayers + 1;
         await repository.writeFailure(current, candidate.userID, {
           status: error.status,
           code: error.code || "SNAPSHOT_BATTLE_LOG_FAILED",
           message: error.message,
           retryable: error.retryable
-        });
+        }, failureAttempt);
         failedPlayers += 1;
         attemptedPlayers += 1;
         await repository.updateManifest(current, {
@@ -107,7 +109,11 @@ export async function captureArchivalBattleLogs({
   }
   try {
     await Promise.all(Array.from({ length: Math.min(concurrency, pending.length) }, worker));
-    return repository.readManifest(current);
+    const finished = await repository.readManifest(current);
+    if (finished.progress.failedPlayers > 0 || finished.progress.pendingPlayers > 0) {
+      return repository.updateManifest(current, { status: "partial" });
+    }
+    return repository.publishCapture(current);
   } catch (error) {
     if (error.code === "SNAPSHOT_BATTLE_LOG_CANCELLED" || signal?.aborted) {
       return repository.updateManifest(current, { status: "cancelled", cancelledAt: new Date().toISOString() });

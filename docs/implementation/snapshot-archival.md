@@ -77,3 +77,23 @@ may be committed. Run the guardrail with:
 ```text
 npm run check:snapshots
 ```
+
+## Local operator workflow
+
+Install dependencies, then run the capture command from the repository root:
+
+```text
+npm run snapshot:capture -- start --season 19 --milestone 4 --dry-run
+npm run snapshot:capture -- start --season 19 --milestone 4
+npm run snapshot:capture -- status --season 19 --milestone 4 --capture <capture-id>
+npm run snapshot:capture -- resume --season 19 --milestone 4 --capture <capture-id>
+```
+
+The MVP always captures ranks 1-1000. `--dry-run` checks the ignored,
+writable snapshot boundary and probes the first seasonal leaderboard page
+without creating a capture or storing battle logs. `start` freezes candidates
+and then archives battle logs. `Ctrl+C` records a cancelled, resumable
+capture; `resume` retries only unfinished players. Final output reports the
+capture ID, candidate scope, successful/failed/pending players, and coverage
+totals. Season 18 results must be labelled “best-effort currently available
+battle logs” unless coverage metadata proves otherwise.
