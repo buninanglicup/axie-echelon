@@ -68,11 +68,15 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
 - Five predefined PowerShell launch scripts for local multi-window testing; the profile resolver itself supports additional contiguous profile numbers.
 - Phase 3 candidate-pool implementation: 3a (backend ceiling/cache constants), 3b (full-pool loading), 3c (client-side filtering), 3d (pagination), and 3e rune/body-part narrowing are implemented. Non-live visible rows progressively request team data and reuse the existing morph renderer. Automatic offseason and historical era scopes use separate endpoint/cache identities. Morph completeness still requires manual verification against real ranked-battle payloads.
 - Historical snapshot archival now freezes the top 1,000 seasonal candidates
-  and stores separate raw/normalized battle-log records locally with atomic
-  publication, revision metadata, resumable progress, conservative coverage,
-  and a snapshot tracking guardrail. A manually selected historical era uses
-  only an explicitly accepted, era-bounded snapshot for team previews; it
-  reports unavailable rather than substituting the player's current team.
+  and stores compact per-player historical evidence locally, selecting only the
+  latest observed ranked battle in the era and preserving the raw selected
+  battle separately from the normalized team view. The record is described as
+  “Captured team from the latest observed ranked battle in this era.” and it is
+  not a claim of complete era history or the player's final team. The worker
+  stores provenance metadata, compact evidence state, and immutable unavailable
+  records when no valid in-era battle is observed. A manually selected historical
+  era uses only an explicitly accepted, era-bounded snapshot for team previews;
+  it reports unavailable rather than substituting the player's current team.
 - Body-part filtering uses local gene decoding from existing battle-log fields,
   canonicalizes collectible variants such as `Yen` under base part `Sleepless`,
   and reuses the rune-scan job model. No extra per-fighter API lookup is planned

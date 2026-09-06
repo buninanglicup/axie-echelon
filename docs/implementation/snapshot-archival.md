@@ -41,6 +41,55 @@ first and published by renaming within the same filesystem only after its
 terminal manifest is persisted. `index.json` records capture IDs, revisions,
 statuses, and the explicitly accepted capture.
 
+## Compact future-capture snapshots
+
+Future archival captures intentionally do not store the full recent battle-log page for each player. Instead, for each candidate in ranks 1-1000, the worker keeps the frozen candidate page and selects at most one ranked battle observed for that tracked player within the era window. The saved record is described as:
+
+> “Captured team from the latest observed ranked battle in this era.”
+
+This wording is intentionally limited: it records the latest observed ranked battle in the era for that player, not the player's final team or the complete era history. The capture is evidence-based, compact, and immutable.
+
+The compact record contains two separate persisted values:
+
+- the raw selected battle object (if one is observed), stored as a single immutable raw record;
+- a normalized selected-team record used by the UI/filtering and by historical evidence readers.
+
+If no valid in-era ranked battle can be selected, the system writes an immutable `unavailable` evidence record instead of substituting live data.
+
+### Compact player-evidence metadata
+
+Every player evidence record includes:
+
+- player ID and frozen candidate identity;
+- era scope/capture/revision identity;
+- era start/end used;
+- selection algorithm version and normalizer/schema version;
+- selected battle ID if present;
+- selected battle timestamp;
+- source endpoint identifier only;
+- capture timestamp;
+- requested limit, fetched-log count, ranked-log count;
+- oldest/newest returned timestamps;
+- response checksum;
+- whether the request reached the limit;
+- `teamEvidence`: `observed | unavailable | invalid | error`;
+- explicit reason code when not observed;
+- `eraCoverage`: `complete | partial | unknown`.
+
+The compact record remains local-only under `data/snapshots/`; it never stores API keys, credentials, authorization headers, full sensitive request metadata, or raw query strings.
+
+### Selection algorithm
+
+For each candidate rank, the archival client may fetch one recent page up to the existing safe request limit. It then selects at most one battle per player using:
+
+1. battle is ranked;
+2. the tracked player owns one of the teams;
+3. battle timestamp is within `[eraStartedAt, eraEndedAt)`;
+4. newest timestamp wins;
+5. if timestamps tie, use a stable secondary key such as battle ID; if absent, use the stable source-order tie-breaker.
+
+This does not imply the player never had a different team earlier in the era. It is only the latest observed ranked battle evidence captured for that player in this era.
+
 ## Manifest contract
 
 The manifest contains schema/version and era identity, `captureId`, `revision`,

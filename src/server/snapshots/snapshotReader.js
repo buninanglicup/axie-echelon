@@ -27,6 +27,13 @@ function mapSnapshotFighter(fighter) {
 }
 
 export function extractHistoricalTeam(userID, normalizedBattleLog) {
+  // New compact capture path: if a normalized selectedTeam exists, prefer it.
+  if (normalizedBattleLog?.selectedTeam?.fighters && Array.isArray(normalizedBattleLog.selectedTeam.fighters)) {
+    return {
+      fighters: normalizedBattleLog.selectedTeam.fighters.map(mapSnapshotFighter).sort((left, right) => left.position - right.position)
+    };
+  }
+
   const battles = Array.isArray(normalizedBattleLog?.rankedBattles)
     ? [...normalizedBattleLog.rankedBattles]
     : [];

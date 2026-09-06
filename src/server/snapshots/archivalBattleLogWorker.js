@@ -1,4 +1,5 @@
-import { fetchArchivalBattleLogs } from "./archivalBattleLogClient.js";
+import { createHash } from "node:crypto";
+import { fetchArchivalBattleLogs, battleTimestamp, toEpochMs } from "./archivalBattleLogClient.js";
 
 function cancellationError() {
   const error = new Error("Archival battle-log capture was cancelled.");
@@ -96,7 +97,149 @@ export async function captureArchivalBattleLogs({
           eraEndedAt: current.eraEndedAt,
           signal
         });
-        await repository.writeBattleLog(current, candidate.userID, record);
+
+        // New compact-capture logic: deterministically select a single ranked
+        // battle observed for the tracked player within the era window and
+        // persist only the selected raw battle plus a normalized team view and
+        // provenance metadata. Maintain backwards compatibility by leaving
+        // legacy full-response normalization untouched when present.
+        const rawItems = Array.isArray(record.rawResponse?._items) ? record.rawResponse._items : [];
+        const eraStartMs = toEpochMs(current.eraStartedAt);
+        const eraEndMs = toEpochMs(current.eraEndedAt);
+
+        function trackedPlayerEntry(battle) {
+          const players = Array.isArray(battle?.gameData?.players)
+            ? battle.gameData.players
+            : Array.isArray(battle?.players)
+              ? battle.players
+              : [];
+          return players.find((player) => player?.userID === candidate.userID) ?? null;
+        }
+
+        const rankedInEraEntries = rawItems.map((battle, index) => {
+          const mode = battle?.gameData?.gameMode || battle?.gameMode || null;
+          const tsIso = battleTimestamp(battle);
+          const tsMs = tsIso ? Date.parse(tsIso) : null;
+          const playerEntry = trackedPlayerEntry(battle);
+          const fighters = Array.isArray(playerEntry?.team?.fighters) ? playerEntry.team.fighters : null;
+          const isObservedTeam = Array.isArray(fighters) && fighters.length > 0 && fighters.every((fighter) => fighter && typeof fighter === "object");
+          const inEra = tsMs !== null && (!eraStartMs || tsMs >= eraStartMs) && (!eraEndMs || tsMs < eraEndMs);
+          return { battle, index, tsIso, tsMs, mode, playerEntry, fighters, isObservedTeam, inEra };
+        }).filter((entry) => entry.battle && entry.mode === "ranked" && entry.playerEntry && entry.inEra);
+
+        const validSelectedCandidates = rankedInEraEntries.filter((entry) => entry.isObservedTeam);
+        let selected = null;
+        if (validSelectedCandidates.length > 0) {
+          validSelectedCandidates.sort((left, right) => {
+            if (left.tsMs !== right.tsMs) return right.tsMs - left.tsMs;
+            const leftId = String(left.battle?.id ?? left.battle?.gameData?.id ?? "");
+            const rightId = String(right.battle?.id ?? right.battle?.gameData?.id ?? "");
+            if (leftId && rightId && leftId !== rightId) return leftId < rightId ? -1 : 1;
+            return right.index - left.index;
+          });
+          selected = validSelectedCandidates[0];
+        }
+
+        const hasInvalidTrackedTeam = rankedInEraEntries.some((entry) => entry.playerEntry && !entry.isObservedTeam);
+        const sourceResponseChecksum = record.checksum || null;
+        const selectedRawChecksum = selected ? createHash("sha256").update(JSON.stringify(selected.battle), "utf8").digest("hex") : null;
+
+        // Build the compact normalized evidence record
+        const provenance = {
+          playerID: candidate.userID,
+          frozenCandidate: candidate,
+          captureId: current.captureId,
+          revision: current.revision,
+          scopeKey: current.scopeKey,
+          seasonId: current.seasonId,
+          milestone: current.milestone,
+          eraStartedAt: current.eraStartedAt,
+          eraEndedAt: current.eraEndedAt,
+          selectionAlgorithmVersion: 1,
+          normalizerVersion: 1,
+          captureTimestamp: new Date().toISOString(),
+          source: "origin/v2/community/users/battle-logs",
+          requestedLimit: record.requestedLimit || null,
+          fetchedLogCount: record.normalized?.battleLogsFetchedCount ?? rawItems.length,
+          rankedLogCount: record.normalized?.rankedBattlesInEraCount ?? rawItems.filter((battle) => (battle?.gameData?.gameMode === "ranked")).length,
+          oldestReturnedAt: record.normalized?.oldestBattleReturnedAt ?? null,
+          newestReturnedAt: record.normalized?.newestBattleReturnedAt ?? null,
+          sourceResponseChecksum,
+          selectedRawChecksum,
+          reachedLimit: Boolean(record.requestedLimit && rawItems.length >= record.requestedLimit)
+        };
+
+        let compactNormalized;
+        if (selected) {
+          const playerEntry = trackedPlayerEntry(selected.battle);
+          const fighters = Array.isArray(playerEntry?.team?.fighters) ? playerEntry.team.fighters : [];
+          const mappedFighters = fighters.map((fighter) => ({
+            axieID: fighter?.axieID,
+            name: fighter?.name ?? null,
+            genes: fighter?.genes ?? null,
+            genes_metamorph: fighter?.genes_metamorphed ?? fighter?.genes_metamorph ?? null,
+            position: Number(fighter?.position ?? 0),
+            axieType: fighter?.axieType ?? null,
+            runes: Array.isArray(fighter?.runes) ? fighter.runes : [],
+            charms: fighter?.charms || null
+          })).sort((left, right) => left.position - right.position);
+
+          compactNormalized = {
+            teamEvidence: "observed",
+            teamEvidenceReason: "Captured team from the latest observed ranked battle in this era.",
+            selectedBattleId: selected.battle?.id ?? selected.battle?.gameData?.id ?? null,
+            selectedBattleTimestamp: selected.tsIso || null,
+            selectedTeam: { fighters: mappedFighters },
+            provenance,
+            battleLogsFetchedCount: record.normalized?.battleLogsFetchedCount ?? provenance.fetchedLogCount,
+            rankedBattlesInEraCount: record.normalized?.rankedBattlesInEraCount ?? provenance.rankedLogCount,
+            oldestBattleReturnedAt: record.normalized?.oldestBattleReturnedAt ?? provenance.oldestReturnedAt,
+            newestBattleReturnedAt: record.normalized?.newestBattleReturnedAt ?? provenance.newestReturnedAt,
+            missingTimestampCount: record.normalized?.missingTimestampCount ?? 0,
+            eraCoverage: record.normalized?.eraCoverage ?? "unknown"
+          };
+        } else if (hasInvalidTrackedTeam) {
+          compactNormalized = {
+            teamEvidence: "invalid",
+            teamEvidenceReason: "INVALID_TRACKED_PLAYER_TEAM_FIGHTERS",
+            selectedBattleId: null,
+            selectedBattleTimestamp: null,
+            selectedTeam: null,
+            provenance,
+            battleLogsFetchedCount: record.normalized?.battleLogsFetchedCount ?? provenance.fetchedLogCount,
+            rankedBattlesInEraCount: record.normalized?.rankedBattlesInEraCount ?? provenance.rankedLogCount,
+            oldestBattleReturnedAt: record.normalized?.oldestBattleReturnedAt ?? provenance.oldestReturnedAt,
+            newestBattleReturnedAt: record.normalized?.newestBattleReturnedAt ?? provenance.newestReturnedAt,
+            missingTimestampCount: record.normalized?.missingTimestampCount ?? 0,
+            eraCoverage: record.normalized?.eraCoverage ?? "unknown"
+          };
+        } else {
+          compactNormalized = {
+            teamEvidence: "unavailable",
+            teamEvidenceReason: "NO_VALID_IN_ERA_RANKED_BATTLE_FOUND_FOR_PLAYER",
+            selectedBattleId: null,
+            selectedBattleTimestamp: null,
+            selectedTeam: null,
+            provenance,
+            battleLogsFetchedCount: record.normalized?.battleLogsFetchedCount ?? provenance.fetchedLogCount,
+            rankedBattlesInEraCount: record.normalized?.rankedBattlesInEraCount ?? provenance.rankedLogCount,
+            oldestBattleReturnedAt: record.normalized?.oldestBattleReturnedAt ?? provenance.oldestReturnedAt,
+            newestBattleReturnedAt: record.normalized?.newestBattleReturnedAt ?? provenance.newestReturnedAt,
+            missingTimestampCount: record.normalized?.missingTimestampCount ?? 0,
+            eraCoverage: record.normalized?.eraCoverage ?? "unknown"
+          };
+        }
+
+        // Persist only the selected raw object and the compact normalized view.
+        await repository.writeBattleLog(current, candidate.userID, {
+          rawResponse: selected ? selected.battle : null,
+          checksum: selectedRawChecksum,
+          capturedAt: record.capturedAt || new Date().toISOString(),
+          status: record.status || "fetched",
+          httpStatus: record.httpStatus ?? null,
+          requestedLimit: record.requestedLimit ?? null,
+          normalized: compactNormalized
+        });
       } catch (error) {
         if (signal?.aborted) throw cancellationError();
         const failureAttempt = attemptedPlayers + 1;

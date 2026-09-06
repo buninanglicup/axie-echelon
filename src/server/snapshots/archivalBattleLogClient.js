@@ -10,7 +10,7 @@ import { fetchWithRetry } from "../shared/httpRetry.js";
 // implemented and verified for archival use.
 const REQUESTED_LIMIT = 20;
 
-function toIsoTimestamp(value) {
+export function toIsoTimestamp(value) {
   if (value === null || value === undefined) return null;
   const numeric = Number(value);
   const date = Number.isFinite(numeric)
@@ -19,7 +19,7 @@ function toIsoTimestamp(value) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
-function toEpochMs(value) {
+export function toEpochMs(value) {
   if (value === null || value === undefined) return null;
   const numeric = Number(value);
   if (Number.isFinite(numeric)) return numeric > 1e12 ? numeric : numeric * 1000;
@@ -27,7 +27,7 @@ function toEpochMs(value) {
   return Number.isNaN(parsed) ? null : parsed;
 }
 
-function battleTimestamp(battle) {
+export function battleTimestamp(battle) {
   const data = battle?.gameData || battle;
   return toIsoTimestamp(
     data?.endedAt ?? battle?.endedAt ?? data?.createdAt ?? battle?.createdAt ??
