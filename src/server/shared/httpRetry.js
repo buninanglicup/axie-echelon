@@ -28,13 +28,14 @@ export async function fetchWithRetry(url, fetchOptions = {}, retryOptions = {}) 
     baseDelayMs = DEFAULT_BASE_DELAY_MS,
     maxDelayMs = DEFAULT_MAX_DELAY_MS,
     maxTotalDelayMs = DEFAULT_MAX_TOTAL_DELAY_MS,
-    debug = false
+    debug = false,
+    fetchImpl = fetch
   } = retryOptions;
 
   let totalDelayMs = 0;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const response = await fetch(url, fetchOptions);
+    const response = await fetchImpl(url, fetchOptions);
 
     if (response.ok || !retryableStatuses.includes(response.status)) return response;
     if (attempt === maxAttempts) return response;

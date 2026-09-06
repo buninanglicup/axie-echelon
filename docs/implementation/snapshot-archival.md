@@ -4,6 +4,12 @@ Snapshots are durable local archives, not live caches. Numeric eras use a
 scope key such as `season:19:milestone:4`; Offseason is never a snapshot
 scope. The MVP archives ranks 1-1000 and must describe that range explicitly.
 
+Candidate freezing is the first upstream-facing phase. It requests only
+`/origins/v2/season-leaderboards` with a numeric milestone and 100-row pages.
+It does not use the volatile candidate cache, fetch battle logs, or change the
+UI. Each successful page updates the manifest, so cancellation or restart can
+resume at the next page without refetching frozen pages.
+
 ```text
 data/snapshots/
   season-19-milestone-4/
