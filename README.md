@@ -137,6 +137,15 @@ protection, and archival snapshot safety. Historical row and team views use
 only an explicitly accepted, era-bounded local snapshot; they never silently
 fall back to current upstream leaderboard or team data.
 
+## CI and snapshot safety
+
+GitHub Actions validates the project using the repository's synthetic test and
+build suite on pushes and pull requests to `main`. The CI workflow does not
+read local snapshot artifacts, does not upload ignored `data/snapshots/`
+content, and does not expose `.env`, credentials, or API keys. Real local
+snapshot storage remains gitignored and operator-managed outside version
+control.
+
 ## Project structure
 
 ```text
