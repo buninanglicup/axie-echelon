@@ -22,6 +22,9 @@ commit msg.txt
 # API response samples (local reference only)
 api-responses/
 
+# Raw historical snapshots (local archival data only)
+data/snapshots/
+
 # Local validation artefacts and scratch files
 PROJECT_STRUCTURE.txt
 GetBattleLogsByUserID.json
