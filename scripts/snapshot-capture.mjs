@@ -7,6 +7,7 @@ import "dotenv/config";
 import { SnapshotRepository } from "../src/server/snapshots/snapshotRepository.js";
 import { freezeSeasonCandidates } from "../src/server/snapshots/candidateFreezer.js";
 import { captureArchivalBattleLogs } from "../src/server/snapshots/archivalBattleLogWorker.js";
+import { fetchArchivalBattleLogs } from "../src/server/snapshots/archivalBattleLogClient.js";
 import { LEADERBOARD_MAX_RANK } from "../src/server/leaderboard/leaderboardConstants.js";
 import { requireSnapshotApiKey } from "../src/server/snapshots/snapshotCapturePreflight.js";
 
@@ -101,6 +102,13 @@ async function dryRun(options) {
   if (!response.ok) throw new Error(`Dry-run candidate availability check failed: ${response.status}`);
   const payload = await response.json();
   const available = Array.isArray(payload?._items) ? payload._items.length : 0;
+  const probeCandidate = payload?._items?.[0];
+  if (!probeCandidate?.userID) throw new Error("Dry-run candidate availability check returned no usable user ID.");
+  const battleLogProbe = await fetchArchivalBattleLogs({
+    userId: probeCandidate.userID,
+    apiUrl,
+    apiKey
+  });
   console.log(JSON.stringify({
     dryRun: true,
     season: options.season,
@@ -110,6 +118,12 @@ async function dryRun(options) {
     firstPageCandidates: available,
     estimatedLeaderboardPages: Math.ceil(RANK_MAX / 100),
     estimatedBattleLogRequests: RANK_MAX,
+    battleLogProbe: {
+      httpStatus: battleLogProbe.httpStatus,
+      requestedLimit: battleLogProbe.requestedLimit,
+      battleLogsFetchedCount: battleLogProbe.normalized.battleLogsFetchedCount,
+      eraCoverage: battleLogProbe.normalized.eraCoverage
+    },
     storesBattleLogs: false
   }, null, 2));
 }

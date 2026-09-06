@@ -32,6 +32,16 @@ test("uses stable hashes for hostile and long player IDs", () => {
   assert.equal(playerFileId(id), playerFileId(id));
 });
 
+test("creates a new revision linked to the prior capture for the same era scope", async () => {
+  const repository = await createRepository();
+  const first = await repository.createCapture({ seasonId: 19, milestone: 4 });
+  const second = await repository.createCapture({ seasonId: 19, milestone: 4 });
+
+  assert.equal(first.revision, 1);
+  assert.equal(second.revision, 2);
+  assert.equal(second.parentCaptureId, first.captureId);
+});
+
 test("rejects offseason and invalid milestone snapshot scopes", async () => {
   const repository = await createRepository();
   await assert.rejects(() => repository.createCapture({ seasonId: 19, milestone: 5 }), /milestone 1 through 4/);

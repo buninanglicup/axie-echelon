@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildBattleLogUrl, fetchArchivalBattleLogs, normalizeBattleLogs } from "./archivalBattleLogClient.js";
 
-test("requests the archival battle-log endpoint at limit 100 and preserves coverage metadata", async () => {
+test("requests the archival battle-log endpoint at the conservative limit 20 and preserves coverage metadata", async () => {
   let requested;
   const result = await fetchArchivalBattleLogs({
     userId: "user/1",
@@ -10,12 +10,12 @@ test("requests the archival battle-log endpoint at limit 100 and preserves cover
     apiKey: "test",
     fetchImpl: async (url) => {
       requested = new URL(url);
-      return new Response(JSON.stringify({ _items: Array.from({ length: 100 }, () => ({ gameData: { gameMode: "ranked", endedAt: 1700000000 } })) }), { status: 200 });
+      return new Response(JSON.stringify({ _items: Array.from({ length: 20 }, () => ({ gameData: { gameMode: "ranked", endedAt: 1700000000 } })) }), { status: 200 });
     }
   });
 
   assert.equal(requested.pathname, "/origin/v2/community/users/user%2F1/battle-logs");
-  assert.equal(requested.searchParams.get("limit"), "100");
+  assert.equal(requested.searchParams.get("limit"), "20");
   assert.equal(result.normalized.eraCoverage, "partial");
   assert.equal(result.checksum.length, 64);
 });
@@ -43,5 +43,5 @@ test("classifies timestamp-ambiguous responses as unknown", () => {
 });
 
 test("builds a safe battle-log URL", () => {
-  assert.match(buildBattleLogUrl({ apiUrl: "https://example.test", userId: "user/1" }), /user%2F1\/battle-logs\?limit=100$/);
+  assert.match(buildBattleLogUrl({ apiUrl: "https://example.test", userId: "user/1" }), /user%2F1\/battle-logs\?limit=20$/);
 });

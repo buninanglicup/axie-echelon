@@ -12,9 +12,12 @@ resume at the next page without refetching frozen pages.
 
 Candidate freezing and the archival battle-log client/worker are implemented
 as separate phases. The worker remains separate from live enrichment: it
-requests the recent `limit=100` payload, preserves raw data, and classifies
-coverage conservatively. Historical UI integration and scheduled capture remain
-pending.
+requests one recent `limit=20` page, matching the established live-client
+request shape after the initial `limit=100` archival attempt received upstream
+`400` responses. This is a deliberately best-effort Season 18 recovery
+strategy, not a claim of full history; the client preserves raw data and
+classifies coverage conservatively. Historical UI integration, verified
+archival pagination, and scheduled end-of-era capture remain pending.
 
 ```text
 data/snapshots/
@@ -49,9 +52,10 @@ optional `parentCaptureId`, candidate-scope metadata, progress counters, and a
 - `eraCoverage: unknown` means timestamps or endpoint semantics cannot prove
   coverage.
 
-The current recent-battle endpoint does not provide known historical pagination,
-so delayed Season 18 records are expected to be `partial` or `unknown` and
-must be labelled “best-effort currently available battle logs.”
+The documented endpoint is paginated, but archival pagination has not yet been
+implemented or verified. The current one-page recovery capture therefore uses
+`limit=20`; delayed Season 18 records are expected to be `partial` or
+`unknown` and must be labelled “best-effort currently available battle logs.”
 
 ## Immutability and recovery
 
@@ -90,8 +94,11 @@ npm run snapshot:capture -- resume --season 19 --milestone 4 --capture <capture-
 ```
 
 The MVP always captures ranks 1-1000. `--dry-run` checks the ignored,
-writable snapshot boundary and probes the first seasonal leaderboard page
-without creating a capture or storing battle logs. `start` freezes candidates
+writable snapshot boundary, probes the first seasonal leaderboard page, and
+makes one non-persisted archival battle-log request at `limit=20`. It prints
+only aggregate probe metadata, not a user ID or raw payload. This catches an
+upstream battle-log request failure before a 1,000-player capture begins. It
+creates no capture and stores no battle logs. `start` freezes candidates
 and then archives battle logs. `Ctrl+C` records a cancelled, resumable
 capture; `resume` retries only unfinished players. Final output reports the
 capture ID, candidate scope, successful/failed/pending players, and coverage

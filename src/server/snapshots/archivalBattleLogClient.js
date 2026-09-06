@@ -3,7 +3,12 @@ import { AXIE_ECHELON_API_KEY, DEBUG_ON, MAVIS_API_URL } from "../shared/env.js"
 import { withBattleLogSlot } from "../shared/concurrency.js";
 import { fetchWithRetry } from "../shared/httpRetry.js";
 
-const REQUESTED_LIMIT = 100;
+// The public API documents a 100-item maximum, but the established live
+// integration uses 20 and the initial archival run received 400 responses at
+// 100. Season 18 is a deliberately best-effort, one-page recovery capture;
+// keep this request aligned with the known-good live shape until pagination is
+// implemented and verified for archival use.
+const REQUESTED_LIMIT = 20;
 
 function toIsoTimestamp(value) {
   if (value === null || value === undefined) return null;

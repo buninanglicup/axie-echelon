@@ -120,6 +120,14 @@ export class SnapshotRepository {
     const milestone = assertMilestone(input?.milestone);
     const scopeKey = input?.scopeKey || `season:${seasonId}:milestone:${milestone}`;
     assertScopeKey(scopeKey, seasonId, milestone);
+    const scope = scopeDirectory(this.rootDir, seasonId, milestone);
+    const indexPath = path.join(scope, "index.json");
+    let existingIndex = null;
+    if (await exists(indexPath)) existingIndex = JSON.parse(await readFile(indexPath, "utf8"));
+    const priorCaptures = Array.isArray(existingIndex?.captures) ? existingIndex.captures : [];
+    const latestCapture = priorCaptures.reduce((latest, capture) =>
+      !latest || capture.revision > latest.revision ? capture : latest,
+    null);
     const captureId = input?.captureId || `${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID()}`;
     const candidateScope = input?.candidateScope || {
       rankStart: 1, rankEnd: 1000, configuredCeiling: 1000,
@@ -127,8 +135,8 @@ export class SnapshotRepository {
     };
     const manifest = validateManifest({
       schemaVersion: 1, scopeKey, captureId,
-      revision: Number.isInteger(input?.revision) ? input.revision : 1,
-      parentCaptureId: input?.parentCaptureId || null,
+      revision: Number.isInteger(input?.revision) ? input.revision : (latestCapture?.revision || 0) + 1,
+      parentCaptureId: input?.parentCaptureId || latestCapture?.captureId || null,
       seasonId, milestone, eraName: input?.eraName || `Era ${milestone}`,
       eraStartedAt: input?.eraStartedAt ?? null, eraEndedAt: input?.eraEndedAt ?? null,
       candidateScope,
@@ -228,7 +236,7 @@ export class SnapshotRepository {
     if (await exists(rawPath)) throw new Error(`Battle-log record for ${userId} is already written.`);
     const rawResponse = record?.rawResponse ?? null;
     const checksum = record?.checksum || createHash("sha256").update(JSON.stringify(rawResponse), "utf8").digest("hex");
-    await writeJsonAtomically(rawPath, { userID: userId, checksum, capturedAt: record?.capturedAt || new Date().toISOString(), status: record?.status || "fetched", httpStatus: record?.httpStatus ?? null, requestedLimit: record?.requestedLimit ?? 100, rawResponse });
+    await writeJsonAtomically(rawPath, { userID: userId, checksum, capturedAt: record?.capturedAt || new Date().toISOString(), status: record?.status || "fetched", httpStatus: record?.httpStatus ?? null, requestedLimit: record?.requestedLimit ?? 20, rawResponse });
     await writeJsonAtomically(path.join(directory, `${id}.normalized.json`), {
       userID: userId,
       capturedAt: record?.capturedAt || new Date().toISOString(),
