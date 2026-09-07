@@ -99,3 +99,57 @@ test('mapSnapshotFighter coerces numeric/object rune ids to string ids', () => {
   assert.equal(f.rune && f.rune.id, '456');
   assert.equal(f.rune && f.rune.name, null);
 });
+
+test('extractHistoricalTeam hydrates known rune ID from local registry', () => {
+  // Use a known rune ID from repository runes.json
+  const knownRuneId = 'rune_dusk_40040_s18';
+  const normalizedBattleLog = {
+    selectedTeam: {
+      fighters: [
+        {
+          axieID: 999,
+          position: 1,
+          runes: [knownRuneId]
+        }
+      ]
+    }
+  };
+
+  const team = extractHistoricalTeam('any-user', normalizedBattleLog);
+  const f = team.fighters[0];
+
+  // fighter.rune must preserve the ID
+  assert.equal(f.rune.id, knownRuneId);
+  // Registry hydration provides name and imageUrl
+  assert.equal(f.rune.name, 'Wicked Ward Lv.4');
+  assert.equal(f.rune.imageUrl, 'https://storage.googleapis.com/origin-production/assets/item/rune_dusk_defensive_1.png');
+  // Original runes[] array remains unchanged
+  assert.deepEqual(f.runes, [knownRuneId]);
+});
+
+test('extractHistoricalTeam leaves unknown rune ID without registry hydration', () => {
+  // Use an ID not in the local rune registry
+  const unknownRuneId = 'rune_unknown_xyz_999';
+  const normalizedBattleLog = {
+    selectedTeam: {
+      fighters: [
+        {
+          axieID: 888,
+          position: 1,
+          runes: [unknownRuneId]
+        }
+      ]
+    }
+  };
+
+  const team = extractHistoricalTeam('any-user', normalizedBattleLog);
+  const f = team.fighters[0];
+
+  // fighter.rune preserves the original ID
+  assert.equal(f.rune.id, unknownRuneId);
+  // No local registry match exists; name and imageUrl remain null
+  assert.equal(f.rune.name, null);
+  assert.equal(f.rune.imageUrl, null);
+  // Original runes[] array remains unchanged
+  assert.deepEqual(f.runes, [unknownRuneId]);
+});
