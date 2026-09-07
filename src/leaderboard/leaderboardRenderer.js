@@ -4,6 +4,7 @@ import { renderMorphedAxieCached } from "../shared/morphRenderer.js";
 import { formatRelativeTime, predictNextActivity, formatActivityEstimate, formatActivityEstimateCompact, computeAvgPauseMs } from "../shared/formatting.js";
 import { getLastBattleTimestamp } from "./leaderboardFilters.js";
 import { leaderboardState, RANKED_SESSION_GAP_THRESHOLD_MS, MIN_VALID_MATCH_DURATION_MS, POLLING_STALE_MULTIPLIER, DEFAULT_MATCH_DURATION_MS, PROFILE_BASE, leaderboardCount } from "./leaderboardState.js";
+import { coerceCompatibleRune, formatRuneBadgeLabel } from "./runeBadgeUtil.js";
 
 function formatDebugClock(date) {
   if (!date || Number.isNaN(date.getTime())) return "?";
@@ -351,13 +352,15 @@ export function renderLeaderboardRows(leaderboardBody, players) {
           );
         }
 
-        if (fighter.rune) {
+        const visibleRune = coerceCompatibleRune(fighter);
+
+        if (visibleRune) {
           const addRuneTooltip = (runeBadge) => {
             const showTooltip = () => {
               if (axieWrapper.querySelector(".rune-badge-tooltip")) return;
               const tooltip = document.createElement("span");
               tooltip.className = "rune-badge-tooltip";
-              tooltip.textContent = fighter.rune.name;
+              tooltip.textContent = formatRuneBadgeLabel(visibleRune);
               axieWrapper.append(tooltip);
             };
             const hideTooltip = () => axieWrapper.querySelector(".rune-badge-tooltip")?.remove();
@@ -367,13 +370,23 @@ export function renderLeaderboardRows(leaderboardBody, players) {
             runeBadge.addEventListener("blur", hideTooltip);
           };
 
-          if (fighter.rune.imageUrl) {
-            console.log(`[renderLeaderboardRows] Row ${rowIndex}, Slot ${slotIndex}, Axie #${axieID}: Adding rune badge ${fighter.rune.name}`);
+          let runeLabel = formatRuneBadgeLabel(visibleRune);
+          if (!runeLabel && Array.isArray(fighter.runes) && fighter.runes.length > 0) {
+            try {
+              const raw = fighter.runes[0];
+              runeLabel = typeof raw === 'string' || typeof raw === 'number' ? String(raw) : (raw?.id ? String(raw.id) : String(raw));
+            } catch (e) {
+              runeLabel = "";
+            }
+          }
+
+          if (visibleRune.imageUrl) {
+            console.log(`[renderLeaderboardRows] Row ${rowIndex}, Slot ${slotIndex}, Axie #${axieID}: Adding rune badge ${visibleRune.name || visibleRune.id}`);
             const runeBadge = document.createElement("img");
             runeBadge.className = "rune-badge";
-            runeBadge.src = fighter.rune.imageUrl;
-            runeBadge.alt = `Rune: ${fighter.rune.name}`;
-            runeBadge.setAttribute("aria-label", `Rune: ${fighter.rune.name}`);
+            runeBadge.src = visibleRune.imageUrl;
+            runeBadge.alt = `Rune: ${runeLabel}`;
+            runeBadge.setAttribute("aria-label", `Rune: ${runeLabel}`);
             addRuneTooltip(runeBadge);
 
             runeBadge.addEventListener("error", () => {
@@ -383,11 +396,11 @@ export function renderLeaderboardRows(leaderboardBody, players) {
 
             axieWrapper.append(runeBadge);
           } else {
-            console.log(`[renderLeaderboardRows] Row ${rowIndex}, Slot ${slotIndex}, Axie #${axieID}: Adding fallback rune badge ${fighter.rune.name}`);
+            console.log(`[renderLeaderboardRows] Row ${rowIndex}, Slot ${slotIndex}, Axie #${axieID}: Adding fallback rune badge ${visibleRune.name || visibleRune.id}`);
             const runeBadge = document.createElement("div");
             runeBadge.className = "rune-badge rune-badge-text";
-            runeBadge.textContent = "?";
-            runeBadge.setAttribute("aria-label", `Rune: ${fighter.rune.name}`);
+            runeBadge.textContent = runeLabel || "";
+            runeBadge.setAttribute("aria-label", `Rune: ${runeLabel}`);
             addRuneTooltip(runeBadge);
             axieWrapper.append(runeBadge);
           }

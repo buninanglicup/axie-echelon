@@ -50,7 +50,9 @@ import {
   leaderboardCount,
   MAXIMUM_PLAYERS_DISPLAYED_PER_PAGE,
   pageControls,
+  liveTrackingCard,
 } from "./leaderboardState.js";
+import { computeLivePanelVisibility } from './livePanelUtil.js';
 import { formatRelativeTime, predictNextActivity, formatActivityEstimate } from "../shared/formatting.js";
 import { getPageItems } from "../pagination.js";
 import { getVisibleScanMatches } from "./scanFilterIntersection.js";
@@ -502,11 +504,18 @@ function startLeaderboardPolling() {
 // intentionally falls back to the documented default rather than
 // remembering whatever window the user had picked before disabling
 // (confirmed UX call, see docs/planning/leaderboard-roadmap.md).
+
 function updateLiveModeControls() {
   if (leaderboardState.isManualHistoricalScope) {
     leaderboardState.liveModeEnabled = false;
   }
   const { liveModeEnabled } = leaderboardState;
+
+  // Hide or show the entire live-tracking panel when viewing history.
+  if (typeof liveTrackingCard !== 'undefined' && liveTrackingCard) {
+    liveTrackingCard.hidden = !computeLivePanelVisibility(leaderboardState.isManualHistoricalScope);
+  }
+
   if (liveOnlyControls) liveOnlyControls.hidden = !liveModeEnabled;
   if (pollingControls) pollingControls.hidden = !liveModeEnabled;
 
@@ -593,7 +602,7 @@ function renderHistoricalSnapshotUnavailable(message) {
   const cell = document.createElement("td");
   cell.colSpan = 4;
   cell.className = "historical-snapshot-unavailable";
-  cell.textContent = message || "Historical snapshot unavailable for this era.";
+  cell.textContent = message || "Historical snapshot unavailable for this era. Archived player list (names/ranks) was not captured for this era.";
   row.append(cell);
   leaderboardBody.append(row);
   if (leaderboardCount) leaderboardCount.textContent = "Historical snapshot unavailable";

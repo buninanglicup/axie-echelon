@@ -1,5 +1,6 @@
 import { getLeaderboardScopeKey, normalizeLeaderboardScope } from "../../leaderboard/leaderboardScope.js";
 import { SnapshotRepository } from "./snapshotRepository.js";
+import { getRuneMetadata } from "../leaderboard/runeCatalog.js";
 
 function snapshotReference(scope, captureId) {
   return {
@@ -43,17 +44,70 @@ function historicalTeamEvidence(normalizedBattleLog, hasTeam) {
 }
 
 function mapSnapshotFighter(fighter) {
+  // Preserve the snapshot's raw rune array, but also provide the legacy
+  // singular `rune` field that the live renderer expects. The `rune`
+  // object must be lightweight and comes only from the snapshot; do not
+  // attempt any live enrichment here.
+  const rawRunes = Array.isArray(fighter?.runes)
+    ? fighter.runes
+    : (Array.isArray(fighter?.rune) ? fighter.rune : []);
+  const runesArray = [...rawRunes];
+  const firstRune = runesArray.length > 0 ? runesArray[0] : (fighter?.rune ?? fighter?.runeId ?? fighter?.runeID ?? null);
+
+  // Normalize rune entries safely. Accept either string IDs or object shapes.
+  // - string/number -> { id: String(...), name: null, imageUrl: null }
+  // - object -> { id: String(id), name: string|null, imageUrl: string|null }
+  // Never leave rune.id as a non-primitive object.
+  function normalizeRuneEntry(entry) {
+    if (entry == null) return null;
+    if (Array.isArray(entry)) return normalizeRuneEntry(entry[0] ?? null);
+    const t = typeof entry;
+    if (t === "string" || t === "number" || t === "boolean") {
+      const idStr = String(entry);
+      const meta = getRuneMetadata(idStr);
+      if (meta) return { id: meta.id, name: meta.name || null, imageUrl: meta.imageUrl || null };
+      return { id: idStr, name: null, imageUrl: null };
+    }
+    if (t === "object") {
+      let idVal = entry.id ?? entry.runeId ?? entry.runeID ?? entry.rune ?? null;
+      if (idVal == null) {
+        const nameFallback = typeof entry.name === "string" && entry.name.length > 0 ? entry.name : null;
+        if (nameFallback) return { id: String(nameFallback), name: nameFallback, imageUrl: null };
+        return null;
+      }
+      if (typeof idVal === "object") idVal = String(idVal);
+      else idVal = String(idVal);
+      // Prefer explicit entry fields but hydrate from local registry when missing
+      let name = typeof entry.name === "string" && entry.name.length > 0 ? entry.name : null;
+      let imageUrl = entry.imageUrl || entry.image_url || null;
+      const meta = getRuneMetadata(idVal);
+      if (meta) {
+        if (!name) name = meta.name || null;
+        if (!imageUrl) imageUrl = meta.imageUrl || null;
+      }
+      return { id: idVal, name, imageUrl };
+    }
+    const idStr = String(entry);
+    const meta = getRuneMetadata(idStr);
+    if (meta) return { id: meta.id, name: meta.name || null, imageUrl: meta.imageUrl || null };
+    return { id: idStr, name: null, imageUrl: null };
+  }
+
+  const runeObj = normalizeRuneEntry(firstRune);
+
   return {
     axieID: fighter?.axieID,
     name: fighter?.name,
     genes: fighter?.genes,
     // The live renderer expects the existing singular field. Preserve raw
-    // payloads untouched, but accept either observed/documented spelling in
-    // the normalized snapshot view.
+    // payloads untouched, but provide a stable compatibility property here.
     genes_metamorph: fighter?.genes_metamorph ?? fighter?.genes_metamorphed,
     position: Number(fighter?.position ?? 0),
     axieType: fighter?.axieType,
-    runes: Array.isArray(fighter?.runes) ? fighter.runes : [],
+    // Keep raw array for any future uses that expect multiple runes.
+    runes: runesArray,
+    // Compatibility: single-runne expectation used by the renderer.
+    rune: runeObj,
     charms: fighter?.charms || null
   };
 }

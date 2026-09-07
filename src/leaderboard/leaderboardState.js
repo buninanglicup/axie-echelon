@@ -179,6 +179,7 @@ export const liveModeToggle = document.querySelector("#live-mode");
 export const pollingControls = document.querySelector("#polling-controls");
 export const pollingIntervalSelect = document.querySelector("#polling-interval");
 export const liveOnlyControls = document.querySelector("#live-only-controls");
+export const liveTrackingCard = document.querySelector(".live-tracking-card");
 export const rankMinError = document.querySelector("#rank-min-error");
 export const rankMaxError = document.querySelector("#rank-max-error");
 export const seasonSelector = document.querySelector("#season-selector");

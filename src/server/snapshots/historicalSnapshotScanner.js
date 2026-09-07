@@ -86,9 +86,13 @@ function runeIdentifier(rune) {
 
 export function historicalTeamHasRune(team, runeIds) {
   const selected = normalizeRuneIds(runeIds);
-  return selected.size > 0 && Array.isArray(team?.fighters) && team.fighters.some((fighter) =>
-    Array.isArray(fighter?.runes) && fighter.runes.some((rune) => selected.has(runeIdentifier(rune)))
-  );
+  return selected.size > 0 && Array.isArray(team?.fighters) && team.fighters.some((fighter) => {
+    const runeEntries = [
+      ...(Array.isArray(fighter?.runes) ? fighter.runes : []),
+      ...(fighter?.rune ? [fighter.rune] : [])
+    ];
+    return runeEntries.some((rune) => selected.has(runeIdentifier(rune)));
+  });
 }
 
 export function historicalTeamMatchesBodyParts(team, selectedNames) {
