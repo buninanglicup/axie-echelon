@@ -1,4 +1,4 @@
-import bodyPartMappingData from "../data/body-part-mapping-candidate.json";
+import bodyPartMappingData from "../data/body-part-mapping-candidate.json" with { type: "json" };
 import {
   LEADERBOARD_MAX_RANK,
   leaderboardState,
