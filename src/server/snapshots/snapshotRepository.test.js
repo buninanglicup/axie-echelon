@@ -70,6 +70,19 @@ test("publishes captures and makes all records immutable", async () => {
   await assert.rejects(() => repository.writeCandidatePage(completed, 1, {}, {}), /immutable/);
 });
 
+test("retries publication of a completed capture left in staging", async () => {
+  const repository = await createRepository();
+  const manifest = await repository.createCapture({ seasonId: 19, milestone: 2 });
+  const completedInStaging = await repository.updateManifest(manifest, { status: "completed" });
+
+  const published = await repository.publishCapture(completedInStaging);
+  const directory = await repository.getCaptureDirectory(published);
+
+  assert.equal(published.status, "completed");
+  assert.equal(path.basename(path.dirname(directory)), "captures");
+  assert.equal((await repository.readIndex(published)).captures[0].status, "completed");
+});
+
 test("uses a scope lock to prevent competing scheduler decisions", async () => {
   const repository = await createRepository();
   const scope = { seasonId: 19, milestone: 4, scopeKey: "season:19:milestone:4" };

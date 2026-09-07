@@ -1,12 +1,15 @@
 import { createHash } from "node:crypto";
+import { execFile } from "node:child_process";
 import { mkdir, readFile, rename, rm, open, readdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { promisify } from "node:util";
 
 const SNAPSHOT_MILESTONES = new Set(["1", "2", "3", "4"]);
 const SNAPSHOT_STATUSES = new Set(["queued", "running", "partial", "completed", "failed", "cancelled"]);
 const SNAPSHOT_COVERAGE = new Set(["complete", "partial", "unknown"]);
 const manifestQueues = new Map();
+const execFileAsync = promisify(execFile);
 
 function assertMilestone(milestone) {
   const normalized = String(milestone);
@@ -52,6 +55,28 @@ async function writeJsonAtomically(filePath, value) {
     await rename(temporaryPath, filePath);
   } finally {
     await rm(temporaryPath, { force: true });
+  }
+}
+
+function powershellLiteral(value) {
+  return String(value).replaceAll("'", "''");
+}
+
+// Windows can deny Node's directory rename while allowing the native shell
+// move (for example, while a security scanner has the new capture open).
+// Fall back only for that platform and error class; Move-Item does not
+// overwrite the destination, so the publication boundary remains intact.
+async function moveCaptureDirectory(source, destination) {
+  try {
+    await rename(source, destination);
+  } catch (error) {
+    if (process.platform !== "win32" || !["EPERM", "EACCES"].includes(error?.code)) throw error;
+    await execFileAsync("powershell.exe", [
+      "-NoProfile",
+      "-NonInteractive",
+      "-Command",
+      `Move-Item -LiteralPath '${powershellLiteral(source)}' -Destination '${powershellLiteral(destination)}' -ErrorAction Stop`
+    ]);
   }
 }
 
@@ -139,6 +164,7 @@ export class SnapshotRepository {
       parentCaptureId: input?.parentCaptureId || latestCapture?.captureId || null,
       seasonId, milestone, eraName: input?.eraName || `Era ${milestone}`,
       eraStartedAt: input?.eraStartedAt ?? null, eraEndedAt: input?.eraEndedAt ?? null,
+      hasTeamEvidence: input?.hasTeamEvidence !== false,
       candidateScope,
       progress: { pendingPlayers: 0, completedPlayers: 0, failedPlayers: 0, attemptedPlayers: 0 },
       battleLogSummary: {
@@ -239,21 +265,43 @@ export class SnapshotRepository {
   }
 
   async acceptCapture(manifest) {
-    const current = await this.readManifest(manifest);
-    if (current.status !== "completed") throw new Error("Only completed captures can be accepted.");
-    await this.updateIndex(current, true);
-    return current;
+    // Keep the manifest read, acceptance decision, and index write in the
+    // same scope lock. Otherwise a candidate-only capture can observe an
+    // empty index, another process can accept a full capture, and the stale
+    // candidate process can overwrite acceptedCaptureId.
+    return this.withScopeLock(manifest, async () => {
+      const current = await this.readManifest(manifest);
+      if (current.status !== "completed") throw new Error("Only completed captures can be accepted.");
+      if (current.hasTeamEvidence === false) {
+        const index = await this.readIndex(current);
+        if (index?.acceptedCaptureId) {
+          throw new Error(`Cannot accept candidate-only capture: an accepted full-evidence capture already exists (${index.acceptedCaptureId}). Historical snapshots are immutable; explicit replacement is not yet implemented.`);
+        }
+      }
+      await this.updateIndex(current, true);
+      return current;
+    });
   }
 
   async publishCapture(manifest) {
     const current = await this.readManifest(manifest);
-    if (current.status === "completed") return current;
     const staging = path.join(this.getScopeDirectory(current), "staging", current.captureId);
     const published = path.join(this.getScopeDirectory(current), "captures", current.captureId);
+    // A Windows file lock can make the directory rename fail after the
+    // completed manifest has already been written. Retrying publication must
+    // promote that immutable staged capture instead of treating it as done.
+    if (current.status === "completed") {
+      if (await exists(published)) return current;
+      if (!(await exists(staging))) throw new Error(`Completed snapshot ${current.captureId} is missing its capture directory.`);
+      await mkdir(path.dirname(published), { recursive: true });
+      await moveCaptureDirectory(staging, published);
+      await this.updateIndex(current);
+      return current;
+    }
     const next = validateManifest({ ...current, status: "completed", completedAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
-    await writeJsonAtomically(path.join(staging, "manifest.json"), next);
     await mkdir(path.dirname(published), { recursive: true });
-    await rename(staging, published);
+    await moveCaptureDirectory(staging, published);
+    await writeJsonAtomically(path.join(published, "manifest.json"), next);
     await this.updateIndex(next);
     return next;
   }

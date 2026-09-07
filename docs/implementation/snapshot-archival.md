@@ -197,6 +197,41 @@ payloads, raw candidate-page files, `.env` files, credentials, or request header
 It does not validate raw payload contents or raw checksums, and it does not
 repair, prune, or accept snapshots.
 
+## Candidates-only snapshots
+
+When the upstream seasonal endpoint becomes unavailable, a focused candidates-only capture can freeze the top-1000 leaderboard ranks without performing team-enrichment battle-log capture. This mode preserves leaderboard history while deferring or skipping team evidence collection.
+
+### CLI usage
+
+To start a candidates-only capture:
+
+```text
+node scripts/snapshot-capture.mjs start --season 19 --milestone 4 --candidates-only
+```
+
+The `--candidates-only` flag:
+- Freezes the seasonal top-1000 candidate pages using the standard pool endpoint.
+- Skips the archival battle-log client/worker entirely.
+- Publishes the snapshot as `completed` directly after candidate freezing.
+- Requires explicit manual acceptance; never auto-accepts.
+- Rejects if an accepted capture already exists for this scope (no replacement yet).
+
+### Manifest metadata
+
+Candidates-only captures set `hasTeamEvidence: false` in the manifest. This field distinguishes:
+- `hasTeamEvidence: true` (or absent) — full team-evidence snapshot with battle logs.
+- `hasTeamEvidence: false` — leaderboard-only snapshot, no team evidence available.
+
+### Historical reading behavior
+
+When a snapshot has `hasTeamEvidence: false`:
+- `GET /api/leaderboard/pool?milestone=N&historical=1` — returns frozen candidates as usual.
+- Team enrichment requests fail gracefully with a `unavailable` status and a clear error.
+- Rune/body-part scans fail without fallback to live enrichment or upstream battle logs.
+- The UI shows unavailable team state instead of attempting fallback.
+
+No network fallback or live enrichment occurs; the snapshot's scope boundary is strict.
+
 ## Retention and backup policy
 
 Snapshot artifacts are intentionally local-only under the gitignored

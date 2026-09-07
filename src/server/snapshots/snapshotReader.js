@@ -17,6 +17,7 @@ function snapshotMetadata(snapshot) {
     revision: snapshot.revision,
     scopeKey: snapshot.scopeKey,
     capturedAt: snapshot.completedAt,
+    hasTeamEvidence: snapshot.hasTeamEvidence !== false,
     eraCoverage: snapshot.battleLogSummary.eraCoverage,
     candidateScope: snapshot.candidateScope
   };
@@ -202,6 +203,16 @@ export async function getHistoricalSnapshotEnrichment({
       status: "unavailable",
       source: "historical-snapshot",
       error: "No accepted historical team snapshot is available for this era."
+    };
+  }
+
+  // Check if this snapshot has team evidence
+  if (snapshot.hasTeamEvidence === false) {
+    return {
+      status: "unavailable",
+      source: "historical-snapshot",
+      snapshot: snapshotMetadata(snapshot),
+      error: "This historical snapshot contains only leaderboard candidates; team evidence is not available."
     };
   }
 

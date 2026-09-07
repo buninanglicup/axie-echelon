@@ -82,6 +82,14 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
   era uses only an explicitly accepted, era-bounded snapshot for frozen
   leaderboard rows and team previews; it reports unavailable rather than
   substituting the player's current data. Live mode is disabled for that view.
+- A focused candidates-only capture mode (`--candidates-only` CLI flag) can
+  preserve top-1000 leaderboard snapshots when the upstream seasonal endpoint
+  becomes unavailable, deferring team-evidence collection. These snapshots are
+  marked with `hasTeamEvidence: false` in the manifest; historical team and
+  filter requests fail gracefully without network fallback. The frontend shows
+  unavailable team state rather than attempting live enrichment. This mode
+  requires explicit manual acceptance and rejects if an accepted capture
+  already exists (replacement logic is not yet implemented).
 - Snapshot retention is conservative and operator-driven. Accepted snapshots and
   superseded revisions remain immutable; the project does not automatically
   delete, prune, or overwrite snapshot directories. Backup policy requires a

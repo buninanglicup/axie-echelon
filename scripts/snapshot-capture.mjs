@@ -8,6 +8,7 @@ import { SnapshotRepository } from "../src/server/snapshots/snapshotRepository.j
 import { freezeSeasonCandidates } from "../src/server/snapshots/candidateFreezer.js";
 import { captureArchivalBattleLogs } from "../src/server/snapshots/archivalBattleLogWorker.js";
 import { fetchArchivalBattleLogs } from "../src/server/snapshots/archivalBattleLogClient.js";
+import { runSnapshotCaptureDryRun } from "../src/server/snapshots/snapshotCaptureDryRun.js";
 import { reclassifySnapshot } from "../src/server/snapshots/snapshotReclassifier.js";
 import { LEADERBOARD_MAX_RANK } from "../src/server/leaderboard/leaderboardConstants.js";
 import { requireSnapshotApiKey } from "../src/server/snapshots/snapshotCapturePreflight.js";
@@ -21,7 +22,7 @@ const repository = new SnapshotRepository();
 function usage() {
   console.error(
     "Usage:\n" +
-    "  node scripts/snapshot-capture.mjs start --season 19 --milestone 4 [--dry-run]\n" +
+    "  node scripts/snapshot-capture.mjs start --season 19 --milestone 4 [--dry-run] [--candidates-only]\n" +
     "  node scripts/snapshot-capture.mjs status --season 19 --milestone 4 --capture <id>\n" +
     "  node scripts/snapshot-capture.mjs resume --season 19 --milestone 4 --capture <id>\n" +
     "  node scripts/snapshot-capture.mjs accept --season 19 --milestone 4 --capture <id>\n" +
@@ -31,10 +32,11 @@ function usage() {
 
 function parseArgs(argv) {
   const [command, ...rest] = argv;
-  const options = { command, dryRun: false };
+  const options = { command, dryRun: false, candidatesOnly: false };
   for (let index = 0; index < rest.length; index += 1) {
     const arg = rest[index];
     if (arg === "--dry-run") options.dryRun = true;
+    else if (arg === "--candidates-only") options.candidatesOnly = true;
     else if (arg.startsWith("--")) {
       const key = arg.slice(2);
       const value = rest[++index];
@@ -107,41 +109,11 @@ async function dryRun(options) {
   await preflight();
   const apiKey = requireCredentials();
   const eraWindow = getConfiguredWindow(options);
-  const controller = new AbortController();
   const apiUrl = process.env.MAVIS_API_URL || "https://api-gateway.skymavis.com";
-  const response = await fetch(
-    `${apiUrl}/origins/v2/season-leaderboards?limit=1&offset=0&milestone=${options.milestone}`,
-    { headers: { "x-api-key": apiKey }, signal: controller.signal }
-  );
-  if (!response.ok) throw new Error(`Dry-run candidate availability check failed: ${response.status}`);
-  const payload = await response.json();
-  const available = Array.isArray(payload?._items) ? payload._items.length : 0;
-  const probeCandidate = payload?._items?.[0];
-  if (!probeCandidate?.userID) throw new Error("Dry-run candidate availability check returned no usable user ID.");
-  const battleLogProbe = await fetchArchivalBattleLogs({
-    userId: probeCandidate.userID,
-    apiUrl,
-    apiKey,
-    eraStartedAt: eraWindow.eraStartedAt,
-    eraEndedAt: eraWindow.eraEndedAt
+  const dryRunReport = await runSnapshotCaptureDryRun({
+    options, apiKey, apiUrl, eraWindow, fetchImpl: fetch, battleLogProbe: fetchArchivalBattleLogs
   });
-  console.log(JSON.stringify({
-    dryRun: true,
-    season: options.season,
-    milestone: options.milestone,
-    scopeKey: `season:${options.season}:milestone:${options.milestone}`,
-    rankRange: `${RANK_MIN}-${RANK_MAX}`,
-    firstPageCandidates: available,
-    estimatedLeaderboardPages: Math.ceil(RANK_MAX / 100),
-    estimatedBattleLogRequests: RANK_MAX,
-    battleLogProbe: {
-      httpStatus: battleLogProbe.httpStatus,
-      requestedLimit: battleLogProbe.requestedLimit,
-      battleLogsFetchedCount: battleLogProbe.normalized.battleLogsFetchedCount,
-      eraCoverage: battleLogProbe.normalized.eraCoverage
-    },
-    storesBattleLogs: false
-  }, null, 2));
+  console.log(JSON.stringify(dryRunReport, null, 2));
 }
 
 async function run() {
@@ -174,16 +146,32 @@ async function run() {
   let manifest;
   if (options.command === "start") {
     const eraWindow = getConfiguredWindow(options);
+    // Reject --candidates-only if an accepted capture already exists
+    if (options.candidatesOnly) {
+      const ref = { seasonId: options.season, milestone: String(options.milestone), scopeKey: `season:${options.season}:milestone:${options.milestone}` };
+      const index = await repository.readIndex(ref);
+      if (index?.acceptedCaptureId) {
+        throw new Error(`Cannot start --candidates-only capture: an accepted capture already exists (${index.acceptedCaptureId}). Historical snapshots are immutable; explicit replacement is not yet implemented.`);
+      }
+    }
     manifest = await repository.createCapture({
       seasonId: options.season,
       milestone: options.milestone,
       eraName: eraWindow.eraName,
       eraStartedAt: eraWindow.eraStartedAt,
       eraEndedAt: eraWindow.eraEndedAt,
+      hasTeamEvidence: !options.candidatesOnly,
       candidateScope: { rankStart: RANK_MIN, rankEnd: RANK_MAX, configuredCeiling: RANK_MAX }
     });
   } else {
     manifest = await readCapture(options);
+  }
+  // Recover a completed capture whose staging-to-captures rename was blocked
+  // by a transient filesystem lock, without trying to mutate its evidence.
+  if (options.command === "resume" && manifest.status === "completed") {
+    manifest = await repository.publishCapture(manifest);
+    printStatus(manifest, await repository.readIndex(manifest));
+    return;
   }
   const controller = new AbortController();
   const stop = () => controller.abort();
@@ -195,7 +183,13 @@ async function run() {
       printStatus(manifest);
       return;
     }
-    manifest = await captureArchivalBattleLogs({ repository, manifest, signal: controller.signal });
+    // Skip battle-log capture in candidates-only mode and publish directly
+    if (manifest.hasTeamEvidence !== false) {
+      manifest = await captureArchivalBattleLogs({ repository, manifest, signal: controller.signal });
+    } else {
+      manifest = await repository.publishCapture(manifest);
+      console.log(JSON.stringify({ message: "Candidates-only snapshot published (no team evidence); requires explicit manual acceptance" }, null, 2));
+    }
     printStatus(manifest);
   } finally {
     process.removeListener("SIGINT", stop);

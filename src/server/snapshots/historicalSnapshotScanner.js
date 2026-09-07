@@ -10,12 +10,19 @@ function snapshotUnavailable(message) {
   return error;
 }
 
+function teamEvidenceUnavailable(message) {
+  const error = new Error(message);
+  error.code = "HISTORICAL_TEAM_EVIDENCE_UNAVAILABLE";
+  return error;
+}
+
 function snapshotMetadata(snapshot) {
   return {
     captureId: snapshot.captureId,
     revision: snapshot.revision,
     scopeKey: snapshot.scopeKey,
     capturedAt: snapshot.completedAt,
+    hasTeamEvidence: snapshot.hasTeamEvidence !== false,
     eraCoverage: snapshot.battleLogSummary.eraCoverage,
     candidateScope: snapshot.candidateScope
   };
@@ -29,6 +36,10 @@ async function loadAcceptedSnapshot(repository, leaderboardScope) {
   const snapshot = await findAcceptedSnapshot(repository, scope);
   if (!snapshot) {
     throw snapshotUnavailable("No accepted historical leaderboard snapshot is available for this era.");
+  }
+  // Fail closed immediately if team evidence is not available
+  if (snapshot.hasTeamEvidence === false) {
+    throw teamEvidenceUnavailable("This historical snapshot contains only leaderboard candidates; team evidence is not available for scanning.");
   }
   const eraStartedAt = Number(snapshot.eraStartedAt);
   const eraEndedAt = Number(snapshot.eraEndedAt);
