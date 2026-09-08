@@ -72,6 +72,8 @@ function appendHistoricalTeamProvenance(container, player) {
   summary.className = "historical-team-provenance-summary";
   summary.textContent = formatted.text;
   summary.title = [formatted.detail, formatted.capturedAt && `Captured: ${formatted.capturedAt}`].filter(Boolean).join("\n");
+  summary.tabIndex = 0;
+  summary.setAttribute("aria-label", summary.title.replace(/\n/g, ". "));
   provenance.append(summary);
   container.append(provenance);
 }
@@ -327,6 +329,13 @@ export function renderLeaderboardRows(leaderboardBody, players) {
             height: 240,
             imageHeight: "96px"
           })
+            .then(() => {
+              const image = morphContainer.querySelector("img");
+              if (image) {
+                const teamType = player.teamSource === "historical-snapshot" ? "Historical team" : "Team";
+                image.alt = `${teamType} image for ${player.name || player.userID}, Axie ${axieLabel}`;
+              }
+            })
             .catch((error) => {
               console.warn(
                 `[renderLeaderboardRows] Row ${rowIndex}, Slot ${slotIndex}, Axie #${axieID}: Render failed`,
@@ -441,6 +450,7 @@ export function renderLeaderboardRows(leaderboardBody, players) {
         "aria-label",
         `${copy.title}. ${copy.subtitle} ${HISTORICAL_TEAM_UNAVAILABLE_TOOLTIP}`
       );
+      teamCell.tabIndex = 0;
       teamCell.append(title, detail);
     } else {
       teamCell.textContent = "-";

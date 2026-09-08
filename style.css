@@ -1203,6 +1203,7 @@ select,
   justify-content: flex-start;
   overflow: visible;
   padding: 2px 0;
+  min-height: 120px;
 }
 
 .team-preview-item {
@@ -1994,7 +1995,8 @@ input {
 }
 
 .historical-team-provenance,
-.historical-team-unavailable {
+.historical-team-unavailable,
+.historical-team-not-captured {
   color: #9bb5c1;
   font-size: 11px;
   line-height: 1.35;
@@ -2008,8 +2010,31 @@ input {
   color: #c5e9ff;
 }
 
+.historical-team-provenance-summary:focus-visible,
+.historical-team-unavailable:focus-visible,
+.historical-team-not-captured:focus-visible {
+  outline: 2px solid #c5e9ff;
+  outline-offset: 2px;
+}
+
+.historical-team-unavailable,
+.historical-team-not-captured {
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0.5rem;
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  gap: 0.25rem;
+}
+
 .historical-team-unavailable-detail {
   margin-top: 3px;
+  font-size: 0.85em;
+  color: #777;
 }
 
 .historical-snapshot-unavailable {
