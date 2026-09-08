@@ -364,7 +364,7 @@ export function renderLeaderboardRows(leaderboardBody, players) {
               if (axieWrapper.querySelector(".rune-badge-tooltip")) return;
               const tooltip = document.createElement("span");
               tooltip.className = "rune-badge-tooltip";
-              tooltip.textContent = formatRuneBadgeLabel(visibleRune);
+              tooltip.textContent = visibleRune.name || visibleRune.id;
               axieWrapper.append(tooltip);
             };
             const hideTooltip = () => axieWrapper.querySelector(".rune-badge-tooltip")?.remove();

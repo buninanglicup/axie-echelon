@@ -298,15 +298,22 @@ reports only the documented low-ID starter/legacy unknowns.
 1. Add verified battle-log pagination before claiming complete historical era
    coverage. The current scheduler is intentionally compact and best-effort.
 2. Add lightweight browser smoke coverage for historical UI flows.
-3. Decide retention and backup policy for ignored snapshot files.
-4. Design resumability for terminal partial rune-scan jobs if full coverage
+3. Verify historical team snapshot behavior on narrow viewports before scoping
+    mobile-specific work. Review the full responsive CSS for `.leaderboard-table`,
+  `.team-preview`, `.historical-team-unavailable`, and
+  `.historical-team-not-captured`; confirm whether `index.html` uses the same
+  table markup on narrow screens; then decide whether captured, not-captured,
+  or unavailable team states need mobile adjustments. Do not redesign the
+  mobile layout as part of this verification pass.
+4. Decide retention and backup policy for ignored snapshot files.
+5. Design resumability for terminal partial rune-scan jobs if full coverage
    after a timeout is required.
-5. Review ignored real captures locally when new body-part variants or
+6. Review ignored real captures locally when new body-part variants or
    unsupported starter records appear; never commit raw captures.
-6. Reproduce and diagnose the live-mode page reload if it occurs again.
-7. Complete browser smoke coverage for the Morph Viewer and address lookup.
-8. Decide the intended UI behavior when a live battle-time fetch fails.
-9. Add browser/API tests and consider code-splitting PIXI/Spine.
+7. Reproduce and diagnose the live-mode page reload if it occurs again.
+8. Complete browser smoke coverage for the Morph Viewer and address lookup.
+9. Decide the intended UI behavior when a live battle-time fetch fails.
+10. Add browser/API tests and consider code-splitting PIXI/Spine.
 
 Track these items in this section of `PROJECT_HANDOFF.md`; implementation
 details and historical planning notes remain in `docs/planning/` and
