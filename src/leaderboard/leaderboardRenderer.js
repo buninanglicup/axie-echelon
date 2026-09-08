@@ -5,6 +5,7 @@ import { formatRelativeTime, predictNextActivity, formatActivityEstimate, format
 import { getLastBattleTimestamp } from "./leaderboardFilters.js";
 import { leaderboardState, RANKED_SESSION_GAP_THRESHOLD_MS, MIN_VALID_MATCH_DURATION_MS, POLLING_STALE_MULTIPLIER, DEFAULT_MATCH_DURATION_MS, PROFILE_BASE, leaderboardCount } from "./leaderboardState.js";
 import { coerceCompatibleRune, formatRuneBadgeLabel } from "./runeBadgeUtil.js";
+import { formatHistoricalTeamProvenance } from "./historicalTeamProvenance.js";
 
 function formatDebugClock(date) {
   if (!date || Number.isNaN(date.getTime())) return "?";
@@ -25,22 +26,6 @@ function createStatusSpan(text, className) {
   return span;
 }
 
-function formatHistoricalTimestamp(value) {
-  const date = new Date(value);
-  if (!value || Number.isNaN(date.getTime())) return null;
-  return date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
-}
-
-function historicalCoverageText(coverage) {
-  if (coverage === "partial") {
-    return "Coverage: partial — recent battle logs only; not exhaustive era history.";
-  }
-  if (coverage === "unknown") {
-    return "Coverage: unknown — completeness could not be verified; not exhaustive era history.";
-  }
-  return "Coverage: complete under this capture's documented policy.";
-}
-
 function historicalUnavailableText(evidence) {
   if (evidence?.teamEvidenceReason === "INVALID_TRACKED_PLAYER_TEAM_FIGHTERS") {
     return "Captured battle data did not contain a usable team for this player.";
@@ -52,33 +37,15 @@ function historicalUnavailableText(evidence) {
 }
 
 function appendHistoricalTeamProvenance(container, player) {
-  const evidence = player.historicalTeamEvidence;
-  const snapshot = player.snapshot;
   const provenance = document.createElement("div");
   provenance.className = "historical-team-provenance";
 
+  const formatted = formatHistoricalTeamProvenance(player);
   const summary = document.createElement("div");
   summary.className = "historical-team-provenance-summary";
-  summary.textContent = evidence?.teamEvidence === "legacy"
-    ? "Captured historical ranked team"
-    : "Captured team from the latest observed ranked battle in this era.";
+  summary.textContent = formatted.text;
+  summary.title = [formatted.detail, formatted.capturedAt && `Captured: ${formatted.capturedAt}`].filter(Boolean).join("\n");
   provenance.append(summary);
-
-  const selectedBattle = formatHistoricalTimestamp(evidence?.selectedBattleTimestamp);
-  const capturedAt = formatHistoricalTimestamp(evidence?.capturedAt || snapshot?.capturedAt);
-  const dates = [
-    selectedBattle && `Battle: ${selectedBattle}`,
-    capturedAt && `Captured: ${capturedAt}`
-  ].filter(Boolean);
-  if (dates.length > 0) {
-    const dateLine = document.createElement("div");
-    dateLine.textContent = dates.join(" · ");
-    provenance.append(dateLine);
-  }
-
-  const coverage = document.createElement("div");
-  coverage.textContent = historicalCoverageText(snapshot?.eraCoverage);
-  provenance.append(coverage);
   container.append(provenance);
 }
 

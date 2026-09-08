@@ -1,6 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { formatRuneBadgeLabel, coerceCompatibleRune } from './runeBadgeUtil.js';
+import { formatHistoricalTeamProvenance } from './historicalTeamProvenance.js';
+
+test('formats historical team provenance as a compact line with detail retained for a tooltip', () => {
+  const result = formatHistoricalTeamProvenance({
+    historicalTeamEvidence: { teamEvidence: 'observed', selectedBattleTimestamp: '2026-09-02T01:46:00.000Z' },
+    snapshot: { eraCoverage: 'partial', capturedAt: '2026-09-06T03:45:00.000Z' }
+  });
+
+  assert.match(result.text, /^Historical team · battle /);
+  assert.match(result.text, /partial coverage$/);
+  assert.equal(result.detail, 'Coverage: partial — recent battle logs only; not exhaustive era history.');
+  assert.ok(result.capturedAt);
+});
 
 test('formatRuneBadgeLabel uses name then id when name present', () => {
   const r = { id: 'rune-1', name: 'Blazing Orb' };

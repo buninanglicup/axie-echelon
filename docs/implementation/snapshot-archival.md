@@ -59,9 +59,11 @@ normalized captured teams; it never calls the candidate, enrichment, or
 battle-log clients. Its deduplication source is distinct from an upstream scan
 even when both requests have the same numeric era scope.
 
-Historical team previews show only normalized provenance: the selected battle
-timestamp, the time that player's evidence was captured, and the capture's
-coverage classification. `partial` and `unknown` explicitly say that the
+Historical team previews show normalized provenance in a compact one-line
+summary containing the selected battle timestamp and, when applicable, the
+capture's `partial` or `unknown` coverage classification. The detailed
+coverage explanation and evidence capture time remain available through the
+summary's hover tooltip. `partial` and `unknown` explicitly say that the
 archive is not exhaustive era history. Raw battle payloads, checksums, request
 headers, and credentials are never sent to the browser.
 
