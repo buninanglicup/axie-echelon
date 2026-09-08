@@ -1,6 +1,7 @@
 import { getLeaderboardScopeKey, normalizeLeaderboardScope } from "../../leaderboard/leaderboardScope.js";
 import { SnapshotRepository } from "./snapshotRepository.js";
 import { getRuneMetadata } from "../leaderboard/runeCatalog.js";
+import { getCharmMetadata } from "../leaderboard/charmCatalog.js";
 
 function snapshotReference(scope, captureId) {
   return {
@@ -95,6 +96,15 @@ function mapSnapshotFighter(fighter) {
   }
 
   const runeObj = normalizeRuneEntry(firstRune);
+  // Archived charm IDs need the same display metadata as live logs, but a
+  // missing catalog match must remain visibly unresolved rather than guessed.
+  const charms = fighter?.charms && typeof fighter.charms === "object"
+    ? Object.fromEntries(Object.entries(fighter.charms).map(([slot, charmID]) => {
+      const id = typeof charmID === "string" && charmID.trim() ? charmID.trim() : null;
+      const metadata = id ? getCharmMetadata(id) : null;
+      return [slot, metadata || (id ? { id, name: null, description: null, imageUrl: null } : null)];
+    }))
+    : null;
 
   return {
     axieID: fighter?.axieID,
@@ -109,7 +119,7 @@ function mapSnapshotFighter(fighter) {
     runes: runesArray,
     // Compatibility: single-runne expectation used by the renderer.
     rune: runeObj,
-    charms: fighter?.charms || null
+    charms
   };
 }
 

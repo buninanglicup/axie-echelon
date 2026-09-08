@@ -150,18 +150,16 @@ export function renderLeaderboardRows(leaderboardBody, players) {
     playerNameContainer.className = "player-name-container";
 
     const playerName = document.createElement("div");
-    const playerProfileUrl = player.profileUrl || (player.roninAddress ? `${PROFILE_BASE}/${player.roninAddress}/axies/` : null);
+    const playerProfileLink = player.userID ? `/profile/${encodeURIComponent(player.userID)}` : null;
 
-    if (playerProfileUrl) {
+    if (playerProfileLink) {
       const playerLink = document.createElement("a");
       playerLink.className = "player-name-link";
-      playerLink.href = playerProfileUrl;
-      playerLink.target = "_blank";
-      playerLink.rel = "noopener noreferrer";
-      playerLink.title = `View ${player.name || player.userID}'s Axie profile (opens in new tab)`;
+      playerLink.href = playerProfileLink;
+      playerLink.title = `View ${player.name || player.userID}'s recent ranked battles`;
       playerLink.setAttribute(
         "aria-label",
-        `View ${player.name || player.userID}'s Axie profile on the Axie marketplace, opens in a new tab`
+        `View ${player.name || player.userID}'s recent ranked battle logs`
       );
       playerLink.textContent = `${player.name || player.userID} ↗`;
       playerName.append(playerLink);

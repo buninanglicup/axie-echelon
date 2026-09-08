@@ -43,6 +43,17 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
 ## Implemented Features
 
 - Leaderboard display with rank, player name, MMR, win rate, daily change, recent form, team previews, rune badges, profile links, and last ranked-battle time.
+- Player battle-history profiles at `/profile/:userID`. Each card keeps a
+  scan-first matchup: battle context sits between two participant/rating groups,
+  followed by their respective Axie compositions. Names resolve through the
+  GraphQL profile cache, with a UUID only as the fallback; the full queried UUID
+  remains small, copyable text in the profile header.
+- Profile rune and charm presentation is catalog-backed. The latest team shows
+  six slot-based charm images, while clicking a battle-history Axie opens a
+  right-side inspector with its rune and available charm details. The UI does
+  not invent missing Axie levels or equipment-part data.
+- `src/data/charms.json` is generated from Sky Mavis. Refresh it intentionally
+  with `npm run charms:update` (optionally `CHARM_SEASON_ID`); do not edit it.
 - Live mode polling with configurable interval and activity windows from 0 seconds through 20 minutes.
 - Season/era resolution from `src/data/season.json`; the backend exposes `/api/season/current`. Internally, the numeric value is called `eraMilestone`; at the Sky Mavis API boundary it is sent as `milestone` and explicit `?milestone=` overrides remain supported. Era calculation anchors Final to `seasonEndedAt`, works backward for intermediate boundaries, and anchors Rare to `seasonStartedAt`. Automatic current-era and offseason views use upstream endpoints; a manually selected historical era reads only its accepted local snapshot and reports “Snapshot unavailable” when none exists. The frontend checks immediately at startup and once every 24 hours afterward.
 - An opt-in local end-of-era snapshot scheduler can freeze and archive the most recently ended era after a grace period. It uses the shared resolver boundaries, resumes incomplete captures, and uses a scope lock for tracker-instance coordination. It is disabled by default, never accepts a capture automatically, and supports deliberate historical catch-up only through an explicit environment setting. See `docs/implementation/snapshot-archival.md`.
@@ -172,6 +183,9 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
 - `GET /api/leaderboard/rune-scan/:jobId`: poll scan status and partial results.
 - `DELETE /api/leaderboard/rune-scan/:jobId`: request best-effort cancellation.
 - `GET /api/runes`: generated rune catalog.
+- `GET /api/profile/:userID/battle-logs`: latest 20 observed battle logs,
+  normalized with result confidence, names, team/rune/charm metadata, and
+  live or historical provenance. `GET /api/profile/:userID` shares the handler.
 - `src/data/cards.json`: manually refreshed card catalog reference; it is not
   currently used to resolve Axie body-part identities.
 - `GET /api/axie/:id`: Axie lookup and normalization.
@@ -208,6 +222,10 @@ An Axie is considered collectible when it has at least one verified collectible 
 - Compact-mode preference is not persisted across a full page reload.
 - PIXI/Spine makes the production bundle large. `npm run build` succeeds but reports a chunk over 500 KB.
 - There are no comprehensive automated browser tests.
+- Profile display names depend on Sky Mavis `publicProfile.name`. When it is
+  unavailable, the UI intentionally falls back to the user UUID. Restart the
+  Node backend after profile enrichment/cache changes; Vite HMR reloads only
+  frontend code.
 - Firefox extension/listener warnings were previously observed and are not yet proven related to the reload bug.
 
 ### Technical debt
@@ -233,6 +251,10 @@ An Axie is considered collectible when it has at least one verified collectible 
 - `src/axieLookup/axieLookupView.js`: Axie lookup UI, cards, filters, and pagination.
 - `src/axieLookup/axieLookupState.js`: lookup state and DOM references.
 - `src/shared/morphRenderer.js`: shared bounded PIXI render queue/cache.
+- `src/shared/vstarBadge.js`: reusable VSTAR icon/value/delta badge primitive.
+- `src/profile/profileView.js`: scan-first profile history, latest team, and
+  right-side Axie build inspector.
+- `src/profile/profileState.js`: profile endpoint state and scope serialization.
 - `src/renderer.js`: actual PIXI/Spine Axie renderer.
 - `src/pagination.js`: shared pagination helper.
 - `src/server/shared/env.js`: dotenv loading and environment-derived configuration.
@@ -254,6 +276,10 @@ An Axie is considered collectible when it has at least one verified collectible 
 - `scripts/list-seasons.mjs`: maintenance helper for generating the next season configuration.
 - `src/server/leaderboard/enrichmentCache.js`: on-demand enrichment state model.
 - `src/server/shared/profileCache.js`: cached profile/address resolution.
+- `src/server/profile/`: profile battle-log route, normalization/enrichment,
+  and bounded observed-battle retention store.
+- `src/server/leaderboard/charmCatalog.js`: generated charm-ID metadata lookup.
+- `scripts/update-charms.mjs`: authenticated charm catalog refresh script.
 - `.env.example`: shared local configuration template; copy it to `.env` and never commit secrets.
 - `start-all-trackers.ps1`: launches the five predefined local tracker instances.
 - `start-tracker1.ps1` through `start-tracker5.ps1`: select one numbered tracker profile and start the development process.
@@ -305,15 +331,28 @@ reports only the documented low-ID starter/legacy unknowns.
   table markup on narrow screens; then decide whether captured, not-captured,
   or unavailable team states need mobile adjustments. Do not redesign the
   mobile layout as part of this verification pass.
-4. Decide retention and backup policy for ignored snapshot files.
-5. Design resumability for terminal partial rune-scan jobs if full coverage
+4. Replace manual snapshot acceptance with verification-driven automation:
+   automatically accept a completed capture only after candidate completeness,
+   battle-log processing, coverage metadata, and structural snapshot validation
+   pass; leave incomplete or failed captures pending with an actionable review
+   reason. Preserve manual acceptance as an exception path.
+5. Add a dedicated player profile resource focused on recent ranked battle logs,
+   using `GET /api/profile/:identifier` as the canonical endpoint. Support a
+   user ID first, then resolve Ronin addresses through the existing one-to-one
+   user-ID/address conversion path so `GET /api/profile/:roninAddress` can be
+   added later without creating a second profile model. Include battle
+   timestamps, available opponents and results, reconstructed teams, rune data,
+   and live or historical provenance. Define retention limits, pagination, and
+   whether accepted historical snapshot data should be supported.
+6. Decide retention and backup policy for ignored snapshot files.
+7. Design resumability for terminal partial rune-scan jobs if full coverage
    after a timeout is required.
-6. Review ignored real captures locally when new body-part variants or
+8. Review ignored real captures locally when new body-part variants or
    unsupported starter records appear; never commit raw captures.
-7. Reproduce and diagnose the live-mode page reload if it occurs again.
-8. Complete browser smoke coverage for the Morph Viewer and address lookup.
-9. Decide the intended UI behavior when a live battle-time fetch fails.
-10. Add browser/API tests and consider code-splitting PIXI/Spine.
+9. Reproduce and diagnose the live-mode page reload if it occurs again.
+10. Complete browser smoke coverage for the Morph Viewer and address lookup.
+11. Decide the intended UI behavior when a live battle-time fetch fails.
+12. Add browser/API tests and consider code-splitting PIXI/Spine.
 
 Track these items in this section of `PROJECT_HANDOFF.md`; implementation
 details and historical planning notes remain in `docs/planning/` and

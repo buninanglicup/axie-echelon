@@ -8,6 +8,7 @@
 // and src/shared/ (code used by both features).
 import { initLeaderboardView } from "./leaderboard/leaderboardView.js";
 import { initAxieLookupView } from "./axieLookup/axieLookupView.js";
+import { renderProfileBattleLogPanel } from "./profile/profileView.js";
 
 // ===== PAGE RELOAD DETECTION =====
 // Track if this is a fresh page load (for debugging live mode resets)
@@ -42,5 +43,44 @@ window.fetch = function(...args) {
 
 // ===== END PAGE RELOAD DETECTION =====
 
+// Profiles are routed full-page views; they intentionally bypass the normal
+// dashboard panel toggles while reusing the same application shell.
+function initProfilePageIfNeeded() {
+  const profileMatch = window.location.pathname.match(/^\/profile\/([^/?#]+)/);
+  if (!profileMatch) return;
+
+  const profileId = decodeURIComponent(profileMatch[1]);
+  const profilePanel = document.getElementById("profile-panel");
+  const profileView = document.getElementById("profile-view");
+  const sidePanel = document.querySelector(".side-panel");
+  const leaderboardView = document.getElementById("leaderboard-view");
+  const backButton = document.getElementById("profile-back-button");
+  const dashboardLayout = document.querySelector(".dashboard-layout");
+
+  if (profileView) profileView.classList.remove("hidden");
+  dashboardLayout?.classList.add("profile-active");
+  if (sidePanel) sidePanel.hidden = true;
+  if (leaderboardView) leaderboardView.classList.add("hidden");
+  if (backButton) {
+    backButton.onclick = () => {
+      window.location.href = "/";
+    };
+  }
+
+  if (profilePanel) {
+    renderProfileBattleLogPanel(profilePanel, profileId);
+  }
+
+  // The normal navigation handler only swaps panels; a profile is a routed
+  // full-width view, so return to the root route instead of leaving the
+  // profile layout active behind a narrow leaderboard column.
+  document.querySelector('[data-nav="leaderboard"]')?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    window.location.assign("/");
+  }, true);
+}
+
 initAxieLookupView();
 initLeaderboardView();
+initProfilePageIfNeeded();

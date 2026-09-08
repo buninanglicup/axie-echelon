@@ -39,6 +39,7 @@ import seasonRoutes from "./src/server/seasonRoutes.js";
 import leaderboardRoutes from "./src/server/leaderboard/leaderboardRoutes.js";
 import leaderboardRuneScanRoutes from "./src/server/leaderboard/leaderboardRuneScanRoutes.js";
 import leaderboardBodyPartScanRoutes from "./src/server/leaderboard/leaderboardBodyPartScanRoutes.js";
+import profileRoutes from "./src/server/profile/profileRoutes.js";
 import { createEndOfEraSnapshotScheduler } from "./src/server/snapshots/endOfEraSnapshotScheduler.js";
 
 console.log(`Starting server on port ${port} (${process.env.PORT ? 'PORT env override' : 'default port 8787'})`);
@@ -55,6 +56,12 @@ app.get("/", (request, response) => {
   response.sendFile(path.resolve("index.html"));
 });
 
+// Client-side profile route: Express serves the app shell and the frontend
+// fetches normalized battle history from the mounted profile API below.
+app.get("/profile/:identifier", (request, response) => {
+  response.sendFile(path.resolve("index.html"));
+});
+
 app.use(express.static(path.resolve(".")));
 
 app.use(axieRoutes);
@@ -62,6 +69,7 @@ app.use(seasonRoutes);
 app.use(leaderboardRoutes);
 app.use(leaderboardRuneScanRoutes);
 app.use(leaderboardBodyPartScanRoutes);
+app.use(profileRoutes);
 
 // ========== SERVER INITIALIZATION ==========
 // Runes are loaded from the pre-generated static registry in src/data/runes.json.

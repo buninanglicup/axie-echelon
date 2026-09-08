@@ -29,6 +29,24 @@
     </div>
 
     <main class="container dashboard-layout">
+      <!-- Routed player-profile shell; its contents are populated by profileView.js. -->
+      <section id="profile-view" class="view-panel hidden" aria-live="polite">
+        <div class="panel-heading compact-heading">
+          <div>
+            <div class="eyebrow">PLAYER PROFILE</div>
+            <div class="profile-identity">
+              <div class="profile-title-stack">
+                <h2 id="profile-player-name">Battle history</h2>
+                <span id="profile-player-id" class="profile-player-id"></span>
+              </div>
+              <button id="profile-copy-id" class="profile-copy-id" type="button" title="Copy player ID" aria-label="Copy player ID">Copy ID</button>
+            </div>
+          </div>
+          <button id="profile-back-button" type="button" class="primary-button profile-back-button">Back to leaderboard</button>
+        </div>
+        <div id="profile-panel"></div>
+      </section>
+
       <aside class="side-panel">
         <div class="sidebar-heading">
           <span class="sidebar-heading-label">Filters</span>
