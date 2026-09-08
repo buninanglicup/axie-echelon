@@ -16,9 +16,8 @@ export function formatHistoricalTeamProvenance(player) {
   const snapshot = player?.snapshot;
   const selectedBattle = formatHistoricalTimestamp(evidence?.selectedBattleTimestamp);
   const coverage = snapshot?.eraCoverage || "unknown";
-  const label = evidence?.teamEvidence === "legacy" ? "Historical ranked team" : "Historical team";
-  const parts = [label, selectedBattle && `battle ${selectedBattle}`].filter(Boolean);
-  if (coverage !== "complete") parts.push(`${coverage} coverage`);
+  const parts = [selectedBattle && `Battle ${selectedBattle}`].filter(Boolean);
+  if (coverage !== "complete") parts.push(coverage[0].toUpperCase() + coverage.slice(1));
   return {
     text: parts.join(" · "),
     detail: historicalCoverageText(coverage),

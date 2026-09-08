@@ -9,8 +9,8 @@ test('formats historical team provenance as a compact line with detail retained 
     snapshot: { eraCoverage: 'partial', capturedAt: '2026-09-06T03:45:00.000Z' }
   });
 
-  assert.match(result.text, /^Historical team · battle /);
-  assert.match(result.text, /partial coverage$/);
+  assert.match(result.text, /^Battle /);
+  assert.match(result.text, / · Partial$/);
   assert.equal(result.detail, 'Coverage: partial — recent battle logs only; not exhaustive era history.');
   assert.ok(result.capturedAt);
 });

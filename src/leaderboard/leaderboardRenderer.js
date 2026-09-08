@@ -37,7 +37,7 @@ function historicalUnavailableCopy(player) {
   if (snapshot?.hasTeamEvidence === false) {
     return {
       title: "Historical team not captured",
-      subtitle: "This historical capture contains leaderboard data but no team evidence."
+      subtitle: "No historical team evidence was captured for this player."
     };
   }
 
