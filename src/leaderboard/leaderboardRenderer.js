@@ -332,8 +332,9 @@ export function renderLeaderboardRows(leaderboardBody, players) {
             .then(() => {
               const image = morphContainer.querySelector("img");
               if (image) {
-                const teamType = player.teamSource === "historical-snapshot" ? "Historical team" : "Team";
-                image.alt = `${teamType} image for ${player.name || player.userID}, Axie ${axieLabel}`;
+                image.alt = player.teamSource === "historical-snapshot"
+                  ? `Historical Axie ${axieID} (reconstructed)`
+                  : `Axie ${axieID}`;
               }
             })
             .catch((error) => {
