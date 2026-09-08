@@ -676,6 +676,7 @@ async function enrichVisiblePoolPage(pageItems, requestedPage, requestedScope, r
         player.historicalTeamUnavailable = true;
         player.snapshot = data.snapshot || null;
         player.historicalTeamEvidence = data.evidence || null;
+        player.historicalTeamError = data.error || null;
       }
     } catch (error) {
       console.warn(`Team enrichment failed for ${player.userID}`, error);

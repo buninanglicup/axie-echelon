@@ -26,14 +26,41 @@ function createStatusSpan(text, className) {
   return span;
 }
 
-function historicalUnavailableText(evidence) {
+const HISTORICAL_TEAM_UNAVAILABLE_TOOLTIP =
+  "This does not indicate that the player had no team. It means the historical archive does not contain usable team evidence for this player.";
+
+function historicalUnavailableCopy(player) {
+  const evidence = player?.historicalTeamEvidence;
+  const snapshot = player?.snapshot;
+  const error = player?.historicalTeamError;
+
+  if (snapshot?.hasTeamEvidence === false) {
+    return {
+      title: "Historical team not captured",
+      subtitle: "This historical capture contains leaderboard data but no team evidence."
+    };
+  }
+
+  // Evidence exists but failed validation; reserve "unavailable" for this case.
   if (evidence?.teamEvidenceReason === "INVALID_TRACKED_PLAYER_TEAM_FIGHTERS") {
-    return "Captured battle data did not contain a usable team for this player.";
+    return {
+      title: "Historical team unavailable",
+      subtitle: "Captured battle data did not contain a usable team for this player."
+    };
   }
+
+  // No usable evidence exists; distinguish known archival gaps from the fallback case.
   if (evidence?.teamEvidenceReason === "NO_VALID_IN_ERA_RANKED_BATTLE_FOUND_FOR_PLAYER") {
-    return "No valid in-era ranked battle was observed for this player.";
+    return {
+      title: "Historical team not captured",
+      subtitle: "No valid in-era ranked battle was captured for this player."
+    };
   }
-  return "No captured ranked team is available for this player.";
+
+  return {
+    title: "Historical team not captured",
+    subtitle: error || "No usable historical team evidence was captured for this player."
+  };
 }
 
 function appendHistoricalTeamProvenance(container, player) {
@@ -400,12 +427,20 @@ export function renderLeaderboardRows(leaderboardBody, players) {
         appendHistoricalTeamProvenance(teamCell, player);
       }
     } else if (player.historicalTeamUnavailable) {
-      teamCell.className = "historical-team-unavailable";
+      const copy = historicalUnavailableCopy(player);
+      teamCell.className = copy.title === "Historical team not captured"
+        ? "historical-team-not-captured"
+        : "historical-team-unavailable";
       const title = document.createElement("div");
-      title.textContent = "Historical team unavailable";
+      title.textContent = copy.title;
       const detail = document.createElement("div");
       detail.className = "historical-team-unavailable-detail";
-      detail.textContent = historicalUnavailableText(player.historicalTeamEvidence);
+      detail.textContent = copy.subtitle;
+      teamCell.title = HISTORICAL_TEAM_UNAVAILABLE_TOOLTIP;
+      teamCell.setAttribute(
+        "aria-label",
+        `${copy.title}. ${copy.subtitle} ${HISTORICAL_TEAM_UNAVAILABLE_TOOLTIP}`
+      );
       teamCell.append(title, detail);
     } else {
       teamCell.textContent = "-";
