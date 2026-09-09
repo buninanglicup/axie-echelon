@@ -20,9 +20,13 @@
 
       </div>
 
-      <nav class="top-nav">
-        <button class="nav-button active" data-nav="leaderboard">Leaderboard</button>
-        <button class="nav-button" data-nav="morph">Morph Viewer</button>
+      <button id="top-nav-toggle" class="top-nav-toggle" type="button" aria-controls="top-nav" aria-expanded="false">
+        <span aria-hidden="true">☰</span>
+        <span>Menu</span>
+      </button>
+      <nav id="top-nav" class="top-nav" aria-label="Primary navigation">
+        <a class="nav-button active" data-nav="leaderboard" href="/">Leaderboard</a>
+        <a class="nav-button" data-nav="morph" href="/?view=morph">Morph Viewer</a>
         <button class="nav-button nav-button-upcoming" data-nav="meta" disabled aria-disabled="true" title="Coming Soon">Meta Analytics</button>
         <button class="nav-button nav-button-upcoming" data-nav="team-builder" disabled aria-disabled="true" title="Coming Soon">Team Builder</button>
       </nav>
@@ -37,12 +41,16 @@
             <div class="profile-identity">
               <div class="profile-title-stack">
                 <h2 id="profile-player-name">Battle history</h2>
-                <span id="profile-player-id" class="profile-player-id"></span>
+                <div class="profile-id-actions">
+                  <span id="profile-player-id" class="profile-player-id"></span>
+                  <button id="profile-copy-id" class="profile-copy-id" type="button" title="Copy player ID" aria-label="Copy player ID">Copy ID</button>
+                </div>
+                <div id="profile-latest-team-copy-header" class="profile-latest-team-copy-header"></div>
               </div>
-              <button id="profile-copy-id" class="profile-copy-id" type="button" title="Copy player ID" aria-label="Copy player ID">Copy ID</button>
             </div>
           </div>
-          <button id="profile-back-button" type="button" class="primary-button profile-back-button">Back to leaderboard</button>
+          <!-- Current-team composition is populated beside the profile identity. -->
+          <div id="profile-latest-team-header" class="profile-latest-team-header"></div>
         </div>
         <div id="profile-panel"></div>
       </section>

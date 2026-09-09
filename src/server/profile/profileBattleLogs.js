@@ -155,6 +155,7 @@ function normalizeBattleForProfile(battle, clientId) {
     player: {
       userID: clientId,
       name: selfEntry?.name || null,
+      rank: numberOrNull(selfEntry?.rank ?? selfEntry?.topRank ?? selfEntry?.leaderboardRank),
       impact: findRatingImpact(battle, clientId)
     },
     opponent: {

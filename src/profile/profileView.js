@@ -36,15 +36,33 @@ function impactTitle(impact) {
   return details.join("\n");
 }
 
-function appendRatingSummary(container, label, impact, { identity = false, title = "", href = "" } = {}) {
-  const summary = document.createElement("div"); summary.className = "profile-rating-summary";
+function createRatingDeltaChip(impact) {
+  if (!Number.isFinite(impact?.vstarAfter) || !Number.isFinite(impact?.vstarDelta)) return null;
+  const chip = document.createElement("span"); chip.className = "profile-delta-chip";
+  chip.append(createVstarBadge({ value: impact.vstarAfter, delta: impact.vstarDelta, variant: "compact" }));
+  return chip;
+}
+
+function createStatusPill(result, resultClass) {
+  const pill = document.createElement("span"); pill.className = `profile-status-pill profile-battle-result ${resultClass}`;
+  const icon = document.createElement("span"); icon.className = "profile-battle-result-icon"; icon.setAttribute("aria-hidden", "true"); icon.textContent = result === "Win" ? "✓" : result === "Loss" ? "×" : "?";
+  pill.append(icon, document.createTextNode(result));
+  return pill;
+}
+
+function appendRatingSummary(container, label, impact, { identity = false, title = "", href = "", showDelta = true, variant = "" } = {}) {
+  const summary = document.createElement("div"); summary.className = `profile-rating-summary${variant ? ` ${variant}` : ""}`;
   const heading = label ? document.createElement(href ? "a" : "span") : null;
   if (heading) { heading.className = identity ? "profile-rating-player-name" : "profile-rating-label"; heading.textContent = label; heading.title = title; if (href) { heading.classList.add("profile-opponent-link"); heading.href = href; } }
   const transition = document.createElement("span"); transition.className = "profile-rating-transition";
   const delta = document.createElement("span"); delta.className = "profile-rating-delta";
   if (Number.isFinite(impact?.vstarBefore) && Number.isFinite(impact?.vstarAfter)) {
     transition.textContent = `${impact.vstarBefore} → ${impact.vstarAfter}`;
-    delta.append(createVstarBadge({ value: impact.vstarAfter, delta: impact.vstarDelta, variant: "compact" }));
+    if (Number.isFinite(impact.vstarDelta)) transition.classList.add(impact.vstarDelta >= 0 ? "profile-impact-positive" : "profile-impact-negative");
+    if (showDelta) {
+      const chip = createRatingDeltaChip(impact);
+      if (chip) delta.append(chip);
+    }
     summary.title = impactTitle(impact);
   } else {
     transition.textContent = "VSTAR unavailable";
@@ -54,6 +72,36 @@ function appendRatingSummary(container, label, impact, { identity = false, title
   summary.append(transition);
   if (delta.textContent) summary.append(delta);
   container.append(summary);
+}
+
+function createRatingTrend(entries) {
+  const values = entries
+    .slice()
+    .reverse()
+    .map((entry) => entry?.player?.impact?.vstarAfter)
+    .filter(Number.isFinite);
+  if (values.length < 2) return null;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const width = 104;
+  const height = 28;
+  const inset = 2;
+  const range = max - min || 1;
+  const points = values.map((value, index) => {
+    const x = inset + ((width - inset * 2) * index) / (values.length - 1);
+    const y = height - inset - ((value - min) / range) * (height - inset * 2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+  const change = values.at(-1) - values[0];
+  const trend = document.createElement("div"); trend.className = "profile-rating-trend";
+  trend.setAttribute("role", "img");
+  trend.setAttribute("aria-label", `Rating trend across ${values.length} recent battles: ${values[0]} to ${values.at(-1)} VSTAR, ${change >= 0 ? "+" : ""}${change}.`);
+  trend.title = trend.getAttribute("aria-label");
+  const label = document.createElement("span"); label.className = "profile-rating-trend-label"; label.textContent = `${values[0]} → ${values.at(-1)}`;
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); svg.classList.add("profile-rating-sparkline"); svg.setAttribute("viewBox", `0 0 ${width} ${height}`); svg.setAttribute("aria-hidden", "true");
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "polyline"); line.setAttribute("points", points); line.setAttribute("fill", "none"); line.setAttribute("vector-effect", "non-scaling-stroke"); svg.append(line);
+  trend.append(label, svg);
+  return { trend, change, battles: values.length };
 }
 
 const CHARM_SLOTS = [["eyes", "Eyes", "E"], ["ears", "Ears", "E"], ["mouth", "Mouth", "M"], ["horn", "Horn", "H"], ["back", "Back", "B"], ["tail", "Tail", "T"]];
@@ -73,7 +121,14 @@ function renderBuildInspector() {
   const header = document.createElement("header"); header.className = "build-inspector-header";
   const heading = document.createElement("div");
   const contextLine = document.createElement("div"); contextLine.className = "build-inspector-context"; contextLine.textContent = context;
-  const title = document.createElement("h3"); title.textContent = fighter.axieID ? `Axie #${fighter.axieID}` : "Axie build";
+  const title = document.createElement("h3");
+  if (fighter.axieID) {
+    const marketplaceLink = document.createElement("a"); marketplaceLink.className = "build-inspector-axie-link";
+    marketplaceLink.href = `https://app.axieinfinity.com/marketplace/axies/${encodeURIComponent(fighter.axieID)}/`;
+    marketplaceLink.target = "_blank"; marketplaceLink.rel = "noopener noreferrer";
+    marketplaceLink.title = `View Axie #${fighter.axieID} on the marketplace (opens in a new tab)`;
+    marketplaceLink.textContent = `Axie #${fighter.axieID} ↗`; title.append(marketplaceLink);
+  } else title.textContent = "Axie build";
   heading.append(contextLine, title);
   const close = document.createElement("button"); close.className = "build-inspector-close"; close.type = "button"; close.textContent = "×"; close.setAttribute("aria-label", "Close Axie build inspector"); close.onclick = closeBuildInspector;
   header.append(heading, close);
@@ -135,42 +190,63 @@ function appendCharmSlots(container, charms) {
   for (const [key, label, shortLabel] of CHARM_SLOTS) {
     const charm = charms?.[key];
     const charmID = typeof charm?.id === "string" ? charm.id : "";
-    const slot = document.createElement(charm?.imageUrl ? "img" : "span");
+    const slot = document.createElement("button"); slot.type = "button";
     slot.className = `profile-charm-slot${charmID ? " is-equipped" : ""}${charm?.imageUrl ? " profile-charm-image" : ""}`;
+    const detail = charmID ? `${label}: ${charm?.name || charmID}${charm?.description ? `\n${charm.description}` : ""}` : `${label}: no charm equipped`;
     if (charm?.imageUrl) {
-      slot.src = charm.imageUrl;
-      slot.alt = `${label}: ${charm.name || charmID}`;
-      slot.addEventListener("error", () => {
-        const fallback = document.createElement("span");
-        fallback.className = "profile-charm-slot is-equipped";
-        fallback.textContent = shortLabel;
-        fallback.title = `${label}: ${charm.name || charmID}`;
-        slot.replaceWith(fallback);
+      const image = document.createElement("img"); image.className = "profile-charm-art"; image.src = charm.imageUrl; image.alt = "";
+      image.addEventListener("load", () => {
+        // Every remote charm is rendered inside the same square viewport. This
+        // guard records unusual source ratios for QA without special-casing an
+        // individual asset; CSS still prevents it from escaping the viewport.
+        const ratio = image.naturalWidth / image.naturalHeight;
+        slot.classList.toggle("has-unusual-art-ratio", !Number.isFinite(ratio) || ratio < 0.75 || ratio > 1.33);
       });
+      image.addEventListener("error", () => { image.remove(); slot.textContent = shortLabel; });
+      slot.append(image);
     } else slot.textContent = shortLabel;
-    slot.title = charmID ? `${label}: ${charm?.name || charmID}${charm?.description ? `\n${charm.description}` : ""}` : `${label}: no charm equipped`;
-    slot.setAttribute("aria-label", slot.title); slots.append(slot);
+    slot.dataset.detail = detail; slot.setAttribute("aria-label", detail); slot.setAttribute("aria-expanded", "false");
+    slot.onclick = () => {
+      const isVisible = slot.classList.toggle("is-details-visible");
+      slot.setAttribute("aria-expanded", String(isVisible));
+    };
+    slots.append(slot);
   }
   container.append(slots);
 }
 
-function appendAxies(container, team, className = "profile-axies", { showCharms = false, inspectorContext = null } = {}) {
+function appendAxies(container, team, className = "profile-axies", { showCharms = false, inspectorContext = null, linkAxieIDs = false } = {}) {
   const axies = document.createElement("div"); axies.className = className;
   for (const fighter of team?.fighters || []) {
     const axie = document.createElement(inspectorContext ? "button" : "div"); axie.className = "profile-axie";
-    if (inspectorContext) { axie.type = "button"; axie.title = "Inspect Axie build"; axie.onclick = () => openBuildInspector(team.fighters, team.fighters.indexOf(fighter), inspectorContext); }
+    if (inspectorContext) { axie.type = "button"; axie.title = "Inspect Axie build"; axie.setAttribute("aria-label", `Inspect ${fighter.axieID ? `Axie #${fighter.axieID}` : "Axie"} build`); axie.onclick = () => openBuildInspector(team.fighters, team.fighters.indexOf(fighter), inspectorContext); }
     const morph = document.createElement("div"); morph.className = "profile-axie-morph";
-    const fighterID = document.createElement("span"); fighterID.className = "profile-axie-name"; fighterID.textContent = fighter.axieID ? `#${fighter.axieID}` : "Unknown Axie";
+    // Battle cards are inspector buttons, so only the non-interactive latest
+    // team renders the Axie ID as a marketplace link.
+    const fighterID = document.createElement(linkAxieIDs && fighter.axieID ? "a" : "span"); fighterID.className = "profile-axie-name";
+    if (linkAxieIDs && fighter.axieID) {
+      fighterID.classList.add("profile-axie-marketplace-link");
+      fighterID.href = `https://app.axieinfinity.com/marketplace/axies/${encodeURIComponent(fighter.axieID)}/`;
+      fighterID.target = "_blank"; fighterID.rel = "noopener noreferrer";
+      fighterID.title = `View Axie #${fighter.axieID} on the marketplace (opens in a new tab)`;
+      fighterID.setAttribute("aria-label", `View Axie #${fighter.axieID} on the Axie Marketplace, opens in a new tab`);
+      fighterID.textContent = `#${fighter.axieID} ↗`;
+    } else fighterID.textContent = fighter.axieID ? `#${fighter.axieID}` : "Unknown Axie";
     axie.append(morph, fighterID);
     const rune = coerceCompatibleRune(fighter);
     if (rune) {
       const runeLabel = formatRuneBadgeLabel(rune) || rune.id;
+      const runeHost = document.createElement(inspectorContext ? "span" : "button"); runeHost.className = "profile-rune-tooltip";
+      if (!inspectorContext) {
+        runeHost.type = "button"; runeHost.dataset.detail = `Rune: ${runeLabel}`; runeHost.setAttribute("aria-label", `Rune: ${runeLabel}`); runeHost.setAttribute("aria-expanded", "false");
+        runeHost.onclick = () => runeHost.setAttribute("aria-expanded", String(runeHost.classList.toggle("is-details-visible")));
+      }
       const badge = document.createElement(rune.imageUrl ? "img" : "span");
       badge.className = `profile-rune-badge${rune.imageUrl ? "" : " profile-rune-badge-text"}`;
-      badge.title = `Rune: ${runeLabel}`; badge.setAttribute("aria-label", `Rune: ${runeLabel}`);
-      if (rune.imageUrl) { badge.src = rune.imageUrl; badge.alt = `Rune: ${runeLabel}`; badge.addEventListener("error", () => badge.remove()); }
+      badge.setAttribute("aria-label", `Rune: ${runeLabel}`);
+      if (rune.imageUrl) { badge.src = rune.imageUrl; badge.alt = ""; badge.addEventListener("error", () => badge.remove()); }
       else badge.textContent = runeLabel.slice(0, 2).toUpperCase();
-      axie.append(badge);
+      runeHost.append(badge); axie.append(runeHost);
     }
     if (showCharms) appendCharmSlots(axie, fighter.charms);
     axies.append(axie);
@@ -182,49 +258,53 @@ function appendAxies(container, team, className = "profile-axies", { showCharms 
   container.append(axies);
 }
 
-function appendTeam(container, { team, inspectorContext }) {
-  const section = document.createElement("section"); section.className = "profile-team-card";
-  appendAxies(section, team, "profile-axies", { inspectorContext });
+function appendTeam(container, { label, team, inspectorContext, impact }) {
+  const section = document.createElement("section"); section.className = `profile-team-card profile-team-card--${label === "You" ? "self" : "opponent"}`;
+  const heading = document.createElement("div"); heading.className = "profile-team-label"; heading.textContent = label;
+  section.append(heading);
+  const axieIDs = (team?.fighters || []).map((fighter) => fighter.axieID ? `Axie #${fighter.axieID}` : "unknown Axie");
+  const squad = document.createElement("div"); squad.className = "profile-team-squad"; squad.setAttribute("aria-label", `${label}: ${axieIDs.join(", ") || "team unavailable"}`);
+  appendAxies(squad, team, "profile-axies", { inspectorContext }); section.append(squad);
+  appendRatingSummary(section, "", impact, { showDelta: false, variant: "profile-team-rating" });
   container.append(section);
-}
-
-function appendParticipantSummary(container, { name, nameTitle = "", href = "", impact }) {
-  const participant = document.createElement("div"); participant.className = "profile-team-identity";
-  const heading = document.createElement(href ? "a" : "span"); heading.className = "profile-team-name"; heading.textContent = name; heading.title = nameTitle;
-  if (href) { heading.href = href; heading.classList.add("profile-opponent-link"); }
-  participant.append(heading);
-  appendRatingSummary(participant, "", impact);
-  container.append(participant);
 }
 
 function appendBattleLog(container, entry, userID, resolvedPlayerName) {
   const log = document.createElement("article"); log.className = "profile-battle-log-entry";
   const summary = document.createElement("div"); summary.className = "profile-battle-summary";
   const [result, resultClass] = resultCopy(entry.result);
-  const resultItem = document.createElement("span"); resultItem.className = `profile-battle-result ${resultClass}`; resultItem.textContent = result; summary.append(resultItem);
-  const context = document.createElement("span"); context.className = "profile-battle-context";
-  context.textContent = [formatRelativeTime(entry.timestamp) || formatTimestamp(entry.timestamp), text(entry.gameMode, "Unknown"), formatDuration(entry.durationMs), entry.turns ? `${entry.turns} turns` : null].filter(Boolean).join(" · ");
-  context.title = formatTimestamp(entry.timestamp);
-  if (entry.endReason) context.title = `Battle ended: ${entry.endReason}`;
-  summary.append(context);
+  const main = document.createElement("div"); main.className = "profile-battle-summary-main";
+  main.append(createStatusPill(result, resultClass));
   const opponentID = entry.opponent?.userID;
   const opponentName = text(entry.opponent?.name, opponentID ? shortenUserID(opponentID) : "Opponent unavailable");
   const playerName = text(entry.player?.name, resolvedPlayerName);
-  const participants = document.createElement("div"); participants.className = "profile-battle-participants";
-  appendParticipantSummary(participants, { name: playerName, nameTitle: userID, impact: entry.player?.impact });
-  participants.append(summary);
-  appendParticipantSummary(participants, { name: opponentName, nameTitle: opponentID || "", href: opponentID ? `/profile/${encodeURIComponent(opponentID)}` : "", impact: entry.opponent?.impact });
+  const deltaChip = createRatingDeltaChip(entry.player?.impact);
+  if (deltaChip) main.append(deltaChip);
+  const versus = document.createElement("span"); versus.className = "profile-battle-opponent"; versus.textContent = "vs ";
+  const opponent = document.createElement(opponentID ? "a" : "span"); opponent.textContent = opponentName; opponent.title = opponentID || "";
+  if (opponentID) { opponent.href = `/profile/${encodeURIComponent(opponentID)}`; opponent.className = "profile-opponent-link"; }
+  versus.append(opponent); main.append(versus);
+  const metadataSeparator = () => { const separator = document.createElement("span"); separator.className = "profile-meta-separator"; separator.setAttribute("aria-hidden", "true"); separator.textContent = "·"; return separator; };
+  main.append(metadataSeparator());
+  const mode = document.createElement("span"); mode.className = "profile-battle-mode profile-battle-meta"; mode.textContent = text(entry.gameMode, "Unknown"); main.append(mode);
+  const context = document.createElement("span"); context.className = "profile-battle-context profile-battle-meta"; context.textContent = [formatRelativeTime(entry.timestamp) || formatTimestamp(entry.timestamp), formatDuration(entry.durationMs)].filter(Boolean).join(" · "); context.title = formatTimestamp(entry.timestamp); main.append(context);
+  main.append(metadataSeparator());
+  const turns = document.createElement("span"); turns.className = "profile-battle-turns profile-battle-meta"; turns.textContent = entry.turns ? `${entry.turns} turns` : "Turn count unavailable"; if (entry.endReason) turns.title = `Battle ended: ${entry.endReason}`; main.append(turns);
+  const detailsToggle = document.createElement("button"); detailsToggle.type = "button"; detailsToggle.className = "profile-battle-details-toggle"; detailsToggle.textContent = "Details"; detailsToggle.setAttribute("aria-expanded", "false"); detailsToggle.onclick = () => { const expanded = log.classList.toggle("is-expanded"); detailsToggle.setAttribute("aria-expanded", String(expanded)); detailsToggle.textContent = expanded ? "Hide details" : "Details"; };
+  summary.append(main, detailsToggle);
   const teams = document.createElement("div"); teams.className = "profile-battle-log-teams";
-  appendTeam(teams, { team: entry.team, inspectorContext: "Player team" });
-  const versus = document.createElement("div"); versus.className = "profile-battle-versus"; versus.textContent = "VS"; teams.append(versus);
-  appendTeam(teams, { team: entry.opponent?.team, inspectorContext: "Opponent team" });
-  log.append(participants, teams);
+  appendTeam(teams, { label: "You", team: entry.team, inspectorContext: "Your team", impact: entry.player?.impact });
+  const teamVersus = document.createElement("div"); teamVersus.className = "profile-battle-versus"; teamVersus.textContent = "VS"; teams.append(teamVersus);
+  appendTeam(teams, { label: "Opponent", team: entry.opponent?.team, inspectorContext: "Opponent team", impact: entry.opponent?.impact });
+  log.append(summary, teams);
   if (entry.provenance?.source === "historical-snapshot") { const note = document.createElement("p"); note.className = "profile-retention-note"; note.textContent = `Archived evidence: one observed battle, not full history. ${historicalCoverageText(entry.provenance.coverage)}`; log.append(note); }
   container.append(log);
 }
 
 export async function renderProfileBattleLogPanel(container, userID, leaderboardScope = null) {
   ensureBuildInspector();
+  document.getElementById("profile-latest-team-header")?.replaceChildren();
+  document.getElementById("profile-latest-team-copy-header")?.replaceChildren();
   container.replaceChildren(); const loading = document.createElement("p"); loading.className = "profile-loading"; loading.textContent = "Loading latest 20 observed battle logs…"; container.append(loading);
   await loadProfileBattlePage(userID, leaderboardScope); container.replaceChildren();
   const profileHeading = document.getElementById("profile-player-name");
@@ -241,20 +321,29 @@ export async function renderProfileBattleLogPanel(container, userID, leaderboard
     };
   }
   if (profileState.error) { const error = document.createElement("p"); error.className = "profile-error"; error.textContent = `Could not load battle logs: ${profileState.error}`; container.append(error); return; }
-  const heading = document.createElement("p"); heading.className = "profile-retention-note";
-  const isHistorical = profileState.items[0]?.provenance?.source === "historical-snapshot";
-  heading.textContent = isHistorical ? "One ranked battle is available for this era." : `${profileState.items.length} most recent ranked battles`;
-  if (profileState.retention?.note) heading.title = profileState.retention.note;
-  container.append(heading);
   if (!profileState.items.length) { const empty = document.createElement("p"); empty.className = "profile-empty"; empty.textContent = "No battles were returned for this player."; container.append(empty); return; }
-  const latest = document.createElement("section"); latest.className = "profile-latest-team";
   const latestCopy = document.createElement("div"); latestCopy.className = "profile-latest-team-copy";
-  const latestHeading = document.createElement("div"); latestHeading.className = "profile-latest-team-heading"; latestHeading.textContent = "Latest ranked team";
-  const latestContext = document.createElement("p"); latestContext.className = "profile-latest-team-context";
   const firstBattle = profileState.items[0];
-  latestContext.textContent = ["Latest battle", formatRelativeTime(firstBattle.timestamp), resultCopy(firstBattle.result)[0]].filter(Boolean).join(" · ");
-  if (Number.isFinite(firstBattle.player?.impact?.vstarAfter)) latestContext.append(" ", createVstarBadge({ value: firstBattle.player.impact.vstarAfter, delta: firstBattle.player.impact.vstarDelta, variant: "full" }));
-  latestCopy.append(latestHeading, latestContext); latest.append(latestCopy); appendAxies(latest, firstBattle.team, "profile-axies profile-latest-axies", { showCharms: true }); container.append(latest);
+  const ratingTrend = createRatingTrend(profileState.items);
+  const ratingOverview = document.createElement("div"); ratingOverview.className = "profile-rating-overview";
+  const currentRating = document.createElement("div"); currentRating.className = "profile-current-rating";
+  if (Number.isFinite(firstBattle.player?.impact?.vstarAfter)) currentRating.append(createVstarBadge({ value: firstBattle.player.impact.vstarAfter, variant: "full" }));
+  const trendChange = document.createElement("span"); trendChange.className = `profile-trend-change${ratingTrend?.change >= 0 ? " is-positive" : " is-negative"}`;
+  trendChange.textContent = Number.isFinite(ratingTrend?.change) ? `${ratingTrend.change > 0 ? "+" : ""}${ratingTrend.change}` : "—";
+  trendChange.title = ratingTrend ? `${trendChange.textContent} VSTAR across ${ratingTrend.battles} recent battles` : "Rating trend unavailable";
+  currentRating.append(trendChange);
+  ratingOverview.append(currentRating);
+  if (ratingTrend) ratingOverview.append(ratingTrend.trend);
+  latestCopy.append(ratingOverview);
+  // The current composition shares the header row with player identity rather
+  // than relying on a negative offset from the content section below.
+  const latestTeamHeader = document.getElementById("profile-latest-team-header");
+  if (latestTeamHeader) {
+    const latestHeading = document.createElement("div"); latestHeading.className = "profile-latest-team-heading"; latestHeading.textContent = "Latest ranked team";
+    latestTeamHeader.append(latestHeading);
+    appendAxies(latestTeamHeader, firstBattle.team, "profile-axies profile-latest-axies", { showCharms: true, linkAxieIDs: true });
+  }
+  document.getElementById("profile-latest-team-copy-header")?.append(latestCopy);
   const historyHeading = document.createElement("div"); historyHeading.className = "profile-battle-history-heading"; historyHeading.textContent = "Battle history"; container.append(historyHeading);
   const logs = document.createElement("div"); logs.className = "profile-battle-log-list"; for (const entry of profileState.items) appendBattleLog(logs, entry, userID, resolvedPlayerName); container.append(logs);
 }

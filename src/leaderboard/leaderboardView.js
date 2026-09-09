@@ -1244,7 +1244,11 @@ export function initLeaderboardView() {
   // Worth factoring into a dedicated small "view router" module later if
   // more tabs gain real logic.
   document.querySelectorAll(".nav-button").forEach((button) => {
-    button.addEventListener("click", async () => {
+    button.addEventListener("click", async (event) => {
+      // Preserve native middle-click, modifier-click, and context-menu link
+      // behavior. A plain click remains an in-page navigation transition.
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+      event.preventDefault();
       const nav = button.dataset.nav;
       const dashboardLayout = document.querySelector(".dashboard-layout");
 
@@ -1274,8 +1278,15 @@ export function initLeaderboardView() {
         const morphView = document.querySelector("#morph-view");
         if (morphView) morphView.classList.remove("hidden");
       }
+      const href = button.getAttribute("href");
+      if (href && `${window.location.pathname}${window.location.search}` !== href) window.history.pushState({}, "", href);
     });
   });
+
+  // A Morph Viewer link opened in a fresh tab should land on the same view.
+  if (new URLSearchParams(window.location.search).get("view") === "morph") {
+    document.querySelector('.nav-button[data-nav="morph"]')?.click();
+  }
 
   for (const tab of eraTabs) {
     tab.addEventListener("click", () => {
