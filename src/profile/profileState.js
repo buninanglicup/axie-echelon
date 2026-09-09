@@ -33,6 +33,7 @@ export async function loadProfileBattlePage(userID, leaderboardScope = null) {
   try {
     const data = await fetchProfileBattleLogPage(userID, { leaderboardScope });
     Object.assign(profileState, {
+      userID: data.resolvedUserID || userID,
       totalItems: data.totalItems,
       items: data.items,
       source: data.source,

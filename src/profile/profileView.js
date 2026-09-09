@@ -307,15 +307,19 @@ export async function renderProfileBattleLogPanel(container, userID, leaderboard
   document.getElementById("profile-latest-team-copy-header")?.replaceChildren();
   container.replaceChildren(); const loading = document.createElement("p"); loading.className = "profile-loading"; loading.textContent = "Loading latest 20 observed battle logs…"; container.append(loading);
   await loadProfileBattlePage(userID, leaderboardScope); container.replaceChildren();
+  const resolvedUserID = profileState.userID || userID;
+  if (resolvedUserID !== userID && window.location.pathname.startsWith("/profile/")) {
+    window.history.replaceState(null, "", `/profile/${encodeURIComponent(resolvedUserID)}`);
+  }
   const profileHeading = document.getElementById("profile-player-name");
   const profileID = document.getElementById("profile-player-id");
   const copyIdButton = document.getElementById("profile-copy-id");
-  const resolvedPlayerName = text(profileState.items.find((item) => item?.player?.name)?.player?.name, shortenUserID(userID));
+  const resolvedPlayerName = text(profileState.items.find((item) => item?.player?.name)?.player?.name, shortenUserID(resolvedUserID));
   if (profileHeading) { profileHeading.textContent = resolvedPlayerName; profileHeading.title = resolvedPlayerName; }
-  if (profileID) { profileID.textContent = userID; profileID.title = userID; }
+  if (profileID) { profileID.textContent = resolvedUserID; profileID.title = resolvedUserID; }
   if (copyIdButton) {
     copyIdButton.onclick = async () => {
-      try { await navigator.clipboard.writeText(userID); copyIdButton.textContent = "Copied"; }
+      try { await navigator.clipboard.writeText(resolvedUserID); copyIdButton.textContent = "Copied"; }
       catch { copyIdButton.textContent = "Copy unavailable"; }
       window.setTimeout(() => { copyIdButton.textContent = "Copy ID"; }, 1500);
     };
@@ -345,5 +349,5 @@ export async function renderProfileBattleLogPanel(container, userID, leaderboard
   }
   document.getElementById("profile-latest-team-copy-header")?.append(latestCopy);
   const historyHeading = document.createElement("div"); historyHeading.className = "profile-battle-history-heading"; historyHeading.textContent = "Battle history"; container.append(historyHeading);
-  const logs = document.createElement("div"); logs.className = "profile-battle-log-list"; for (const entry of profileState.items) appendBattleLog(logs, entry, userID, resolvedPlayerName); container.append(logs);
+  const logs = document.createElement("div"); logs.className = "profile-battle-log-list"; for (const entry of profileState.items) appendBattleLog(logs, entry, resolvedUserID, resolvedPlayerName); container.append(logs);
 }
