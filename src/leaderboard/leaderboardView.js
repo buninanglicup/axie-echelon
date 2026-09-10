@@ -51,6 +51,9 @@ import {
   MAXIMUM_PLAYERS_DISPLAYED_PER_PAGE,
   pageControls,
   liveTrackingCard,
+  moreFiltersToggle,
+  moreFiltersPanel,
+  moreFiltersCount,
 } from "./leaderboardState.js";
 import { computeLivePanelVisibility } from './livePanelUtil.js';
 import { formatRelativeTime, predictNextActivity, formatActivityEstimate } from "../shared/formatting.js";
@@ -109,6 +112,34 @@ function fingerprintLeaderboard(players) {
   return players
     .map((p) => `${p.userID}:${p.rank}:${p.mmr}:${p.winRate}:${p.lastRankedBattleTime || ""}:${(p.recentRankedBattleTimes || []).join(",")}`)
     .join("|");
+}
+
+// The live leaderboard response contains only the current position. Compare
+// it with the preceding successful response for this exact scope so movement
+// is useful while remaining explicitly unavailable on the first observation.
+function annotateRankMovement(players, scope) {
+  const scopeKey = getLeaderboardScopeKey(scope);
+  if (leaderboardState.rankSnapshotScopeKey !== scopeKey) {
+    leaderboardState.rankSnapshotByUser = new Map();
+    leaderboardState.rankSnapshotScopeKey = scopeKey;
+  }
+
+  const previousRanks = leaderboardState.rankSnapshotByUser;
+  const annotated = players.map((player) => {
+    const currentRank = Number(player?.rank);
+    const previousRank = previousRanks.get(player?.userID);
+    const rankChange = Number.isFinite(currentRank) && Number.isFinite(previousRank)
+      ? previousRank - currentRank
+      : null;
+    return { ...player, rankChange };
+  });
+
+  leaderboardState.rankSnapshotByUser = new Map(
+    players
+      .filter((player) => player?.userID && Number.isFinite(Number(player.rank)))
+      .map((player) => [player.userID, Number(player.rank)])
+  );
+  return annotated;
 }
 
 // ===== Rank / activity filter labels & application =====
@@ -406,7 +437,22 @@ function returnToAutomaticLeaderboardScope() {
   }
 }
 
+// Counts only the filters that live inside #more-filters-panel (rune, body
+// part, recency/live mode) -- rank stays inline in the primary bar, so it's
+// always visible and doesn't need a "something's hidden in here" badge.
+function updateMoreFiltersBadge() {
+  if (!moreFiltersCount) return;
+  const { selectedRunes, selectedBodyPartNames, liveModeEnabled, activeBattleWindowMinutes } = leaderboardState;
+  const count =
+    (selectedRunes?.length || 0) +
+    (selectedBodyPartNames?.length || 0) +
+    (liveModeEnabled && activeBattleWindowMinutes !== null ? 1 : 0);
+  moreFiltersCount.textContent = String(count);
+  moreFiltersCount.hidden = count === 0;
+}
+
 function updateActiveFilters() {
+  updateMoreFiltersBadge();
   if (!activeFilters) return;
   activeFilters.replaceChildren();
   const tags = [];
@@ -838,7 +884,8 @@ async function hydrateLeaderboard() {
     // Player data is used as-is. Filtering may separately consult the
     // last-known-good timestamp cache when a live battle-time fetch fails;
     // rendering still uses the raw current-cycle timestamp.
-    const players = Array.isArray(data.players) ? data.players : [];
+    const rawPlayers = Array.isArray(data.players) ? data.players : [];
+    const players = annotateRankMovement(rawPlayers, scope);
 
     if (leaderboardState.liveModeEnabled) {
       for (const player of players) {
@@ -913,6 +960,37 @@ function evictStaleBattleTimeCacheEntries() {
       lastKnownGoodBattleTime.delete(key);
     }
   }
+}
+
+// Shared panel switcher for the persistent application shell. Profile loading
+// is deliberately left to main.js: this module owns leaderboard state, while
+// profileView owns the data request and rendering work for the dashboard.
+export function showAppView(nav, { updateHistory = true } = {}) {
+  const dashboardLayout = document.querySelector(".dashboard-layout");
+  dashboardLayout?.classList.toggle("morph-active", nav === "morph");
+  dashboardLayout?.classList.toggle("profile-active", nav === "dashboard");
+
+  document.querySelectorAll(".view-panel").forEach((panel) => {
+    panel.classList.add("hidden");
+  });
+
+  document.querySelectorAll(".nav-button").forEach((button) => {
+    button.classList.toggle("active", button.dataset.nav === nav);
+  });
+
+  // The dashboard reuses the existing profile shell; the other views use
+  // their navigation key directly in their element IDs.
+  const panel = document.getElementById(nav === "dashboard" ? "profile-view" : `${nav}-view`);
+  panel?.classList.remove("hidden");
+
+  if (updateHistory) {
+    const href = nav === "dashboard" ? "/?view=dashboard" : document.querySelector(`.nav-button[data-nav="${nav}"]`)?.getAttribute("href");
+    if (href && `${window.location.pathname}${window.location.search}` !== href) {
+      window.history.pushState({}, "", href);
+    }
+  }
+
+  document.dispatchEvent(new CustomEvent("axie:viewchange", { detail: { nav } }));
 }
 
 async function syncConfiguredEra() {
@@ -1201,6 +1279,14 @@ export function initLeaderboardView() {
 
   // rank filter is replaced by sidebar inputs (#rank-min / #rank-max)
 
+  if (moreFiltersToggle && moreFiltersPanel) {
+    moreFiltersToggle.addEventListener("click", () => {
+      const isOpen = moreFiltersPanel.hidden;
+      moreFiltersPanel.hidden = !isOpen;
+      moreFiltersToggle.setAttribute("aria-expanded", String(isOpen));
+    });
+  }
+
   if (liveModeToggle) {
     liveModeToggle.addEventListener("change", () => {
       leaderboardState.liveModeEnabled = liveModeToggle.checked;
@@ -1250,36 +1336,13 @@ export function initLeaderboardView() {
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
       event.preventDefault();
       const nav = button.dataset.nav;
-      const dashboardLayout = document.querySelector(".dashboard-layout");
-
-      dashboardLayout?.classList.toggle("morph-active", nav === "morph");
-
-      document.querySelectorAll(".view-panel").forEach((panel) => {
-        panel.classList.add("hidden");
-      });
-
-      document.querySelectorAll(".nav-button").forEach((btn) => {
-        btn.classList.toggle("active", btn === button);
-      });
-
+      // Returning to the leaderboard intentionally starts a fresh session:
+      // rank/filter state and scroll position must not survive the transition.
       if (nav === "leaderboard") {
-        const leaderboardView = document.querySelector("#leaderboard-view");
-        if (leaderboardView) {
-          leaderboardView.classList.remove("hidden");
-          if (leaderboardState.liveModeEnabled) await hydrateLeaderboard();
-        }
-      } else if (nav === "meta") {
-        const metaView = document.querySelector("#meta-view");
-        if (metaView) metaView.classList.remove("hidden");
-      } else if (nav === "team-builder") {
-        const teamBuilderView = document.querySelector("#team-builder-view");
-        if (teamBuilderView) teamBuilderView.classList.remove("hidden");
-      } else if (nav === "morph") {
-        const morphView = document.querySelector("#morph-view");
-        if (morphView) morphView.classList.remove("hidden");
+        window.location.assign("/");
+        return;
       }
-      const href = button.getAttribute("href");
-      if (href && `${window.location.pathname}${window.location.search}` !== href) window.history.pushState({}, "", href);
+      showAppView(nav);
     });
   });
 

@@ -129,6 +129,11 @@ export const leaderboardState = {
   pollingIntervalSeconds: POLLING_INTERVAL_SECONDS, // initialized from env variable
   leaderboardPollTimer: null,
   compactModeEnabled: false,
+  // The upstream leaderboard has no previous-rank field. Keep the most recent
+  // successful response per scope so the UI can show movement on the next poll
+  // without changing the API contract or persisting stale ranks between eras.
+  rankSnapshotByUser: new Map(),
+  rankSnapshotScopeKey: null,
   lastSuccessfulPollAt: null, // Tracks live-mode poll health; compare to pollingIntervalSeconds * 2.5 to determine if the estimate should mute to Unknown.
   avgMatchDurationMs: null, // Latest median match duration from the backend; used by predictNextActivity() to estimate whether the player is likely still in a match.
 
@@ -200,3 +205,6 @@ export const selectedBodyPartChips = document.querySelector("#selected-body-part
 export const bodyPartFilterStatus = document.querySelector("#body-part-filter-status");
 export const bodyPartFilterClear = document.querySelector("#body-part-filter-clear");
 export const pageControls = document.querySelector("#page-controls");
+export const moreFiltersToggle = document.querySelector("#more-filters-toggle");
+export const moreFiltersPanel = document.querySelector("#more-filters-panel");
+export const moreFiltersCount = document.querySelector("#more-filters-count");

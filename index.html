@@ -3,36 +3,55 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Axie Echelon | Beyond The Rank</title>
+    <title>Axie Echelon</title>
     <link rel="stylesheet" href="/style.css" />
   </head>
 
   <body>
     <div class="top-bar">
-      <div class="brand-wrap">
-        <span class="logo-dot">✦</span>
-        <div>
-          <div class="brand-kicker">AXIE ECHELON</div>
-          <h1>Beyond The Rank</h1>
-          <div class="brand-subtitle">Axie Origins rankings, teams, and insights</div>
-        </div>
+      <a class="brand-home" href="/" data-nav="leaderboard" aria-label="Axie Echelon — go to Leaderboard">
+        <span class="logo-dot" aria-hidden="true">✦</span>
+        <span class="brand-copy">
+          <span class="brand-kicker">Axie Echelon</span>
+          <span class="brand-name">Beyond The Rank</span>
+          <span class="brand-subtitle">Axie Origins rankings, teams, and insights</span>
+        </span>
+      </a>
 
+      <form class="global-search" role="search" aria-label="Find a player">
+        <label class="sr-only" for="global-player-search">Find a player by Ronin address or Client ID</label>
+        <svg class="global-search-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+        <input id="global-player-search" type="search" placeholder="Find a player… (Ronin address or Client ID)" autocomplete="off" />
+      </form>
 
-      </div>
+      <button id="settings-button" type="button" class="settings-button" disabled aria-label="Settings" data-tooltip="Settings (coming soon)">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      </button>
 
       <button id="top-nav-toggle" class="top-nav-toggle" type="button" aria-controls="top-nav" aria-expanded="false">
         <span aria-hidden="true">☰</span>
         <span>Menu</span>
       </button>
-      <nav id="top-nav" class="top-nav" aria-label="Primary navigation">
-        <a class="nav-button active" data-nav="leaderboard" href="/">Leaderboard</a>
-        <a class="nav-button" data-nav="morph" href="/?view=morph">Morph Viewer</a>
-        <button class="nav-button nav-button-upcoming" data-nav="meta" disabled aria-disabled="true" title="Coming Soon">Meta Analytics</button>
-        <button class="nav-button nav-button-upcoming" data-nav="team-builder" disabled aria-disabled="true" title="Coming Soon">Team Builder</button>
-      </nav>
     </div>
 
-    <main class="container dashboard-layout">
+    <div class="app-body">
+      <aside class="app-sidebar" aria-label="Primary">
+        <nav id="top-nav" class="top-nav" aria-label="Primary navigation">
+          <div class="sidebar-group">
+            <span class="sidebar-group-label">Main menu</span>
+            <a class="nav-button active" data-nav="leaderboard" href="/"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg><span>Leaderboard</span></a>
+            <a class="nav-button" data-nav="dashboard" href="/?view=dashboard"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Player Dashboard</span></a>
+            <a class="nav-button" data-nav="morph" href="/?view=morph"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m16 3 4 4-4 4"/><path d="M20 7H9a4 4 0 0 0-4 4v9"/><path d="m8 21-4-4 4-4"/><path d="M4 17h11a4 4 0 0 0 4-4V4"/></svg><span>Morph Viewer</span></a>
+          </div>
+          <div class="sidebar-group">
+            <span class="sidebar-group-label">Upcoming</span>
+            <button class="nav-button nav-button-upcoming" data-nav="meta" disabled aria-disabled="true" title="Coming Soon"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg><span>Meta Analytics</span></button>
+            <button class="nav-button nav-button-upcoming" data-nav="team-builder" disabled aria-disabled="true" title="Coming Soon"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span>Team Builder</span></button>
+          </div>
+        </nav>
+      </aside>
+
+      <main class="container dashboard-layout">
       <!-- Routed player-profile shell; its contents are populated by profileView.js. -->
       <section id="profile-view" class="view-panel hidden" aria-live="polite">
         <div class="panel-heading compact-heading">
@@ -58,105 +77,6 @@
         </div>
         <div id="profile-panel"></div>
       </section>
-
-      <aside class="side-panel">
-        <div class="sidebar-heading">
-          <span class="sidebar-heading-label">Filters</span>
-          <button id="reset-filters" type="button" class="sidebar-reset">Reset Filters</button>
-        </div>
-
-        <section class="panel-card live-tracking-card">
-          <div class="panel-title">Live Tracking</div>
-          <div class="live-tracking-row">
-            <span class="live-tracking-label">Live Updates</span>
-            <label class="toggle-switch">
-              <input id="live-mode" type="checkbox" />
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-
-          <div id="live-only-controls" class="live-only-controls" hidden>
-            <div class="recency-filter-section">
-              <div class="recency-label-row">
-                <span class="recency-label">Match Recency</span>
-                <output id="recent-activity-value" class="recency-output">Up to 5m ago</output>
-              </div>
-              <div class="recency-slider-wrapper">
-                <div class="recency-slider-visual">
-                  <div class="recency-slider-track">
-                    <div class="recency-slider-thumb"></div>
-                  </div>
-                </div>
-                <input id="recent-activity-filter" class="recency-range-input" type="range" min="0" max="8" step="1" value="5" aria-label="Match recency" />
-                <div class="recency-tick-labels" aria-hidden="true">
-                  <span class="tick-label" style="left: 0%">0s</span>
-                  <span class="tick-label" style="left: 12.5%">1m</span>
-                  <span class="tick-label" style="left: 25%">2m</span>
-                  <span class="tick-label" style="left: 37.5%">3m</span>
-                  <span class="tick-label" style="left: 50%">4m</span>
-                  <span class="tick-label" style="left: 62.5%">5m</span>
-                  <span class="tick-label" style="left: 75%">10m</span>
-                  <span class="tick-label" style="left: 87.5%">15m</span>
-                  <span class="tick-label" style="left: 100%">20m</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="poll-every-section">
-              <label class="poll-label-row" for="polling-interval">Polling Interval</label>
-              <select id="polling-interval" class="poll-select">
-                <option value="15">15s</option>
-                <option value="30" selected>30s</option>
-                <option value="60">1m</option>
-              </select>
-            </div>
-          </div>
-        </section>
-
-        <section class="panel-card search-tools-card">
-          <div class="panel-title">Build &amp; Player Search</div>
-          <label class="field-label" for="player-name-search">Player Name</label>
-          <div class="search-input-with-clear">
-            <input id="player-name-search" type="search" placeholder="Search player..." />
-            <button type="button" class="icon-button" aria-label="Clear player name" title="Clear player name">×</button>
-          </div>
-
-          <label class="field-label" for="body-part-search-input">Body Part</label>
-          <div class="rune-search-wrap search-select-wrap">
-            <input id="body-part-search-input" type="search" placeholder="Search body part..." autocomplete="off" aria-describedby="body-part-search-help" />
-            <div id="body-part-suggestions" class="rune-suggestions" role="listbox" hidden></div>
-          </div>
-          <span id="body-part-search-help" class="sr-only">Select one or more canonical body-part names to scan the leaderboard.</span>
-          <div id="selected-body-part-chips" class="selected-rune-chips" aria-live="polite"></div>
-          <p id="body-part-filter-status" class="rune-filter-status" aria-live="polite" hidden></p>
-          <button id="body-part-filter-clear" type="button" class="rune-filter-clear" hidden>Clear body-part filter</button>
-
-          <label class="field-label" for="rune-search-input">Rune Name</label>
-          <div class="rune-search-wrap search-select-wrap">
-            <input id="rune-search-input" type="search" placeholder="Search rune..." autocomplete="off" />
-            <div id="rune-suggestions" class="rune-suggestions" hidden></div>
-          </div>
-          <div id="selected-rune-chips" class="selected-rune-chips" aria-live="polite"></div>
-          <p id="rune-filter-status" class="rune-filter-status" hidden></p>
-          <button id="rune-filter-clear" type="button" class="rune-filter-clear" hidden>Clear rune filter</button>
-        </section>
-
-        <section class="panel-card leaderboard-filter-card">
-          <div class="panel-title">Rank Filters</div>
-
-          <div class="rank-filter-block filter-block">
-            <div class="rank-label-row">Rank range</div>
-            <div class="rank-range-inputs">
-              <input id="rank-min" aria-label="Minimum rank" class="rank-simple-input" type="number" min="1" max="1000" placeholder="1" />
-              <span class="rank-range-separator">to</span>
-              <input id="rank-max" aria-label="Maximum rank" class="rank-simple-input" type="number" min="1" max="1000" placeholder="1000" />
-              <div id="rank-min-error" class="field-error" aria-live="polite" hidden></div>
-              <div id="rank-max-error" class="field-error" aria-live="polite" hidden></div>
-            </div>
-            <button id="rank-top-n-button" class="rank-chip-button">Top 100 only</button>
-          </div>
-        </section>
-      </aside>
 
       <section class="main-content">
         <section id="leaderboard-view" class="view-panel">
@@ -200,6 +120,111 @@
             </div>
           </div>
 
+          <div class="filter-bar">
+            <div class="filter-bar-primary">
+              <div class="filter-field rank-filter-field">
+                <span class="filter-field-label">Rank range</span>
+                <div class="rank-range-inputs">
+                  <input id="rank-min" aria-label="Minimum rank" class="rank-simple-input" type="number" min="1" max="1000" placeholder="1" />
+                  <span class="rank-range-separator">to</span>
+                  <input id="rank-max" aria-label="Maximum rank" class="rank-simple-input" type="number" min="1" max="1000" placeholder="1000" />
+                  <div id="rank-min-error" class="field-error" aria-live="polite" hidden></div>
+                  <div id="rank-max-error" class="field-error" aria-live="polite" hidden></div>
+                </div>
+                <button id="rank-top-n-button" class="rank-chip-button">Top 100 only</button>
+              </div>
+
+              <div class="filter-field player-search-field">
+                <label class="filter-field-label sr-only" for="player-name-search">Player Name</label>
+                <div class="search-input-with-clear">
+                  <svg class="field-search-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+                  <input id="player-name-search" type="search" placeholder="Search player..." />
+                  <button type="button" class="icon-button" aria-label="Clear player name" title="Clear player name">×</button>
+                </div>
+              </div>
+
+              <button id="more-filters-toggle" type="button" class="more-filters-toggle" aria-expanded="false" aria-controls="more-filters-panel">
+                More filters
+                <span id="more-filters-count" class="more-filters-count" hidden>0</span>
+              </button>
+
+              <button id="reset-filters" type="button" class="sidebar-reset">Reset Filters</button>
+            </div>
+
+            <div id="more-filters-panel" class="more-filters-panel" hidden>
+              <section class="panel-card live-tracking-card">
+                <div class="panel-title">Live Tracking</div>
+                <div class="live-tracking-row">
+                  <span class="live-tracking-label">Live Updates</span>
+                  <label class="toggle-switch">
+                    <input id="live-mode" type="checkbox" />
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+
+                <div id="live-only-controls" class="live-only-controls" hidden>
+                  <div class="recency-filter-section">
+                    <div class="recency-label-row">
+                      <span class="recency-label">Match Recency</span>
+                      <output id="recent-activity-value" class="recency-output">Up to 5m ago</output>
+                    </div>
+                    <div class="recency-slider-wrapper">
+                      <div class="recency-slider-visual">
+                        <div class="recency-slider-track">
+                          <div class="recency-slider-thumb"></div>
+                        </div>
+                      </div>
+                      <input id="recent-activity-filter" class="recency-range-input" type="range" min="0" max="8" step="1" value="5" aria-label="Match recency" />
+                      <div class="recency-tick-labels" aria-hidden="true">
+                        <span class="tick-label" style="left: 0%">0s</span>
+                        <span class="tick-label" style="left: 12.5%">1m</span>
+                        <span class="tick-label" style="left: 25%">2m</span>
+                        <span class="tick-label" style="left: 37.5%">3m</span>
+                        <span class="tick-label" style="left: 50%">4m</span>
+                        <span class="tick-label" style="left: 62.5%">5m</span>
+                        <span class="tick-label" style="left: 75%">10m</span>
+                        <span class="tick-label" style="left: 87.5%">15m</span>
+                        <span class="tick-label" style="left: 100%">20m</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="poll-every-section">
+                    <label class="poll-label-row" for="polling-interval">Polling Interval</label>
+                    <select id="polling-interval" class="poll-select">
+                      <option value="15">15s</option>
+                      <option value="30" selected>30s</option>
+                      <option value="60">1m</option>
+                    </select>
+                  </div>
+                </div>
+              </section>
+
+              <section class="panel-card search-tools-card">
+                <div class="panel-title">Build Search</div>
+
+                <label class="field-label" for="body-part-search-input">Body Part</label>
+                <div class="rune-search-wrap search-select-wrap">
+                  <input id="body-part-search-input" type="search" placeholder="Search body part..." autocomplete="off" aria-describedby="body-part-search-help" />
+                  <div id="body-part-suggestions" class="rune-suggestions" role="listbox" hidden></div>
+                </div>
+                <span id="body-part-search-help" class="sr-only">Select one or more canonical body-part names to scan the leaderboard.</span>
+                <div id="selected-body-part-chips" class="selected-rune-chips" aria-live="polite"></div>
+                <p id="body-part-filter-status" class="rune-filter-status" aria-live="polite" hidden></p>
+                <button id="body-part-filter-clear" type="button" class="rune-filter-clear" hidden>Clear body-part filter</button>
+
+                <label class="field-label" for="rune-search-input">Rune Name</label>
+                <div class="rune-search-wrap search-select-wrap">
+                  <input id="rune-search-input" type="search" placeholder="Search rune..." autocomplete="off" />
+                  <div id="rune-suggestions" class="rune-suggestions" hidden></div>
+                </div>
+                <div id="selected-rune-chips" class="selected-rune-chips" aria-live="polite"></div>
+                <p id="rune-filter-status" class="rune-filter-status" hidden></p>
+                <button id="rune-filter-clear" type="button" class="rune-filter-clear" hidden>Clear rune filter</button>
+              </section>
+            </div>
+          </div>
+
           <div id="active-filters" class="active-filters" aria-live="polite" hidden></div>
 
           <div class="table-header-bar">
@@ -214,10 +239,10 @@
             <table id="leaderboard-table" class="leaderboard-table">
               <thead>
                 <tr>
-                  <th>RANK</th>
+                  <th>RANK <span class="column-hint">MOVE</span></th>
                   <th>PLAYER</th>
                   <th id="leaderboard-team-heading">LATEST RANK TEAM</th>
-                  <th>MMR</th>
+                  <th class="mmr-heading">MMR</th>
                 </tr>
               </thead>
               <tbody id="leaderboard-body"></tbody>
@@ -284,6 +309,12 @@
         </section>
 
         <section id="morph-view" class="view-panel hidden">
+          <div class="panel-heading compact-heading">
+            <div>
+              <div class="eyebrow">AXIE ORIGINS</div>
+              <h2>Morph Viewer</h2>
+            </div>
+          </div>
           <div class="intro">
             Search single/multiple Axie IDs or a Ronin wallet to view morphed parts.
           </div>
@@ -357,7 +388,8 @@
           <section id="results" class="results"></section>
         </section>
       </section>
-    </main>
+      </main>
+    </div>
 
     <script type="module" src="/src/main.js"></script>
   </body>

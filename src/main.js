@@ -6,7 +6,7 @@
 // scaffolding (unchanged, kept verbatim) plus wiring the two feature
 // views. All business logic lives under src/leaderboard/, src/axieLookup/,
 // and src/shared/ (code used by both features).
-import { initLeaderboardView } from "./leaderboard/leaderboardView.js";
+import { initLeaderboardView, showAppView } from "./leaderboard/leaderboardView.js";
 import { initAxieLookupView } from "./axieLookup/axieLookupView.js";
 import { renderProfileBattleLogPanel } from "./profile/profileView.js";
 
@@ -125,31 +125,77 @@ function initProfilePageIfNeeded() {
 
   const profileId = decodeURIComponent(profileMatch[1]);
   const profilePanel = document.getElementById("profile-panel");
-  const profileView = document.getElementById("profile-view");
-  const sidePanel = document.querySelector(".side-panel");
   const leaderboardView = document.getElementById("leaderboard-view");
-  const dashboardLayout = document.querySelector(".dashboard-layout");
 
-  if (profileView) profileView.classList.remove("hidden");
-  dashboardLayout?.classList.add("profile-active");
-  if (sidePanel) sidePanel.hidden = true;
+  showAppView("dashboard", { updateHistory: false });
   if (leaderboardView) leaderboardView.classList.add("hidden");
   if (profilePanel) {
     renderProfileBattleLogPanel(profilePanel, profileId);
   }
+}
 
-  // The normal navigation handler only swaps panels; a profile is a routed
-  // full-width view, so return to the root route instead of leaving the
-  // profile layout active behind a narrow leaderboard column.
-  document.querySelector('[data-nav="leaderboard"]')?.addEventListener("click", (event) => {
+function showDashboardEmptyState() {
+  const profilePanel = document.getElementById("profile-panel");
+  const profileHeading = document.getElementById("profile-player-name");
+  const roninAddress = document.getElementById("profile-ronin-address");
+  const clientId = document.getElementById("profile-client-id");
+  if (!profilePanel || !profileHeading) return;
+
+  profileHeading.textContent = "Player Dashboard";
+  profileHeading.dataset.tooltip = "Player Dashboard";
+  roninAddress?.replaceChildren();
+  clientId?.replaceChildren();
+  document.getElementById("profile-copy-ronin")?.setAttribute("disabled", "");
+  document.getElementById("profile-copy-client-id")?.setAttribute("disabled", "");
+  document.getElementById("profile-latest-team-header")?.replaceChildren();
+  document.getElementById("profile-latest-team-copy-header")?.replaceChildren();
+  profilePanel.replaceChildren();
+  const empty = document.createElement("div");
+  empty.className = "dashboard-empty-state";
+  empty.innerHTML = "<h3>Find a player to get started</h3><p>Search by Ronin address or Client ID using the field above.</p>";
+  profilePanel.append(empty);
+}
+
+function classifyPlayerIdentifier(value) {
+  const identifier = String(value || "").trim();
+  if (/^(?:ronin:|0x)[0-9a-f]{40}$/i.test(identifier)) return "ronin";
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier)) return "client-id";
+  return null;
+}
+
+function initGlobalPlayerSearch() {
+  const form = document.querySelector(".global-search");
+  const input = document.getElementById("global-player-search");
+  const profilePanel = document.getElementById("profile-panel");
+  if (!form || !input || !profilePanel) return;
+
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    event.stopImmediatePropagation();
-    window.location.assign("/");
-  }, true);
+    const identifier = input.value.trim();
+    const kind = classifyPlayerIdentifier(identifier);
+    input.setCustomValidity(kind ? "" : "Enter a valid Ronin address or Client ID.");
+    if (!kind) {
+      input.reportValidity();
+      return;
+    }
+
+    // Profiles have a stable, shareable routed page. Navigating there also
+    // ensures a search from any current view receives a clean profile state.
+    window.location.assign(`/profile/${encodeURIComponent(identifier)}`);
+  });
+
+  document.addEventListener("axie:viewchange", (event) => {
+    if (event.detail?.nav === "dashboard") showDashboardEmptyState();
+  });
+
+  if (new URLSearchParams(window.location.search).get("view") === "dashboard") {
+    showAppView("dashboard", { updateHistory: false });
+  }
 }
 
 initAxieLookupView();
 initLeaderboardView();
 initProfilePageIfNeeded();
+initGlobalPlayerSearch();
 initMobileNavigation();
 initDarkTooltips();

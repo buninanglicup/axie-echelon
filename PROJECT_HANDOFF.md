@@ -43,11 +43,19 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
 ## Implemented Features
 
 - Leaderboard display with rank, player name, MMR, win rate, daily change, recent form, team previews, rune badges, profile links, and last ranked-battle time.
-- Player battle-history profiles at `/profile/:userID`. Each card keeps a
+- Player battle-history profiles at `/profile/:identifier`. Each card keeps a
   scan-first matchup: battle context sits between two participant/rating groups,
   followed by their respective Axie compositions. Names resolve through the
   GraphQL profile cache, with a UUID only as the fallback; the full queried UUID
   remains small, copyable text in the profile header.
+- The profile view has received a focused UI pass: inactive navigation tabs are
+  plain text while the active tab remains a filled pill; the VSTAR badge is
+  grouped inline with player identity; a recent-form strip shows the last ten
+  observed results; and the latest ranked team is visually separated from the
+  battle history. Player and opponent team accents use distinct teal/cyan and
+  violet treatments rather than reusing win/loss colors. Axie tiles now have
+  visible containers, and the responsive history layout keeps the VS marker
+  legible between the two teams.
 - Profile rune and charm presentation is catalog-backed. The latest team shows
   six slot-based charm images, while clicking a battle-history Axie opens a
   right-side inspector with its rune and available charm details. The UI does
@@ -173,6 +181,27 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
   `scripts/validate-body-part-log-coverage.mjs`.
 - Leaderboard morph field behavior is documented in `docs/implementation/leaderboard_enrichment.md`: collectible Axies prefer `genes_metamorph`, non-collectible Ronin Axies use `genes`, anomalous collectible nulls fall back to `genes`, and starter Axies are currently name-only pending a starter-specific renderer. These rules apply only to leaderboard team previews; the separate Morph Viewer is unchanged.
 - The leaderboard Rune Filter is a searchable multi-select. It stores stable rune IDs, displays removable image/name chips, prevents duplicates, and applies OR semantics across selected runes. Typing only searches the catalog; selecting or removing a chip updates leaderboard results. The Morph Viewer is not affected.
+
+### Planned application shell
+
+The next larger UI change is an app-shell and navigation pass. It is designed
+but not yet implemented:
+
+- Keep Leaderboard as the homepage and add a Player Dashboard route for the
+  existing profile view.
+- Replace the current top-tab navigation with a permanent desktop sidebar and
+  a mobile slide-out drawer. Keep reserved navigation slots for future Meta
+  Analytics and Team Builder sections without building their content yet.
+- Add a global header on every page with the Axie Echelon home button, a
+  player search field, and a settings placeholder. Search must accept both a
+  client ID and a Ronin address, switch to the Dashboard, and load that player.
+- Show a clear empty Dashboard state when no player has been selected.
+- Reload the Leaderboard when returning to it from the Dashboard; do not retain
+  scroll or filter state for this first implementation.
+
+Open design details are the sidebar's exact visual treatment, icon usage, and
+collapsed desktop behavior, plus whether the search field should compact or
+expand on very narrow screens.
 
 ## Backend Routes
 
@@ -336,14 +365,11 @@ reports only the documented low-ID starter/legacy unknowns.
    battle-log processing, coverage metadata, and structural snapshot validation
    pass; leave incomplete or failed captures pending with an actionable review
    reason. Preserve manual acceptance as an exception path.
-5. Add a dedicated player profile resource focused on recent ranked battle logs,
-   using `GET /api/profile/:identifier` as the canonical endpoint. Support a
-   user ID first, then resolve Ronin addresses through the existing one-to-one
-   user-ID/address conversion path so `GET /api/profile/:roninAddress` can be
-   added later without creating a second profile model. Include battle
-   timestamps, available opponents and results, reconstructed teams, rune data,
-   and live or historical provenance. Define retention limits, pagination, and
-   whether accepted historical snapshot data should be supported.
+5. Implement the planned application shell: global header/search, desktop
+  sidebar, mobile drawer, Dashboard empty state, reserved future nav slots,
+  and Leaderboard reload-on-return behavior. Reuse the existing profile view
+  and `/api/profile/:identifier` endpoint rather than creating a second
+  profile model. Resolve Ronin addresses through the existing profile client.
 6. Decide retention and backup policy for ignored snapshot files.
 7. Design resumability for terminal partial rune-scan jobs if full coverage
    after a timeout is required.
