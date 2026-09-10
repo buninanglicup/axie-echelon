@@ -23,6 +23,11 @@ function formatRelativeTime(value) {
 }
 function formatDuration(ms) { if (!Number.isFinite(ms) || ms <= 0) return "Duration unavailable"; const seconds = Math.round(ms / 1000); return `${Math.floor(seconds / 60)}m ${seconds % 60}s`; }
 function resultCopy(result) { return result === "win" ? ["Win", "profile-result-win"] : result === "loss" ? ["Loss", "profile-result-loss"] : result === "draw" ? ["Draw", "profile-result-draw"] : ["Result unknown", "profile-result-unknown"]; }
+const GAME_MODE_LABELS = { ranked: "Ranked", challenge: "Challenge", practice: "Casual", haunted: "Arcade" };
+function gameModeLabel(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return { normalized, label: GAME_MODE_LABELS[normalized] || (normalized ? normalized[0].toUpperCase() + normalized.slice(1) : "Unknown") };
+}
 function shortenUserID(userID) { return userID?.length > 14 ? `${userID.slice(0, 8)}…${userID.slice(-5)}` : text(userID, "Player"); }
 function shortenRoninAddress(address) { return address?.length === 42 ? `${address.slice(0, 6)}…${address.slice(-4)}` : text(address, "—"); }
 function copyIcon() {
@@ -31,6 +36,27 @@ function copyIcon() {
   const front = document.createElementNS("http://www.w3.org/2000/svg", "rect"); front.setAttribute("x", "9"); front.setAttribute("y", "9"); front.setAttribute("width", "10"); front.setAttribute("height", "10"); front.setAttribute("rx", "1.5");
   const back = document.createElementNS("http://www.w3.org/2000/svg", "path"); back.setAttribute("d", "M15 9V6.5A1.5 1.5 0 0 0 13.5 5h-8A1.5 1.5 0 0 0 4 6.5v8A1.5 1.5 0 0 0 5.5 16H9");
   icon.append(front, back);
+  return icon;
+}
+function copyConfirmationIcon() {
+  const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  icon.setAttribute("viewBox", "0 0 24 24"); icon.setAttribute("aria-hidden", "true"); icon.setAttribute("focusable", "false");
+  const check = document.createElementNS("http://www.w3.org/2000/svg", "path"); check.setAttribute("d", "m5 12 4.5 4.5L19 7");
+  icon.append(check);
+  return icon;
+}
+function showAxieVisualUnavailable(morph) {
+  morph.replaceChildren(); morph.classList.add("is-unavailable");
+  const icon = document.createElement("span"); icon.className = "profile-axie-unavailable-icon"; icon.setAttribute("aria-hidden", "true"); icon.textContent = "◇";
+  const label = document.createElement("span"); label.textContent = "Visual unavailable";
+  morph.append(icon, label);
+}
+function inspectIcon() {
+  const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  icon.setAttribute("viewBox", "0 0 24 24"); icon.setAttribute("aria-hidden", "true"); icon.setAttribute("focusable", "false");
+  const lens = document.createElementNS("http://www.w3.org/2000/svg", "circle"); lens.setAttribute("cx", "10.5"); lens.setAttribute("cy", "10.5"); lens.setAttribute("r", "5.5");
+  const handle = document.createElementNS("http://www.w3.org/2000/svg", "path"); handle.setAttribute("d", "m15 15 4.5 4.5");
+  icon.append(lens, handle);
   return icon;
 }
 function formatImpact(impact) {
@@ -160,8 +186,8 @@ function renderBuildInspector() {
   if (!details.childElementCount) { const unavailable = document.createElement("p"); unavailable.className = "build-inspector-unavailable"; unavailable.textContent = "Rune unavailable"; details.append(unavailable); }
   hero.append(morph, details);
   const genes = fighter.genes_metamorph || fighter.genes;
-  if (genes) renderMorphedAxieCached(morph, genes, { snapshot: true }).catch(() => { morph.textContent = "Axie visual unavailable"; });
-  else morph.textContent = "Axie visual unavailable";
+  if (genes) renderMorphedAxieCached(morph, genes, { snapshot: true }).catch(() => showAxieVisualUnavailable(morph));
+  else showAxieVisualUnavailable(morph);
   const equipment = document.createElement("section");
   const equipmentHeading = document.createElement("h4"); equipmentHeading.textContent = "Equipped charms"; equipment.append(equipmentHeading);
   const matrix = document.createElement("div"); matrix.className = "build-inspector-matrix";
@@ -228,8 +254,14 @@ function appendCharmSlots(container, charms) {
 function appendAxies(container, team, className = "profile-axies", { showCharms = false, inspectorContext = null, linkAxieIDs = false } = {}) {
   const axies = document.createElement("div"); axies.className = className;
   for (const fighter of team?.fighters || []) {
-    const axie = document.createElement(inspectorContext ? "button" : "div"); axie.className = "profile-axie";
-    if (inspectorContext) { axie.type = "button"; axie.title = "Inspect Axie build"; axie.setAttribute("aria-label", `Inspect ${fighter.axieID ? `Axie #${fighter.axieID}` : "Axie"} build`); axie.onclick = () => openBuildInspector(team.fighters, team.fighters.indexOf(fighter), inspectorContext); }
+    const axie = document.createElement("div"); axie.className = "profile-axie";
+    if (inspectorContext) {
+      const inspect = document.createElement("button"); inspect.type = "button"; inspect.className = "profile-axie-inspect";
+      const inspectLabel = `Inspect ${fighter.axieID ? `Axie #${fighter.axieID}` : "Axie"} build`;
+      inspect.dataset.tooltip = inspectLabel; inspect.setAttribute("aria-label", inspectLabel);
+      inspect.onclick = () => openBuildInspector(team.fighters, team.fighters.indexOf(fighter), inspectorContext);
+      inspect.append(inspectIcon()); axie.append(inspect);
+    }
     const morph = document.createElement("div"); morph.className = "profile-axie-morph";
     // Battle cards are inspector buttons, so only the non-interactive latest
     // team renders the Axie ID as a marketplace link.
@@ -261,8 +293,8 @@ function appendAxies(container, team, className = "profile-axies", { showCharms 
     if (showCharms) appendCharmSlots(axie, fighter.charms);
     axies.append(axie);
     const genes = fighter.genes_metamorph || fighter.genes;
-    if (genes) renderMorphedAxieCached(morph, genes, { snapshot: true }).catch(() => { morph.textContent = "Axie visual unavailable"; });
-    else morph.textContent = "Axie visual unavailable";
+    if (genes) renderMorphedAxieCached(morph, genes, { snapshot: true }).catch(() => showAxieVisualUnavailable(morph));
+    else showAxieVisualUnavailable(morph);
   }
   if (!team?.fighters?.length) axies.textContent = "Team unavailable";
   container.append(axies);
@@ -307,26 +339,35 @@ function appendBattleLog(container, entry, userID, resolvedPlayerName) {
   if (opponentRoninAddress) {
     const copyOpponentAddress = document.createElement("button");
     copyOpponentAddress.type = "button";
-    copyOpponentAddress.className = "profile-copy-opponent-ronin";
+    copyOpponentAddress.className = "profile-copy-opponent-ronin profile-copy-icon";
     copyOpponentAddress.append(copyIcon());
-    copyOpponentAddress.dataset.tooltip = "Copy opponent ronin address";
+    copyOpponentAddress.dataset.tooltip = "Copy ronin address";
     copyOpponentAddress.setAttribute("aria-label", `Copy ${opponentName}'s Ronin address`);
     copyOpponentAddress.onclick = async () => {
       try {
         await navigator.clipboard.writeText(opponentRoninAddress);
-        copyOpponentAddress.dataset.tooltip = "Copied";
+        copyOpponentAddress.replaceChildren(copyConfirmationIcon()); copyOpponentAddress.dataset.tooltip = "Copied";
       } catch { copyOpponentAddress.dataset.tooltip = "Copy unavailable"; }
-      window.setTimeout(() => { copyOpponentAddress.dataset.tooltip = "Copy opponent ronin address"; }, 1500);
+      window.setTimeout(() => { copyOpponentAddress.replaceChildren(copyIcon()); copyOpponentAddress.dataset.tooltip = "Copy ronin address"; }, 1500);
     };
     versus.append(copyOpponentAddress);
   }
   main.append(versus);
   const metadataSeparator = () => { const separator = document.createElement("span"); separator.className = "profile-meta-separator"; separator.setAttribute("aria-hidden", "true"); separator.textContent = "·"; return separator; };
+  const modeInfo = gameModeLabel(entry.gameMode);
+  if (modeInfo.normalized !== "ranked") {
+    main.append(metadataSeparator());
+    const mode = document.createElement("span"); mode.className = "profile-battle-mode profile-battle-meta"; mode.textContent = modeInfo.label; main.append(mode);
+  }
   main.append(metadataSeparator());
-  const mode = document.createElement("span"); mode.className = "profile-battle-mode profile-battle-meta"; mode.textContent = text(entry.gameMode, "Unknown"); main.append(mode);
-  const context = document.createElement("span"); context.className = "profile-battle-context profile-battle-meta"; context.textContent = [formatRelativeTime(entry.timestamp) || formatTimestamp(entry.timestamp), formatDuration(entry.durationMs)].filter(Boolean).join(" · "); context.title = formatTimestamp(entry.timestamp); main.append(context);
-  main.append(metadataSeparator());
-  const turns = document.createElement("span"); turns.className = "profile-battle-turns profile-battle-meta"; turns.textContent = entry.turns ? `${entry.turns} turns` : "Turn count unavailable"; if (entry.endReason) turns.title = `Battle ended: ${entry.endReason}`; main.append(turns);
+  const context = document.createElement("span"); context.className = "profile-battle-context profile-battle-meta"; context.textContent = formatRelativeTime(entry.timestamp) || formatTimestamp(entry.timestamp); context.dataset.tooltip = formatTimestamp(entry.timestamp); main.append(context);
+  const secondaryDetails = [Number.isFinite(entry.durationMs) && entry.durationMs > 0 ? formatDuration(entry.durationMs) : null, entry.turns ? `${entry.turns} turns` : null].filter(Boolean);
+  if (secondaryDetails.length) {
+    main.append(metadataSeparator());
+    const details = document.createElement("span"); details.className = "profile-battle-details profile-battle-meta"; details.textContent = secondaryDetails.join(" · ");
+    if (entry.endReason) details.dataset.tooltip = `Battle ended: ${entry.endReason}`;
+    main.append(details);
+  }
   const detailsToggle = document.createElement("button"); detailsToggle.type = "button"; detailsToggle.className = "profile-battle-details-toggle"; detailsToggle.textContent = "Details"; detailsToggle.setAttribute("aria-expanded", "false"); detailsToggle.onclick = () => { const expanded = log.classList.toggle("is-expanded"); detailsToggle.setAttribute("aria-expanded", String(expanded)); detailsToggle.textContent = expanded ? "Hide details" : "Details"; };
   summary.append(main, detailsToggle);
   const teams = document.createElement("div"); teams.className = "profile-battle-log-teams";
@@ -364,9 +405,9 @@ export async function renderProfileBattleLogPanel(container, userID, leaderboard
     copyRoninButton.disabled = !ownerRoninAddress;
     copyRoninButton.onclick = async () => {
       if (!ownerRoninAddress) return;
-      try { await navigator.clipboard.writeText(ownerRoninAddress); copyRoninButton.dataset.tooltip = "Copied"; }
+      try { await navigator.clipboard.writeText(ownerRoninAddress); copyRoninButton.replaceChildren(copyConfirmationIcon()); copyRoninButton.dataset.tooltip = "Copied"; }
       catch { copyRoninButton.dataset.tooltip = "Copy unavailable"; }
-      window.setTimeout(() => { copyRoninButton.dataset.tooltip = "Copy ronin address"; }, 1500);
+      window.setTimeout(() => { copyRoninButton.replaceChildren(copyIcon()); copyRoninButton.dataset.tooltip = "Copy ronin address"; }, 1500);
     };
   }
   if (profileClientID) {
@@ -379,9 +420,9 @@ export async function renderProfileBattleLogPanel(container, userID, leaderboard
     copyClientIDButton.disabled = !resolvedUserID;
     copyClientIDButton.onclick = async () => {
       if (!resolvedUserID) return;
-      try { await navigator.clipboard.writeText(resolvedUserID); copyClientIDButton.dataset.tooltip = "Copied"; }
+      try { await navigator.clipboard.writeText(resolvedUserID); copyClientIDButton.replaceChildren(copyConfirmationIcon()); copyClientIDButton.dataset.tooltip = "Copied"; }
       catch { copyClientIDButton.dataset.tooltip = "Copy unavailable"; }
-      window.setTimeout(() => { copyClientIDButton.dataset.tooltip = "Copy client ID"; }, 1500);
+      window.setTimeout(() => { copyClientIDButton.replaceChildren(copyIcon()); copyClientIDButton.dataset.tooltip = "Copy client ID"; }, 1500);
     };
   }
   if (profileState.error) { const error = document.createElement("p"); error.className = "profile-error"; error.textContent = `Could not load battle logs: ${profileState.error}`; container.append(error); return; }
