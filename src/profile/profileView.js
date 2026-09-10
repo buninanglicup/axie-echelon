@@ -51,22 +51,14 @@ function ensureNameRatingSlot(profileHeading) {
   return { row, slot };
 }
 
-function ensureRecentFormRow(nameRow) {
-  if (!nameRow) return null;
-  let form = nameRow.nextElementSibling;
-  if (!form || !form.classList.contains("profile-recent-form")) {
-    form = document.createElement("div"); form.className = "profile-recent-form";
-    nameRow.insertAdjacentElement("afterend", form);
-  }
-  return form;
-}
-
 function renderRecentForm(container, items) {
   container.replaceChildren();
-  const recent = items.slice(0, 10);
+  const recent = items
+    .filter((entry) => String(entry?.gameMode || "").toLowerCase() === "ranked")
+    .slice(0, 10);
   if (!recent.length) { container.hidden = true; return; }
   container.hidden = false;
-  const label = document.createElement("span"); label.className = "profile-recent-form-label"; label.textContent = `Last ${recent.length} games`;
+  const label = document.createElement("span"); label.className = "profile-recent-form-label"; label.textContent = `Last ${recent.length} ranked games`;
   const dots = document.createElement("div"); dots.className = "profile-recent-form-dots";
   let wins = 0, losses = 0, draws = 0;
   for (const entry of recent) {
@@ -79,7 +71,7 @@ function renderRecentForm(container, items) {
     dots.append(dot);
   }
   const record = document.createElement("span"); record.className = "profile-recent-form-record"; record.textContent = draws ? `${wins}W-${losses}L-${draws}D` : `${wins}W-${losses}L`;
-  container.setAttribute("aria-label", `Last ${recent.length} games: ${wins} wins, ${losses} losses${draws ? `, ${draws} draws` : ""}`);
+  container.setAttribute("aria-label", `Last ${recent.length} ranked games: ${wins} wins, ${losses} losses${draws ? `, ${draws} draws` : ""}`);
   container.append(label, dots, record);
 }
 function copyIcon() {
@@ -96,6 +88,27 @@ function copyConfirmationIcon() {
   const check = document.createElementNS("http://www.w3.org/2000/svg", "path"); check.setAttribute("d", "m5 12 4.5 4.5L19 7");
   icon.append(check);
   return icon;
+}
+
+function ensureProfileIdentityActions(profileHeading) {
+  const titleStack = profileHeading?.closest(".profile-title-stack");
+  if (!titleStack) return;
+  let details = titleStack.querySelector("#profile-identity-details");
+  if (details) return;
+  details = document.createElement("div"); details.id = "profile-identity-details";
+  const makeRow = (id, buttonId, label, extraClass = "") => {
+    const row = document.createElement("div"); row.className = `profile-id-actions ${extraClass}`.trim();
+    const value = document.createElement("span"); value.id = id; value.className = id === "profile-ronin-address" ? "profile-ronin-address" : "profile-client-id";
+    const button = document.createElement("button"); button.type = "button"; button.id = buttonId;
+    button.className = `${buttonId === "profile-copy-ronin" ? "profile-copy-ronin" : "profile-copy-client-id"} profile-copy-icon`;
+    button.dataset.tooltip = label; button.setAttribute("aria-label", label); button.append(copyIcon());
+    row.append(value, button); return row;
+  };
+  details.append(
+    makeRow("profile-ronin-address", "profile-copy-ronin", "Copy ronin address"),
+    makeRow("profile-client-id", "profile-copy-client-id", "Copy client ID", "profile-client-id-actions")
+  );
+  titleStack.insertBefore(details, document.getElementById("profile-latest-team-copy-header"));
 }
 function showAxieVisualUnavailable(morph) {
   morph.replaceChildren(); morph.classList.add("is-unavailable");
@@ -150,7 +163,6 @@ function appendRatingSummary(container, label, impact, { identity = false, title
       const chip = createRatingDeltaChip(impact);
       if (chip) delta.append(chip);
     }
-    summary.title = impactTitle(impact);
   } else {
     transition.textContent = "VSTAR unavailable";
     transition.classList.add("profile-impact-unknown");
@@ -434,12 +446,24 @@ function appendBattleLog(container, entry, userID, resolvedPlayerName) {
 
 export async function renderProfileBattleLogPanel(container, userID, leaderboardScope = null) {
   ensureBuildInspector();
+  document.getElementById("profile-view")?.classList.remove("is-empty-dashboard");
+  document.querySelector("#profile-view .profile-title-stack > .profile-recent-form")?.remove();
   document.getElementById("profile-latest-team-header")?.replaceChildren();
   document.getElementById("profile-latest-team-copy-header")?.replaceChildren();
   container.replaceChildren(); const loading = document.createElement("p"); loading.className = "profile-loading"; loading.textContent = "Loading latest 20 observed battle logs…"; container.append(loading);
   await loadProfileBattlePage(userID, leaderboardScope); container.replaceChildren();
   const resolvedUserID = profileState.userID || userID;
   const profileHeading = document.getElementById("profile-player-name");
+  if (profileState.error) {
+    document.getElementById("profile-identity-details")?.remove();
+    if (profileHeading) { profileHeading.textContent = "Profile unavailable"; profileHeading.dataset.tooltip = "Profile unavailable"; }
+    const recovery = document.createElement("section"); recovery.className = "profile-recovery-state";
+    recovery.innerHTML = "<span class=\"profile-recovery-icon\" aria-hidden=\"true\">!</span><h3>Couldn’t load this profile</h3><p>The player may not exist, or the battle-log service may be temporarily unavailable.</p><div><a href=\"/\" class=\"profile-recovery-link\">Browse the leaderboard</a><button type=\"button\" class=\"profile-recovery-retry\">Try again</button></div>";
+    recovery.querySelector(".profile-recovery-retry")?.addEventListener("click", () => renderProfileBattleLogPanel(container, userID, leaderboardScope));
+    container.append(recovery);
+    return;
+  }
+  ensureProfileIdentityActions(profileHeading);
   const profileRoninAddress = document.getElementById("profile-ronin-address");
   const copyRoninButton = document.getElementById("profile-copy-ronin");
   const profileClientID = document.getElementById("profile-client-id");
@@ -448,7 +472,7 @@ export async function renderProfileBattleLogPanel(container, userID, leaderboard
   if (profileHeading) { profileHeading.textContent = resolvedPlayerName; profileHeading.dataset.tooltip = resolvedPlayerName; }
   const ownerRoninAddress = profileState.roninAddress;
   if (profileRoninAddress) {
-    profileRoninAddress.textContent = ownerRoninAddress ? `Ronin address: ${shortenRoninAddress(ownerRoninAddress)}` : "Ronin address unavailable";
+    profileRoninAddress.textContent = ownerRoninAddress ? `Ronin: ${shortenRoninAddress(ownerRoninAddress)}` : "Ronin unavailable";
     profileRoninAddress.dataset.tooltip = ownerRoninAddress || "Ronin address unavailable";
     profileRoninAddress.setAttribute("aria-label", ownerRoninAddress ? `Ronin address: ${ownerRoninAddress}` : "Ronin address unavailable");
     profileRoninAddress.setAttribute("tabindex", "0");
@@ -477,31 +501,33 @@ export async function renderProfileBattleLogPanel(container, userID, leaderboard
       window.setTimeout(() => { copyClientIDButton.replaceChildren(copyIcon()); copyClientIDButton.dataset.tooltip = "Copy client ID"; }, 1500);
     };
   }
-  if (profileState.error) { const error = document.createElement("p"); error.className = "profile-error"; error.textContent = `Could not load battle logs: ${profileState.error}`; container.append(error); return; }
   if (!profileState.items.length) { const empty = document.createElement("p"); empty.className = "profile-empty"; empty.textContent = "No battles were returned for this player."; container.append(empty); return; }
   const latestCopy = document.createElement("div"); latestCopy.className = "profile-latest-team-copy";
   const firstBattle = profileState.items[0];
-  const isLatestRanked = String(firstBattle.gameMode || "").toLowerCase() === "ranked";
-  const ratingTrend = isLatestRanked ? createRatingTrend(profileState.items) : null;
+  const latestRankedBattle = profileState.items.find((entry) => String(entry?.gameMode || "").toLowerCase() === "ranked") || null;
+  const headerBattle = latestRankedBattle || firstBattle;
+  const isLatestRanked = Boolean(latestRankedBattle);
   const ratingOverview = document.createElement("div"); ratingOverview.className = "profile-rating-overview";
-  const { row: nameRow, slot: nameRatingSlot } = ensureNameRatingSlot(profileHeading) || {};
+  const { slot: nameRatingSlot } = ensureNameRatingSlot(profileHeading) || {};
   if (nameRatingSlot) {
     nameRatingSlot.replaceChildren();
-    if (isLatestRanked && Number.isFinite(firstBattle.player?.impact?.vstarAfter)) {
+    if (isLatestRanked && Number.isFinite(latestRankedBattle.player?.impact?.vstarAfter)) {
       const currentRating = document.createElement("span"); currentRating.className = "profile-current-rating";
-      currentRating.append(createVstarBadge({ value: firstBattle.player.impact.vstarAfter, variant: "full" }));
+      const ratingLabel = document.createElement("span"); ratingLabel.className = "profile-current-rating-label"; ratingLabel.textContent = "Current Rating";
+      currentRating.append(createVstarBadge({ value: latestRankedBattle.player.impact.vstarAfter, variant: "full" }), ratingLabel);
       nameRatingSlot.append(currentRating);
     }
   }
-  const recentFormRow = ensureRecentFormRow(nameRow);
-  if (recentFormRow) renderRecentForm(recentFormRow, profileState.items);
-  if (ratingTrend) {
-    const trendChange = document.createElement("span"); trendChange.className = `profile-trend-change${ratingTrend.change >= 0 ? " is-positive" : " is-negative"}`;
-    trendChange.textContent = `${ratingTrend.change > 0 ? "+" : ""}${ratingTrend.change}`;
-    trendChange.title = `${trendChange.textContent} VSTAR across ${ratingTrend.battles} recent battles`;
-    ratingTrend.trend.querySelector("svg")?.before(trendChange);
-    ratingOverview.append(ratingTrend.trend);
+  function updateRatingTrend() {
+    ratingOverview.replaceChildren();
+    const trend = isLatestRanked ? createRatingTrend(profileState.items) : null;
+    if (!trend) return;
+    const trendChange = createVstarBadge({ value: trend.change, delta: trend.change, variant: "compact", deltaDescription: `across ${trend.battles} loaded ranked battles` });
+    trendChange.classList.add("profile-trend-change");
+    trend.trend.querySelector("svg")?.before(trendChange);
+    ratingOverview.append(trend.trend);
   }
+  updateRatingTrend();
   latestCopy.append(ratingOverview);
   // The current composition shares the header row with player identity rather
   // than relying on a negative offset from the content section below.
@@ -509,10 +535,10 @@ export async function renderProfileBattleLogPanel(container, userID, leaderboard
   if (latestTeamHeader) {
     const latestHeading = document.createElement("div"); latestHeading.className = "profile-latest-team-heading"; latestHeading.textContent = "Latest ranked team";
     latestTeamHeader.append(latestHeading);
-    appendAxies(latestTeamHeader, firstBattle.team, "profile-axies profile-latest-axies", { showCharms: true, linkAxieIDs: true });
+    appendAxies(latestTeamHeader, headerBattle.team, "profile-axies profile-latest-axies", { showCharms: true, linkAxieIDs: true });
   }
   document.getElementById("profile-latest-team-copy-header")?.append(latestCopy);
-  const filterState = { result: "all", mode: "all", opponent: "", date: "all" };
+  const filterState = { result: "all", mode: "ranked", opponent: "", date: "all" };
   function matchesMode(entry) { return filterState.mode === "all" || String(entry.gameMode || "").toLowerCase() === filterState.mode; }
   function matchesResult(entry) { return filterState.result === "all" || entry.result === filterState.result; }
   function matchesOpponent(entry) {
@@ -541,7 +567,8 @@ export async function renderProfileBattleLogPanel(container, userID, leaderboard
   const filtersLeft = document.createElement("div"); filtersLeft.className = "profile-battle-filters-left";
   const historyHeading = document.createElement("div"); historyHeading.className = "profile-battle-history-heading"; historyHeading.textContent = "Battle history";
   const resultCountChip = document.createElement("span"); resultCountChip.className = "profile-result-count-chip";
-  filtersLeft.append(historyHeading, resultCountChip);
+  const recentForm = document.createElement("div"); recentForm.className = "profile-recent-form";
+  filtersLeft.append(historyHeading, resultCountChip, recentForm);
 
   const searchWrap = document.createElement("div"); searchWrap.className = "profile-battle-search";
   searchWrap.append(inspectIcon());
@@ -567,6 +594,8 @@ export async function renderProfileBattleLogPanel(container, userID, leaderboard
     const lossesEl = document.createElement("span"); lossesEl.className = "profile-result-count-losses"; lossesEl.textContent = `${losses}L`;
     resultCountChip.setAttribute("aria-label", `${wins} wins, ${losses} losses`);
     resultCountChip.replaceChildren(winsEl, sep, lossesEl);
+    // The history record, dots, and sparkline all use the same loaded items.
+    renderRecentForm(recentForm, profileState.items);
   }
 
   function renderFilteredLogs() {
@@ -616,6 +645,13 @@ export async function renderProfileBattleLogPanel(container, userID, leaderboard
 
   function createSegmentedControl(options, groupLabel, defaultVariant, getSelected, onSelect) {
     const group = document.createElement("div"); group.className = "profile-segmented"; group.setAttribute("role", "group"); group.setAttribute("aria-label", groupLabel);
+    const wrapper = document.createElement("div"); wrapper.className = "profile-filter-group";
+    const caption = document.createElement("span"); caption.className = "profile-filter-group-label";
+    caption.textContent = ({
+      "Filter by result": "Result",
+      "Filter by game mode": "Mode",
+      "Filter by date range": "Range"
+    })[groupLabel] || groupLabel;
     const buttons = [];
     function refresh() {
       const selected = getSelected();
@@ -634,7 +670,8 @@ export async function renderProfileBattleLogPanel(container, userID, leaderboard
       buttons.push(button); group.append(button);
     }
     refresh();
-    return group;
+    wrapper.append(caption, group);
+    return wrapper;
   }
 
   filtersRow2.append(
@@ -672,6 +709,7 @@ export async function renderProfileBattleLogPanel(container, userID, leaderboard
       return;
     }
     updateResultCountChip();
+    updateRatingTrend();
     renderFilteredLogs();
     renderPagination();
   };

@@ -33,7 +33,7 @@ body {
 .top-bar {
   width: min(1500px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 22px 0 8px;
+  padding: 18px 8px 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -43,7 +43,7 @@ body {
 .brand-home {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   flex: 0 0 auto;
   text-decoration: none;
   border-radius: 9px;
@@ -60,46 +60,25 @@ body {
 .brand-copy {
   display: grid;
   min-width: 0;
-  gap: 1px;
-}
-
-.logo-dot {
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #26d596, #6acef6);
-  color: #07111d;
-  font-weight: 900;
-  box-shadow: inset 0 0 20px rgba(255,255,255,.55);
-  flex-shrink: 0;
+  gap: 4px;
 }
 
 .brand-name {
-  font-size: clamp(22px, 2.25vw, 30px);
-  font-weight: 850;
-  color: #eefcf6;
-  letter-spacing: 0.01em;
-  line-height: 1.04;
+  color: #ffffff;
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
   white-space: nowrap;
 }
 
-.brand-kicker {
-  color: #8ae6af;
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: .12em;
-  line-height: 1.1;
-  text-transform: uppercase;
-}
-
 .brand-subtitle {
-  margin-top: 2px;
-  color: #9bb5c1;
-  font-size: 10px;
-  line-height: 1.25;
+  color: #9aa7b8;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
@@ -227,13 +206,27 @@ body {
   transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
 }
 
-.app-sidebar .nav-icon { width: 18px; height: 18px; inline-size: 18px; min-inline-size: 18px; flex: 0 0 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; opacity: .8; transition: opacity 150ms ease; }
+.app-sidebar .nav-icon { width: 18px; height: 18px; inline-size: 18px; min-inline-size: 18px; flex: 0 0 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; color: #8a99ad; opacity: .8; transition: color 150ms ease, opacity 150ms ease; }
 .app-sidebar .nav-button:hover:not(.active):not(:disabled) { color: #fff; background: rgba(255, 255, 255, .05); }
 .app-sidebar .nav-button:hover:not(.active):not(:disabled) .nav-icon { opacity: 1; }
 .app-sidebar .nav-button.active { color: var(--accent); background: rgba(73, 220, 143, .12); border-color: rgba(73, 220, 143, .25); font-weight: 700; }
+.app-sidebar .nav-button:hover:not(.active):not(:disabled) .nav-icon { color: #e2e8f0; }
 .app-sidebar .nav-button.active .nav-icon { opacity: 1; }
+.app-sidebar .nav-button.active .nav-icon { color: var(--accent); }
+.app-sidebar .nav-button-upcoming .nav-icon, .app-sidebar .nav-button-upcoming:disabled .nav-icon { color: #4a5568; opacity: .6; }
 .app-sidebar .nav-button.active::before { position: absolute; top: 20%; bottom: 20%; left: -4px; width: 3px; border-radius: 2px; background: var(--accent); content: ""; }
-.app-sidebar .nav-button-upcoming:disabled { opacity: .45; border-style: dashed; }
+.app-sidebar .nav-button-upcoming:disabled { opacity: .5; border-style: dashed; pointer-events: none; cursor: default; }
+.nav-soon-badge {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(73, 220, 143, .12);
+  color: #9ff4d1;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  text-transform: none;
+}
 
 .top-nav {
   display: flex;
@@ -1626,8 +1619,8 @@ button.status-pill:not(:disabled):focus-visible {
 .profile-axie-inspect svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-width: 2; }
 .profile-axie-inspect:hover, .profile-axie-inspect:focus-visible { background: #183442; color: #e0fff2; opacity: 1; }
 .profile-axie-inspect:focus-visible { outline: 2px solid #8feeb2; outline-offset: 2px; }
-.profile-axie-morph { position: relative; min-height: 78px; display: grid; place-items: center; color: #8facb8; font-size: 11px; }
-.profile-axie-morph img { display: block; width: 100%; max-height: 102px; object-fit: contain; }
+.profile-axie-morph { position: relative; min-height: 70px; display: grid; place-items: center; color: #8facb8; font-size: 11px; }
+.profile-axie-morph img { display: block; width: 100%; max-height: 80px; object-fit: contain; }
 .profile-axie-morph.is-unavailable { align-content: center; gap: 3px; color: #718a94; font-size: 10px; font-style: italic; }
 .profile-axie-unavailable-icon { color: #52717b; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 25px; font-style: normal; line-height: 1; }
 .profile-axie-name { display: block; overflow: hidden; color: #a9c0ca; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; letter-spacing: 0.02em; text-overflow: ellipsis; white-space: nowrap; }
@@ -1650,7 +1643,7 @@ button.profile-rune-tooltip:hover::after, button.profile-rune-tooltip:focus-visi
 .profile-charm-slot.has-unusual-art-ratio .profile-charm-art { width: 14px; height: 14px; }
 
 .profile-identity { display: flex; align-items: center; gap: 10px; }
-.profile-title-stack { display: grid; gap: 2px; }
+.profile-title-stack { display: grid; gap: 4px; }
 .profile-title-stack h2 { margin: 0; }
 /* Name + rank badge share one row; recent form sits directly beneath, both
    anchored to the name instead of floating in a separate column. */
@@ -1666,34 +1659,61 @@ button.profile-rune-tooltip:hover::after, button.profile-rune-tooltip:focus-visi
 .profile-form-dot--draw { background: #e6bd68; border-color: rgba(230, 189, 104, 0.55); }
 .profile-form-dot--unknown { background: #3d525c; }
 .profile-recent-form-record { color: #cfe3ea; font-weight: 800; font-variant-numeric: tabular-nums; }
+#profile-identity-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: min(100%, 390px); gap: 0; margin-top: 3px; padding: 3px 5px; border: 1px solid rgba(157, 186, 184, 0.14); border-radius: 8px; background: rgba(2, 10, 16, 0.6); }
+#profile-identity-details .profile-id-actions { min-width: 0; gap: 2px; padding: 1px 5px; }
+#profile-identity-details .profile-client-id-actions { border-left: 1px solid rgba(157, 186, 184, 0.13); }
 .profile-id-actions { display: flex; align-items: center; gap: 7px; min-width: 0; }
-.profile-ronin-address { color: #9dbab8; font-size: 10px; letter-spacing: 0.07em; cursor: help; }
-.profile-client-id-actions { margin-top: -1px; }
-.profile-ronin-address, .profile-client-id { color: #9dbab8; font-size: 10px; letter-spacing: 0.07em; cursor: help; }
+.profile-ronin-address, .profile-client-id { overflow: hidden; color: #8fa5ae; font-size: 12px; letter-spacing: 0.01em; text-overflow: ellipsis; white-space: nowrap; cursor: help; }
+.profile-client-id-actions { margin-top: 0; }
 .profile-copy-ronin, .profile-copy-client-id, .profile-copy-opponent-ronin { color: #afd4d2; background: #10222d; border: 1px solid rgba(175, 212, 210, 0.28); border-radius: 5px; cursor: pointer; }
 .profile-copy-ronin:hover, .profile-copy-client-id:hover, .profile-copy-opponent-ronin:hover { background: #183442; color: #dff8ec; }
 .profile-copy-ronin:active, .profile-copy-client-id:active, .profile-copy-opponent-ronin:active { transform: translateY(1px); }
 .profile-copy-ronin:disabled, .profile-copy-client-id:disabled { cursor: not-allowed; opacity: 0.5; }
-.profile-copy-icon { display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 4px; }
+.profile-copy-icon { display: inline-grid; place-items: center; width: 36px; height: 36px; padding: 8px; }
+.profile-copy-opponent-ronin.profile-copy-icon { width: 36px; height: 36px; padding: 8px; }
 .profile-copy-icon svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+#profile-identity-details .profile-copy-icon { width: 36px; height: 36px; padding: 8px; border-color: transparent; background: transparent; color: #8da9aa; opacity: 0.55; }
+#profile-identity-details .profile-copy-icon svg { width: 12px; height: 12px; }
+#profile-identity-details .profile-copy-icon:hover, #profile-identity-details .profile-copy-icon:focus-visible { border-color: rgba(175, 212, 210, 0.28); background: #10222d; color: #dff8ec; opacity: 1; }
+
+/* Header team is an inspectable current composition; history keeps its
+   per-battle equipment deliberately quieter. */
+.profile-latest-team-header .profile-charm-slots { --profile-charm-size: 28px; gap: 3px; }
+.profile-latest-team-header .profile-charm-art { width: 19px; height: 19px; }
+.profile-team-card .profile-rune-tooltip { width: 30px; height: 30px; }
+.profile-team-card .profile-rune-badge { width: 30px !important; height: 30px; }
 .profile-retention-note { margin: 2px 0 8px; font-size: 12px; }
-.profile-latest-team-copy-header { margin-top: 2px; }
+.profile-latest-team-copy-header { margin-top: 10px; padding-top: 9px; border-top: 1px solid rgba(157, 186, 184, 0.13); }
 .profile-latest-team-copy { padding-top: 0; }
 .profile-latest-team-heading { color: #9dbab8; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
 .profile-latest-team-context { margin: 5px 0 0; color: #91abb4; font-size: 12px; }
-.profile-rating-overview { display: grid; justify-items: start; gap: 3px; margin-top: 3px; }
+.profile-rating-overview { display: grid; justify-items: start; gap: 7px; margin-top: 0; }
 .profile-current-rating { display: grid; justify-items: start; }
-/* Grouped tight under the player name/ID block and sized up slightly so the
-   rank reads as part of the same player card rather than a separate module. */
-.profile-current-rating .vstar-badge-full { min-height: 32px; padding: 5px 10px 7px; }
-.profile-current-rating .vstar-badge-full .vstar-badge-value { font-size: 16px; }
+/* Current rating is the profile's primary stat. The crest identifies the
+   unit; the numeral itself gets the visual weight. */
+.profile-current-rating .vstar-badge-full {
+  min-height: 48px;
+  padding: 7px 13px 9px;
+  border-radius: 12px;
+}
+.profile-current-rating .vstar-badge-full .vstar-badge-icon {
+  width: 22px;
+  height: 22px;
+  flex-basis: 22px;
+}
+.profile-current-rating .vstar-badge-full .vstar-badge-value {
+  font-size: clamp(28px, 3vw, 32px);
+  font-weight: 600;
+  line-height: 1;
+}
+.profile-current-rating-label { color: #8faab4; font-size: 9px; font-weight: 800; letter-spacing: 0.12em; line-height: 1.2; text-transform: uppercase; }
 .profile-current-rating .vstar-badge-progress { display: none; }
 .profile-trend-change { color: #8facb8; font-size: 10px; font-weight: 900; font-variant-numeric: tabular-nums; }
 .profile-trend-change.is-positive { color: #a6ffd0; }
 .profile-trend-change.is-negative { color: #ffb1bc; }
-.profile-rating-trend { display: grid; grid-template-columns: max-content max-content; align-items: center; column-gap: 7px; row-gap: 2px; color: #89a4ae; }
+.profile-rating-trend { display: grid; grid-template-columns: max-content max-content; align-items: center; column-gap: 7px; row-gap: 5px; color: #89a4ae; }
 .profile-rating-trend-label { font-size: 9px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
-.profile-rating-sparkline { grid-column: 1 / -1; width: 104px; height: 24px; overflow: visible; }
+.profile-rating-sparkline { grid-column: 1 / -1; width: 132px; height: 30px; overflow: visible; }
 .profile-rating-sparkline polyline { stroke: #64dfb2; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; filter: drop-shadow(0 0 3px rgba(100, 223, 178, 0.38)); }
 .profile-latest-team-header {
   display: grid;
@@ -1725,7 +1745,16 @@ button.profile-rune-tooltip:hover::after, button.profile-rune-tooltip:focus-visi
   gap: 10px 12px;
 }
 .profile-battle-filters-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.profile-battle-filters-right { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; margin-left: auto; }
+.profile-battle-filters-right { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+
+.profile-filter-group { display: grid; gap: 4px; }
+.profile-filter-group-label {
+  color: #8facb8;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
 
 .profile-result-count-chip {
   display: inline-flex;
@@ -1792,6 +1821,8 @@ button.profile-rune-tooltip:hover::after, button.profile-rune-tooltip:focus-visi
 .profile-segmented-option {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  min-height: 44px;
   border: 1px solid transparent;
   border-radius: 999px;
   background: transparent;
@@ -1824,16 +1855,14 @@ button.profile-rune-tooltip:hover::after, button.profile-rune-tooltip:focus-visi
   .profile-battle-filters-right {
     flex: 1 1 100%;
     margin-left: 0;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    touch-action: pan-x;
-    scrollbar-width: none;
-    padding-bottom: 2px;
-    mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+    align-items: flex-start;
+    overflow: visible;
+    padding-bottom: 0;
   }
-  .profile-battle-filters-right::-webkit-scrollbar { display: none; }
-  .profile-segmented { flex-shrink: 0; }
-  .profile-segmented-option { flex-shrink: 0; }
+  .profile-filter-group { flex: 1 1 calc(50% - 4px); }
+  .profile-filter-group:last-child { flex-basis: 100%; }
+  .profile-segmented { width: 100%; overflow-x: auto; }
+  .profile-segmented-option { flex: 1 0 auto; }
 }
 
 /* Reusable rank treatment: a CSS-drawn rank crest avoids a text "VSTAR" label. */
@@ -1853,7 +1882,7 @@ button.profile-rune-tooltip:hover::after, button.profile-rune-tooltip:focus-visi
 .profile-battle-summary .vstar-badge-compact .vstar-badge-delta { font-size: 12px; font-weight: 900; }
 .vstar-badge-compact { gap: 3px; min-height: 18px; padding: 2px 5px; border-radius: 9px; }
 .vstar-badge-compact .vstar-badge-icon { width: 11px; height: 11px; flex-basis: 11px; }
-.vstar-badge-compact .vstar-badge-value { font-size: 0; }
+.vstar-badge-compact .vstar-badge-value { font-size: 10px; font-weight: 850; }
 .vstar-badge-compact .vstar-badge-delta { padding-left: 0; border-left: 0; font-size: 10px; }
 
 /* Axie details are deliberately kept out of the chronological log. */
@@ -1896,9 +1925,10 @@ button.profile-rune-tooltip:hover::after, button.profile-rune-tooltip:focus-visi
   .profile-battle-details-toggle { display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(143, 238, 178, 0.28); border-radius: 999px; background: transparent; color: #a6d8c8; font: inherit; font-size: 10px; padding: 3px 6px; cursor: pointer; }
   .profile-battle-details-toggle:focus-visible { outline: 2px solid #8feeb2; outline-offset: 2px; }
   .profile-rating-transition { font-size: 11px; }
-  .profile-battle-log-teams { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
-  .profile-team-card { margin: 0 3px 8px; padding: 5px 4px 6px; }
-  .profile-battle-versus { width: 26px; height: 26px; font-size: 9px; }
+  .profile-battle-log-teams { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .profile-team-card { margin: 0 8px 8px; padding: 7px 8px 8px; }
+  .profile-team-card:last-child .profile-team-label { text-align: left; }
+  .profile-battle-versus { width: 26px; height: 26px; font-size: 9px; justify-self: center; margin: 2px auto; }
   .profile-axies { gap: 2px; }
   .profile-axie { padding: 3px 2px 4px; border-radius: 6px; }
   .profile-axie-morph { min-height: 52px; }
@@ -1914,6 +1944,11 @@ button.profile-rune-tooltip:hover::after, button.profile-rune-tooltip:focus-visi
   .profile-rating-overview { gap: 8px; }
   .profile-rating-trend-label { font-size: 8px; }
   .profile-recent-form { gap: 6px; }
+}
+
+@media (max-width: 520px) {
+  #profile-identity-details { grid-template-columns: minmax(0, 1fr); width: min(100%, 300px); }
+  #profile-identity-details .profile-client-id-actions { border-top: 1px solid rgba(157, 186, 184, 0.13); border-left: 0; }
 }
 
 .eyebrow {
@@ -2925,9 +2960,11 @@ input {
 
 @media (max-width: 600px) {
   .top-bar { align-items: flex-start; flex-wrap: wrap; gap: 12px; padding-top: 16px; }
-  .brand-home { min-width: 0; order: 0; }
-  .brand-name { font-size: 22px; }
-  .brand-subtitle { font-size: 9px; }
+  .brand-home { min-width: 0; order: 0; gap: 9px; }
+  .brand-mark { width: 32px; height: 32px; flex-basis: 32px; border-radius: 9px; font-size: 17px; }
+  .brand-name { font-size: 23px; }
+  .brand-subtitle { font-size: 11px; }
+  .brand-description { font-size: 10px; }
   .settings-button { order: 1; margin-left: auto; }
   .top-nav-toggle { display: inline-flex; order: 2; margin-left: 0; }
   .global-search { order: 3; flex: 1 1 100%; max-width: none; }
@@ -2943,7 +2980,6 @@ input {
   .profile-team-card { margin: 0 8px 8px; padding: 7px 8px 8px; }
   .profile-battle-versus { justify-self: center; margin: 2px auto; }
   .profile-team-card:last-child .profile-team-label { text-align: left; }
-  .profile-recent-form-label { display: none; }
 
   .input-row {
     flex-direction: column;
@@ -3456,13 +3492,14 @@ input {
 .dashboard-empty-state {
   display: grid;
   place-items: center;
-  min-height: 260px;
-  padding: 36px 20px;
+  align-content: center;
+  min-height: clamp(360px, 56vh, 620px);
+  padding: 48px 20px;
   text-align: center;
   color: #c2d4d8;
-  border: 1px dashed rgba(141, 250, 194, .3);
-  border-radius: 12px;
-  background: rgba(4, 10, 16, .22);
+  border: 1px dashed rgba(141, 250, 194, .34);
+  border-radius: 16px;
+  background: radial-gradient(circle at 50% 30%, rgba(47, 224, 168, .12), transparent 38%), rgba(4, 10, 16, .22);
 }
 
 .dashboard-empty-state h3 {
@@ -3471,5 +3508,62 @@ input {
 }
 
 .dashboard-empty-state p {
+  max-width: 440px;
   margin: 0;
+  line-height: 1.55;
+}
+
+.dashboard-empty-icon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 12px;
+  place-items: center;
+  border: 1px solid rgba(47, 224, 168, .42);
+  border-radius: 50%;
+  background: rgba(47, 224, 168, .1);
+  color: #76f5c7;
+  font-size: 25px;
+}
+
+.dashboard-empty-link {
+  margin-top: 18px;
+  color: #76f5c7;
+  font-size: 14px;
+  font-weight: 700;
+  text-underline-offset: 3px;
+}
+
+.dashboard-empty-link:hover,
+.dashboard-empty-link:focus-visible {
+  color: #d9ffef;
+}
+
+.profile-recovery-state {
+  display: grid;
+  min-height: clamp(320px, 48vh, 520px);
+  place-items: center;
+  align-content: center;
+  gap: 12px;
+  padding: 42px 20px;
+  border: 1px dashed rgba(241, 109, 109, .38);
+  border-radius: 16px;
+  background: radial-gradient(circle at 50% 30%, rgba(241, 109, 109, .10), transparent 38%), rgba(4, 10, 16, .22);
+  color: #c2d4d8;
+  text-align: center;
+}
+.profile-recovery-state h3 { margin: 0; color: #f2fbf6; }
+.profile-recovery-state p { max-width: 440px; margin: 0; line-height: 1.55; }
+.profile-recovery-state > div { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 6px; }
+.profile-recovery-icon { display: grid; width: 44px; height: 44px; place-items: center; border: 1px solid rgba(241, 109, 109, .48); border-radius: 50%; background: rgba(241, 109, 109, .12); color: #ffb1bc; font-size: 22px; font-weight: 800; }
+.profile-recovery-link, .profile-recovery-retry { color: #9ff4d1; font: inherit; font-size: 14px; font-weight: 700; }
+.profile-recovery-link { text-underline-offset: 3px; }
+.profile-recovery-retry { padding: 0; border: 0; background: transparent; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.profile-recovery-link:hover, .profile-recovery-link:focus-visible, .profile-recovery-retry:hover, .profile-recovery-retry:focus-visible { color: #d9ffef; }
+
+#profile-view.is-empty-dashboard .profile-latest-team-header,
+#profile-view.is-empty-dashboard .profile-latest-team-copy-header,
+#profile-view.is-empty-dashboard .profile-name-rating-slot,
+#profile-view.is-empty-dashboard .profile-recent-form {
+  display: none;
 }

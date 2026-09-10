@@ -187,7 +187,7 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
 The next larger UI change is an app-shell and navigation pass. It is designed
 but not yet implemented:
 
-- Keep Leaderboard as the homepage and add a Player Dashboard route for the
+- Keep Leaderboard as the homepage and add a Player Profile route for the
   existing profile view.
 - Replace the current top-tab navigation with a permanent desktop sidebar and
   a mobile slide-out drawer. Keep reserved navigation slots for future Meta

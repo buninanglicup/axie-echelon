@@ -136,23 +136,20 @@ function initProfilePageIfNeeded() {
 
 function showDashboardEmptyState() {
   const profilePanel = document.getElementById("profile-panel");
+  const profileView = document.getElementById("profile-view");
   const profileHeading = document.getElementById("profile-player-name");
-  const roninAddress = document.getElementById("profile-ronin-address");
-  const clientId = document.getElementById("profile-client-id");
   if (!profilePanel || !profileHeading) return;
 
-  profileHeading.textContent = "Player Dashboard";
-  profileHeading.dataset.tooltip = "Player Dashboard";
-  roninAddress?.replaceChildren();
-  clientId?.replaceChildren();
-  document.getElementById("profile-copy-ronin")?.setAttribute("disabled", "");
-  document.getElementById("profile-copy-client-id")?.setAttribute("disabled", "");
+  profileHeading.textContent = "Player Profile";
+  profileHeading.dataset.tooltip = "Player Profile";
+  profileView?.classList.add("is-empty-dashboard");
+  document.getElementById("profile-identity-details")?.remove();
   document.getElementById("profile-latest-team-header")?.replaceChildren();
   document.getElementById("profile-latest-team-copy-header")?.replaceChildren();
   profilePanel.replaceChildren();
   const empty = document.createElement("div");
   empty.className = "dashboard-empty-state";
-  empty.innerHTML = "<h3>Find a player to get started</h3><p>Search by Ronin address or Client ID using the field above.</p>";
+  empty.innerHTML = "<span class=\"dashboard-empty-icon\" aria-hidden=\"true\">✦</span><h3>Find a player to get started</h3><p>Search by Ronin address or Client ID to see recent battles, rating movement, and team history.</p><a class=\"dashboard-empty-link\" href=\"/\">Browse the leaderboard</a>";
   profilePanel.append(empty);
 }
 

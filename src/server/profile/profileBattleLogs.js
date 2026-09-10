@@ -105,9 +105,11 @@ function findRatingImpact(battle, userID) {
 function winnerUserID(gameData, players) {
   const winner = gameData?.winner;
   if (typeof winner === "string" && players.some((player) => player?.userID === winner)) return winner;
+  // The battle-log API uses winner=2 as the draw sentinel for two-player games.
+  // Return null here; resolveResult handles the draw state before winner lookup.
+  if (winner === 2 || (typeof winner === "string" && ["draw", "tie"].includes(winner.toLowerCase()))) return null;
   // Fixtures use a zero-based player slot for decisive games; only resolve when
-  // it addresses an actual participant. Other values (such as a draw enum)
-  // remain unknown rather than being guessed.
+  // it addresses an actual participant.
   if (Number.isInteger(winner) && winner >= 0 && winner < players.length) return players[winner]?.userID || null;
   return null;
 }
@@ -126,6 +128,7 @@ function resolveResult(battle, clientId, opponentUserID, players) {
     }
   }
   if (gameData?.isDraw === true || battle?.isDraw === true) return "draw";
+  if (gameData?.winner === 2 || (typeof gameData?.winner === "string" && ["draw", "tie"].includes(gameData.winner.toLowerCase()))) return "draw";
   const explicitWinner = winnerUserID(gameData, players);
   if (explicitWinner === clientId) return "win";
   if (explicitWinner === opponentUserID) return "loss";

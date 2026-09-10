@@ -39,3 +39,19 @@ test("normalizeBattleForProfile retains an opponent Ronin address for the profil
 
   assert.equal(item.opponent.roninAddress, opponentAddress);
 });
+
+test("normalizeBattleForProfile recognizes winner=2 as a draw", () => {
+  const item = normalizeBattleForProfile({
+    gameData: {
+      uuid: "draw-battle-uuid",
+      gameMode: "ranked",
+      winner: 2,
+      players: [
+        { userID: PLAYER_ID, team: { fighters: [{ axieID: 7, position: 0 }] } },
+        { userID: "opponent-id", team: { fighters: [{ axieID: 8, position: 0 }] } }
+      ]
+    }
+  }, PLAYER_ID);
+
+  assert.equal(item.result, "draw");
+});
