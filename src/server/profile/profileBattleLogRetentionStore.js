@@ -1,6 +1,5 @@
-// Sky Mavis's battle-logs endpoint takes only `limit`; it has no offset or
-// cursor, so this store retains only battles the app has actually observed.
-// It is bounded and in-memory, matching the rest of the live-cache model.
+// This bounded in-memory store retains battles that the app has already
+// observed. Explicit profile pagination remains the source for deeper history.
 
 const MAX_RETAINED_BATTLES_PER_USER = Number(process.env.PROFILE_BATTLE_LOG_RETENTION_MAX || 200);
 const MAX_RETAINED_AGE_MS = Number(process.env.PROFILE_BATTLE_LOG_RETENTION_MAX_AGE_MS || 30 * 24 * 60 * 60 * 1000);
@@ -42,7 +41,7 @@ export function getRetentionInfo(userID) {
     retainedCount: userMap ? userMap.size : 0,
     maxRetainedBattles: MAX_RETAINED_BATTLES_PER_USER,
     maxRetainedAgeMs: MAX_RETAINED_AGE_MS,
-    note: "Only battles observed by this app are retained; the upstream endpoint has no offset/cursor, so deeper pages grow only as the player is polled."
+    note: "Only battles observed by this app are retained in memory. Deeper profile history is fetched explicitly in offset pages."
   };
 }
 

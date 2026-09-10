@@ -3,7 +3,6 @@ import { mapWithConcurrency, withBattleLogSlot } from "../shared/concurrency.js"
 import { fetchWithRetry } from "../shared/httpRetry.js";
 import { getRuneMetadata } from "../leaderboard/runeCatalog.js";
 import { getCharmMetadata } from "../leaderboard/charmCatalog.js";
-import { BATTLE_LOGS_MIN_LIMIT, BATTLE_LOGS_MAX_LIMIT } from "../leaderboard/leaderboardConstants.js";
 import {
   mergeObservedBattleLogs,
   getRetainedBattleLogs
@@ -17,6 +16,8 @@ import { resolvePlayerProfile } from "../shared/profileCache.js";
 // This adapter turns the upstream battle-log shape into the UI's compact
 // matchup model. It enriches only known rune/charm IDs from local catalogs and
 // never invents unavailable levels, parts, results, or older battle pages.
+export const PROFILE_BATTLE_LOG_PAGE_SIZE = 20;
+const PROFILE_BATTLE_LOG_MIN_LIMIT = 5;
 
 function normalizeEpochToMs(candidate) {
   if (typeof candidate === "number" && Number.isFinite(candidate)) return candidate > 1e12 ? candidate : candidate * 1000;
@@ -65,6 +66,15 @@ function mapTeam(playerEntry) {
   if (!playerEntry?.team?.fighters || !Array.isArray(playerEntry.team.fighters)) return null;
   const fighters = playerEntry.team.fighters.map(mapFighter).sort((a, b) => a.position - b.position);
   return fighters.length > 0 ? { fighters } : null;
+}
+
+function participantRoninAddress(participant) {
+  return participant?.roninAddress
+    || participant?.ronin_address
+    || participant?.ronin
+    || participant?.addresses?.ronin
+    || participant?.addresses?.roninAddress
+    || null;
 }
 
 function numberOrNull(value) { return typeof value === "number" && Number.isFinite(value) ? value : null; }
@@ -122,15 +132,17 @@ function resolveResult(battle, clientId, opponentUserID, players) {
   return "unknown";
 }
 
-function buildBattleLogUrl(clientId, limit) {
-  const clampedLimit = Math.min(BATTLE_LOGS_MAX_LIMIT, Math.max(BATTLE_LOGS_MIN_LIMIT, Number(limit) || BATTLE_LOGS_MIN_LIMIT));
+export function buildBattleLogUrl(clientId, limit, offset = 0) {
+  const clampedLimit = Math.min(PROFILE_BATTLE_LOG_PAGE_SIZE, Math.max(PROFILE_BATTLE_LOG_MIN_LIMIT, Number(limit) || PROFILE_BATTLE_LOG_PAGE_SIZE));
+  const clampedOffset = Math.max(0, Math.floor(Number(offset) || 0));
   return {
-    url: `${MAVIS_API_URL}/origin/v2/community/users/${encodeURIComponent(clientId)}/battle-logs?limit=${clampedLimit}`,
-    clampedLimit
+    url: `${MAVIS_API_URL}/origin/v2/community/users/${encodeURIComponent(clientId)}/battle-logs?limit=${clampedLimit}&offset=${clampedOffset}`,
+    clampedLimit,
+    clampedOffset
   };
 }
 
-function normalizeBattleForProfile(battle, clientId) {
+export function normalizeBattleForProfile(battle, clientId) {
   if (!battle?.gameData) return null;
   const players = Array.isArray(battle.gameData.players) ? battle.gameData.players : [];
   const selfEntry = players.find((player) => player?.userID === clientId);
@@ -144,7 +156,7 @@ function normalizeBattleForProfile(battle, clientId) {
   const turns = numberOrNull(battle.gameData?.turnEndAt);
 
   return {
-    battleId: battle?.id || battle?._id || battle?.gameData?.id || null,
+    battleId: battle?.id || battle?._id || battle?.gameData?.id || battle?.gameData?.uuid || null,
     timestamp: endedAt,
     startedAt,
     durationMs: Number.isFinite(durationMs) ? durationMs : null,
@@ -155,12 +167,14 @@ function normalizeBattleForProfile(battle, clientId) {
     player: {
       userID: clientId,
       name: selfEntry?.name || null,
+      roninAddress: participantRoninAddress(selfEntry),
       rank: numberOrNull(selfEntry?.rank ?? selfEntry?.topRank ?? selfEntry?.leaderboardRank),
       impact: findRatingImpact(battle, clientId)
     },
     opponent: {
       userID: opponentEntry?.userID || null,
       name: opponentEntry?.name || null,
+      roninAddress: participantRoninAddress(opponentEntry),
       impact: findRatingImpact(battle, opponentEntry?.userID),
       team: mapTeam(opponentEntry)
     },
@@ -169,26 +183,29 @@ function normalizeBattleForProfile(battle, clientId) {
   };
 }
 
-async function enrichParticipantNames(items) {
+async function enrichParticipantProfiles(items) {
   const unresolvedIDs = [...new Set((items || []).flatMap((item) => [item?.player, item?.opponent])
-    .filter((participant) => participant?.userID && !participant.name)
+    .filter((participant) => participant?.userID && (!participant.name || !participant.roninAddress))
     .map((participant) => participant.userID))];
   if (unresolvedIDs.length === 0) return items;
   const profiles = await mapWithConcurrency(unresolvedIDs, async (userID) => {
     try { return [userID, await resolvePlayerProfile(userID)]; }
     catch { return [userID, null]; }
   }, 4);
-  const names = new Map(profiles.map(([userID, profile]) => [userID, profile?.name || null]));
+  const profileByUserID = new Map(profiles);
   for (const item of items || []) {
     for (const participant of [item?.player, item?.opponent]) {
-      if (participant?.userID && !participant.name) participant.name = names.get(participant.userID) || null;
+      if (!participant?.userID) continue;
+      const profile = profileByUserID.get(participant.userID);
+      if (!participant.name) participant.name = profile?.name || null;
+      if (!participant.roninAddress) participant.roninAddress = profile?.roninAddress || null;
     }
   }
   return items;
 }
 
-async function fetchLiveBattleLogsForProfile(clientId, limit) {
-  const { url } = buildBattleLogUrl(clientId, limit);
+async function fetchLiveBattleLogsForProfile(clientId, limit, offset) {
+  const { url, clampedLimit, clampedOffset } = buildBattleLogUrl(clientId, limit, offset);
   if (DEBUG_ON) console.log(`[profileBattleLogs] Fetching: ${url}`);
   const response = await withBattleLogSlot(
     () => fetchWithRetry(url, { headers: { "x-api-key": AXIE_ECHELON_API_KEY } }, { debug: DEBUG_ON }),
@@ -203,7 +220,14 @@ async function fetchLiveBattleLogsForProfile(clientId, limit) {
   const items = (Array.isArray(data._items) ? data._items : [])
     .map((battle) => normalizeBattleForProfile(battle, clientId))
     .filter(Boolean);
-  return enrichParticipantNames(items);
+  return {
+    items: await enrichParticipantProfiles(items),
+    pagination: {
+      limit: Number.isFinite(data?._metadata?.limit) ? data._metadata.limit : clampedLimit,
+      offset: Number.isFinite(data?._metadata?.offset) ? data._metadata.offset : clampedOffset,
+      hasNext: data?._metadata?.hasNext === true
+    }
+  };
 }
 
 async function getHistoricalProfileBattle({ userID, leaderboardScope, repository = new SnapshotRepository() }) {
@@ -252,13 +276,15 @@ async function getHistoricalProfileBattle({ userID, leaderboardScope, repository
 export async function getPlayerBattleLogPage({
   userID,
   leaderboardScope = null,
-  requestedFetchLimit = 20
+  requestedFetchLimit = PROFILE_BATTLE_LOG_PAGE_SIZE,
+  offset = 0
 }) {
   const currentEra = getCurrentEraForConfiguredSeason();
   const scope = leaderboardScope ? normalizeLeaderboardScope(leaderboardScope) : null;
   const isHistoricalRequest = scope && !scope.offSeasonMode && !currentEra.offSeasonMode && String(scope.milestone) !== String(currentEra.milestone);
 
   if (isHistoricalRequest) {
+    if (offset > 0) return { status: "ready", userID, source: "historical-snapshot", items: [], totalItems: 0, pagination: { limit: requestedFetchLimit, offset, hasNext: false } };
     const historical = await getHistoricalProfileBattle({ userID, leaderboardScope: scope });
     if (historical.status !== "ready") return { status: "unavailable", error: historical.error, source: "historical-snapshot", snapshot: historical.snapshot };
     return {
@@ -267,22 +293,25 @@ export async function getPlayerBattleLogPage({
       source: "historical-snapshot",
       items: historical.items,
       totalItems: historical.items.length,
+      pagination: { limit: requestedFetchLimit, offset: 0, hasNext: false },
       retention: { note: "Archived evidence: one observed battle, not full history." }
     };
   }
 
   let fetchError = null;
+  let page = null;
   try {
-    mergeObservedBattleLogs(userID, await fetchLiveBattleLogsForProfile(userID, requestedFetchLimit));
+    page = await fetchLiveBattleLogsForProfile(userID, requestedFetchLimit, offset);
+    mergeObservedBattleLogs(userID, page.items);
   } catch (error) {
     fetchError = error;
     if (DEBUG_ON) console.warn(`[profileBattleLogs] Live fetch failed for ${userID}: ${error.message}`);
   }
 
-  const allRetained = await enrichParticipantNames(getRetainedBattleLogs(userID));
-  if (allRetained.length === 0) {
+  if (!page) {
+    const allRetained = await enrichParticipantProfiles(getRetainedBattleLogs(userID));
     if (fetchError) return { status: "error", error: `Could not fetch battle logs (${fetchError.status || fetchError.message}).` };
-    return { status: "ready", userID, source: "live", items: [], totalItems: 0 };
+    return { status: "ready", userID, source: "live", items: allRetained.slice(0, requestedFetchLimit), totalItems: Math.min(allRetained.length, requestedFetchLimit), pagination: { limit: requestedFetchLimit, offset, hasNext: false } };
   }
 
   return {
@@ -290,10 +319,9 @@ export async function getPlayerBattleLogPage({
     userID,
     source: "live",
     liveFetchFailed: Boolean(fetchError),
-    // The upstream endpoint has no cursor. Present only the latest observed
-    // window instead of pretending this is a pageable lifetime archive.
-    items: allRetained.slice(0, 20),
-    totalItems: Math.min(allRetained.length, 20),
-    retention: { note: "Latest 20 observed battle logs. The upstream API does not expose older pages." }
+    items: page.items,
+    totalItems: page.items.length,
+    pagination: page.pagination,
+    retention: { note: "Battle history is fetched in 20-battle pages only when requested." }
   };
 }

@@ -1,10 +1,13 @@
 // Small mutable state module matching the vanilla-JavaScript frontend pattern.
-// The profile endpoint is capped at its observed 20-battle display window;
-// scope fields keep historical-snapshot requests aligned with leaderboard scope.
+// Profile history is fetched in explicit 20-battle offset pages; scope fields
+// keep historical-snapshot requests aligned with leaderboard scope.
 export const profileState = {
   userID: null,
+  roninAddress: null,
   totalItems: 0,
   items: [],
+  pagination: { limit: 20, offset: 0, hasNext: false },
+  loadingMore: false,
   source: null,
   liveFetchFailed: false,
   retention: null,
@@ -12,8 +15,8 @@ export const profileState = {
   error: null
 };
 
-export async function fetchProfileBattleLogPage(userID, { leaderboardScope = null } = {}) {
-  const params = new URLSearchParams({ limit: "20" });
+export async function fetchProfileBattleLogPage(userID, { leaderboardScope = null, offset = 0 } = {}) {
+  const params = new URLSearchParams({ limit: "20", offset: String(offset) });
   if (leaderboardScope) {
     if (leaderboardScope.milestone !== undefined && leaderboardScope.milestone !== null) params.set("milestone", String(leaderboardScope.milestone));
     if (leaderboardScope.seasonId !== undefined && leaderboardScope.seasonId !== null) params.set("seasonId", String(leaderboardScope.seasonId));
@@ -31,11 +34,13 @@ export async function loadProfileBattlePage(userID, leaderboardScope = null) {
   profileState.loading = true;
   profileState.error = null;
   try {
-    const data = await fetchProfileBattleLogPage(userID, { leaderboardScope });
+    const data = await fetchProfileBattleLogPage(userID, { leaderboardScope, offset: 0 });
     Object.assign(profileState, {
       userID: data.resolvedUserID || userID,
+      roninAddress: data.resolvedRoninAddress || null,
       totalItems: data.totalItems,
       items: data.items,
+      pagination: data.pagination || { limit: 20, offset: 0, hasNext: false },
       source: data.source,
       liveFetchFailed: Boolean(data.liveFetchFailed),
       retention: data.retention || null,
@@ -44,6 +49,25 @@ export async function loadProfileBattlePage(userID, leaderboardScope = null) {
   } catch (error) {
     profileState.loading = false;
     profileState.error = error.message;
+  }
+  return profileState;
+}
+
+export async function loadMoreProfileBattleLogs(leaderboardScope = null) {
+  if (profileState.loadingMore || !profileState.pagination?.hasNext || !profileState.userID) return profileState;
+  profileState.loadingMore = true;
+  try {
+    const offset = profileState.pagination.offset + profileState.pagination.limit;
+    const data = await fetchProfileBattleLogPage(profileState.userID, { leaderboardScope, offset });
+    const knownBattleIDs = new Set(profileState.items.map((item) => item.battleId).filter(Boolean));
+    const newItems = (data.items || []).filter((item) => !item.battleId || !knownBattleIDs.has(item.battleId));
+    profileState.items.push(...newItems);
+    profileState.pagination = data.pagination || { limit: 20, offset, hasNext: false };
+    profileState.totalItems = profileState.items.length;
+  } catch (error) {
+    profileState.error = error.message;
+  } finally {
+    profileState.loadingMore = false;
   }
   return profileState;
 }

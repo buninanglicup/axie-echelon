@@ -1,5 +1,5 @@
 import { renderMorphedAxieCached } from "../shared/morphRenderer.js";
-import { profileState, loadProfileBattlePage } from "./profileState.js";
+import { profileState, loadMoreProfileBattleLogs, loadProfileBattlePage } from "./profileState.js";
 import { historicalCoverageText } from "../leaderboard/historicalTeamProvenance.js";
 import { coerceCompatibleRune, formatRuneBadgeLabel } from "../leaderboard/runeBadgeUtil.js";
 import { createVstarBadge } from "../shared/vstarBadge.js";
@@ -24,6 +24,15 @@ function formatRelativeTime(value) {
 function formatDuration(ms) { if (!Number.isFinite(ms) || ms <= 0) return "Duration unavailable"; const seconds = Math.round(ms / 1000); return `${Math.floor(seconds / 60)}m ${seconds % 60}s`; }
 function resultCopy(result) { return result === "win" ? ["Win", "profile-result-win"] : result === "loss" ? ["Loss", "profile-result-loss"] : result === "draw" ? ["Draw", "profile-result-draw"] : ["Result unknown", "profile-result-unknown"]; }
 function shortenUserID(userID) { return userID?.length > 14 ? `${userID.slice(0, 8)}…${userID.slice(-5)}` : text(userID, "Player"); }
+function shortenRoninAddress(address) { return address?.length === 42 ? `${address.slice(0, 6)}…${address.slice(-4)}` : text(address, "—"); }
+function copyIcon() {
+  const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  icon.setAttribute("viewBox", "0 0 24 24"); icon.setAttribute("aria-hidden", "true"); icon.setAttribute("focusable", "false");
+  const front = document.createElementNS("http://www.w3.org/2000/svg", "rect"); front.setAttribute("x", "9"); front.setAttribute("y", "9"); front.setAttribute("width", "10"); front.setAttribute("height", "10"); front.setAttribute("rx", "1.5");
+  const back = document.createElementNS("http://www.w3.org/2000/svg", "path"); back.setAttribute("d", "M15 9V6.5A1.5 1.5 0 0 0 13.5 5h-8A1.5 1.5 0 0 0 4 6.5v8A1.5 1.5 0 0 0 5.5 16H9");
+  icon.append(front, back);
+  return icon;
+}
 function formatImpact(impact) {
   if (!Number.isFinite(impact?.vstarBefore) || !Number.isFinite(impact?.vstarAfter)) return "VSTAR unavailable";
   const delta = Number.isFinite(impact.vstarDelta) ? ` (${impact.vstarDelta > 0 ? "+" : ""}${impact.vstarDelta})` : "";
@@ -78,6 +87,7 @@ function createRatingTrend(entries) {
   const values = entries
     .slice()
     .reverse()
+    .filter((entry) => String(entry?.gameMode || "").toLowerCase() === "ranked")
     .map((entry) => entry?.player?.impact?.vstarAfter)
     .filter(Number.isFinite);
   if (values.length < 2) return null;
@@ -258,14 +268,16 @@ function appendAxies(container, team, className = "profile-axies", { showCharms 
   container.append(axies);
 }
 
-function appendTeam(container, { label, team, inspectorContext, impact }) {
+function appendTeam(container, { label, team, inspectorContext, impact, showRating = true }) {
   const section = document.createElement("section"); section.className = `profile-team-card profile-team-card--${label === "You" ? "self" : "opponent"}`;
   const heading = document.createElement("div"); heading.className = "profile-team-label"; heading.textContent = label;
   section.append(heading);
   const axieIDs = (team?.fighters || []).map((fighter) => fighter.axieID ? `Axie #${fighter.axieID}` : "unknown Axie");
   const squad = document.createElement("div"); squad.className = "profile-team-squad"; squad.setAttribute("aria-label", `${label}: ${axieIDs.join(", ") || "team unavailable"}`);
   appendAxies(squad, team, "profile-axies", { inspectorContext }); section.append(squad);
-  appendRatingSummary(section, "", impact, { showDelta: false, variant: "profile-team-rating" });
+  if (showRating && Number.isFinite(impact?.vstarBefore) && Number.isFinite(impact?.vstarAfter)) {
+    appendRatingSummary(section, "", impact, { showDelta: false, variant: "profile-team-rating" });
+  }
   container.append(section);
 }
 
@@ -276,14 +288,39 @@ function appendBattleLog(container, entry, userID, resolvedPlayerName) {
   const main = document.createElement("div"); main.className = "profile-battle-summary-main";
   main.append(createStatusPill(result, resultClass));
   const opponentID = entry.opponent?.userID;
+  const opponentRoninAddress = entry.opponent?.roninAddress || null;
   const opponentName = text(entry.opponent?.name, opponentID ? shortenUserID(opponentID) : "Opponent unavailable");
   const playerName = text(entry.player?.name, resolvedPlayerName);
   const deltaChip = createRatingDeltaChip(entry.player?.impact);
   if (deltaChip) main.append(deltaChip);
-  const versus = document.createElement("span"); versus.className = "profile-battle-opponent"; versus.textContent = "vs ";
-  const opponent = document.createElement(opponentID ? "a" : "span"); opponent.textContent = opponentName; opponent.title = opponentID || "";
+  const versus = document.createElement("span"); versus.className = "profile-battle-opponent"; versus.append("vs ");
+  const opponent = document.createElement(opponentID ? "a" : "span"); opponent.textContent = opponentName;
   if (opponentID) { opponent.href = `/profile/${encodeURIComponent(opponentID)}`; opponent.className = "profile-opponent-link"; }
-  versus.append(opponent); main.append(versus);
+  if (opponentRoninAddress) {
+    opponent.dataset.tooltip = opponentRoninAddress;
+    opponent.setAttribute("aria-label", `${opponentName}. Ronin address: ${opponentRoninAddress}`);
+  } else {
+    opponent.dataset.tooltip = "Opponent Ronin address unavailable";
+    opponent.setAttribute("aria-label", `${opponentName}. Ronin address unavailable`);
+  }
+  versus.append(opponent);
+  if (opponentRoninAddress) {
+    const copyOpponentAddress = document.createElement("button");
+    copyOpponentAddress.type = "button";
+    copyOpponentAddress.className = "profile-copy-opponent-ronin";
+    copyOpponentAddress.append(copyIcon());
+    copyOpponentAddress.dataset.tooltip = "Copy opponent ronin address";
+    copyOpponentAddress.setAttribute("aria-label", `Copy ${opponentName}'s Ronin address`);
+    copyOpponentAddress.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(opponentRoninAddress);
+        copyOpponentAddress.dataset.tooltip = "Copied";
+      } catch { copyOpponentAddress.dataset.tooltip = "Copy unavailable"; }
+      window.setTimeout(() => { copyOpponentAddress.dataset.tooltip = "Copy opponent ronin address"; }, 1500);
+    };
+    versus.append(copyOpponentAddress);
+  }
+  main.append(versus);
   const metadataSeparator = () => { const separator = document.createElement("span"); separator.className = "profile-meta-separator"; separator.setAttribute("aria-hidden", "true"); separator.textContent = "·"; return separator; };
   main.append(metadataSeparator());
   const mode = document.createElement("span"); mode.className = "profile-battle-mode profile-battle-meta"; mode.textContent = text(entry.gameMode, "Unknown"); main.append(mode);
@@ -293,9 +330,10 @@ function appendBattleLog(container, entry, userID, resolvedPlayerName) {
   const detailsToggle = document.createElement("button"); detailsToggle.type = "button"; detailsToggle.className = "profile-battle-details-toggle"; detailsToggle.textContent = "Details"; detailsToggle.setAttribute("aria-expanded", "false"); detailsToggle.onclick = () => { const expanded = log.classList.toggle("is-expanded"); detailsToggle.setAttribute("aria-expanded", String(expanded)); detailsToggle.textContent = expanded ? "Hide details" : "Details"; };
   summary.append(main, detailsToggle);
   const teams = document.createElement("div"); teams.className = "profile-battle-log-teams";
-  appendTeam(teams, { label: "You", team: entry.team, inspectorContext: "Your team", impact: entry.player?.impact });
+  const isRankedBattle = String(entry.gameMode || "").toLowerCase() === "ranked";
+  appendTeam(teams, { label: "You", team: entry.team, inspectorContext: "Your team", impact: entry.player?.impact, showRating: isRankedBattle });
   const teamVersus = document.createElement("div"); teamVersus.className = "profile-battle-versus"; teamVersus.textContent = "VS"; teams.append(teamVersus);
-  appendTeam(teams, { label: "Opponent", team: entry.opponent?.team, inspectorContext: "Opponent team", impact: entry.opponent?.impact });
+  appendTeam(teams, { label: "Opponent", team: entry.opponent?.team, inspectorContext: "Opponent team", impact: entry.opponent?.impact, showRating: isRankedBattle });
   log.append(summary, teams);
   if (entry.provenance?.source === "historical-snapshot") { const note = document.createElement("p"); note.className = "profile-retention-note"; note.textContent = `Archived evidence: one observed battle, not full history. ${historicalCoverageText(entry.provenance.coverage)}`; log.append(note); }
   container.append(log);
@@ -308,36 +346,63 @@ export async function renderProfileBattleLogPanel(container, userID, leaderboard
   container.replaceChildren(); const loading = document.createElement("p"); loading.className = "profile-loading"; loading.textContent = "Loading latest 20 observed battle logs…"; container.append(loading);
   await loadProfileBattlePage(userID, leaderboardScope); container.replaceChildren();
   const resolvedUserID = profileState.userID || userID;
-  if (resolvedUserID !== userID && window.location.pathname.startsWith("/profile/")) {
-    window.history.replaceState(null, "", `/profile/${encodeURIComponent(resolvedUserID)}`);
-  }
   const profileHeading = document.getElementById("profile-player-name");
-  const profileID = document.getElementById("profile-player-id");
-  const copyIdButton = document.getElementById("profile-copy-id");
+  const profileRoninAddress = document.getElementById("profile-ronin-address");
+  const copyRoninButton = document.getElementById("profile-copy-ronin");
+  const profileClientID = document.getElementById("profile-client-id");
+  const copyClientIDButton = document.getElementById("profile-copy-client-id");
   const resolvedPlayerName = text(profileState.items.find((item) => item?.player?.name)?.player?.name, shortenUserID(resolvedUserID));
-  if (profileHeading) { profileHeading.textContent = resolvedPlayerName; profileHeading.title = resolvedPlayerName; }
-  if (profileID) { profileID.textContent = resolvedUserID; profileID.title = resolvedUserID; }
-  if (copyIdButton) {
-    copyIdButton.onclick = async () => {
-      try { await navigator.clipboard.writeText(resolvedUserID); copyIdButton.textContent = "Copied"; }
-      catch { copyIdButton.textContent = "Copy unavailable"; }
-      window.setTimeout(() => { copyIdButton.textContent = "Copy ID"; }, 1500);
+  if (profileHeading) { profileHeading.textContent = resolvedPlayerName; profileHeading.dataset.tooltip = resolvedPlayerName; }
+  const ownerRoninAddress = profileState.roninAddress;
+  if (profileRoninAddress) {
+    profileRoninAddress.textContent = ownerRoninAddress ? `Ronin address: ${shortenRoninAddress(ownerRoninAddress)}` : "Ronin address unavailable";
+    profileRoninAddress.dataset.tooltip = ownerRoninAddress || "Ronin address unavailable";
+    profileRoninAddress.setAttribute("aria-label", ownerRoninAddress ? `Ronin address: ${ownerRoninAddress}` : "Ronin address unavailable");
+    profileRoninAddress.setAttribute("tabindex", "0");
+  }
+  if (copyRoninButton) {
+    copyRoninButton.disabled = !ownerRoninAddress;
+    copyRoninButton.onclick = async () => {
+      if (!ownerRoninAddress) return;
+      try { await navigator.clipboard.writeText(ownerRoninAddress); copyRoninButton.dataset.tooltip = "Copied"; }
+      catch { copyRoninButton.dataset.tooltip = "Copy unavailable"; }
+      window.setTimeout(() => { copyRoninButton.dataset.tooltip = "Copy ronin address"; }, 1500);
+    };
+  }
+  if (profileClientID) {
+    profileClientID.textContent = resolvedUserID ? `Client ID: ${shortenUserID(resolvedUserID)}` : "Client ID unavailable";
+    profileClientID.dataset.tooltip = resolvedUserID || "Client ID unavailable";
+    profileClientID.setAttribute("aria-label", resolvedUserID ? `Client ID: ${resolvedUserID}` : "Client ID unavailable");
+    profileClientID.setAttribute("tabindex", "0");
+  }
+  if (copyClientIDButton) {
+    copyClientIDButton.disabled = !resolvedUserID;
+    copyClientIDButton.onclick = async () => {
+      if (!resolvedUserID) return;
+      try { await navigator.clipboard.writeText(resolvedUserID); copyClientIDButton.dataset.tooltip = "Copied"; }
+      catch { copyClientIDButton.dataset.tooltip = "Copy unavailable"; }
+      window.setTimeout(() => { copyClientIDButton.dataset.tooltip = "Copy client ID"; }, 1500);
     };
   }
   if (profileState.error) { const error = document.createElement("p"); error.className = "profile-error"; error.textContent = `Could not load battle logs: ${profileState.error}`; container.append(error); return; }
   if (!profileState.items.length) { const empty = document.createElement("p"); empty.className = "profile-empty"; empty.textContent = "No battles were returned for this player."; container.append(empty); return; }
   const latestCopy = document.createElement("div"); latestCopy.className = "profile-latest-team-copy";
   const firstBattle = profileState.items[0];
-  const ratingTrend = createRatingTrend(profileState.items);
+  const isLatestRanked = String(firstBattle.gameMode || "").toLowerCase() === "ranked";
+  const ratingTrend = isLatestRanked ? createRatingTrend(profileState.items) : null;
   const ratingOverview = document.createElement("div"); ratingOverview.className = "profile-rating-overview";
   const currentRating = document.createElement("div"); currentRating.className = "profile-current-rating";
-  if (Number.isFinite(firstBattle.player?.impact?.vstarAfter)) currentRating.append(createVstarBadge({ value: firstBattle.player.impact.vstarAfter, variant: "full" }));
-  const trendChange = document.createElement("span"); trendChange.className = `profile-trend-change${ratingTrend?.change >= 0 ? " is-positive" : " is-negative"}`;
-  trendChange.textContent = Number.isFinite(ratingTrend?.change) ? `${ratingTrend.change > 0 ? "+" : ""}${ratingTrend.change}` : "—";
-  trendChange.title = ratingTrend ? `${trendChange.textContent} VSTAR across ${ratingTrend.battles} recent battles` : "Rating trend unavailable";
-  currentRating.append(trendChange);
-  ratingOverview.append(currentRating);
-  if (ratingTrend) ratingOverview.append(ratingTrend.trend);
+  if (String(firstBattle.gameMode || "").toLowerCase() === "ranked" && Number.isFinite(firstBattle.player?.impact?.vstarAfter)) currentRating.append(createVstarBadge({ value: firstBattle.player.impact.vstarAfter, variant: "full" }));
+  if (isLatestRanked) {
+    ratingOverview.append(currentRating);
+  }
+  if (ratingTrend) {
+    const trendChange = document.createElement("span"); trendChange.className = `profile-trend-change${ratingTrend.change >= 0 ? " is-positive" : " is-negative"}`;
+    trendChange.textContent = `${ratingTrend.change > 0 ? "+" : ""}${ratingTrend.change}`;
+    trendChange.title = `${trendChange.textContent} VSTAR across ${ratingTrend.battles} recent battles`;
+    ratingTrend.trend.querySelector("svg")?.before(trendChange);
+    ratingOverview.append(ratingTrend.trend);
+  }
   latestCopy.append(ratingOverview);
   // The current composition shares the header row with player identity rather
   // than relying on a negative offset from the content section below.
@@ -350,4 +415,35 @@ export async function renderProfileBattleLogPanel(container, userID, leaderboard
   document.getElementById("profile-latest-team-copy-header")?.append(latestCopy);
   const historyHeading = document.createElement("div"); historyHeading.className = "profile-battle-history-heading"; historyHeading.textContent = "Battle history"; container.append(historyHeading);
   const logs = document.createElement("div"); logs.className = "profile-battle-log-list"; for (const entry of profileState.items) appendBattleLog(logs, entry, resolvedUserID, resolvedPlayerName); container.append(logs);
+  const pagination = document.createElement("div"); pagination.className = "profile-pagination";
+  const loadMore = document.createElement("button"); loadMore.type = "button"; loadMore.className = "profile-load-more";
+  const status = document.createElement("span"); status.className = "profile-pagination-status";
+  const renderPagination = () => {
+    pagination.replaceChildren();
+    if (!profileState.pagination?.hasNext) {
+      status.textContent = `Showing ${profileState.items.length} battles`;
+      pagination.append(status);
+      return;
+    }
+    loadMore.disabled = false;
+    loadMore.textContent = "Load more battles";
+    status.textContent = `${profileState.items.length} battles loaded`;
+    pagination.append(loadMore, status);
+  };
+  loadMore.onclick = async () => {
+    const previousCount = profileState.items.length;
+    loadMore.disabled = true; loadMore.textContent = "Loading…";
+    profileState.error = null;
+    await loadMoreProfileBattleLogs(leaderboardScope);
+    if (profileState.error) {
+      loadMore.disabled = false; loadMore.textContent = "Try again";
+      status.textContent = `Could not load more: ${profileState.error}`;
+      pagination.replaceChildren(loadMore, status);
+      return;
+    }
+    for (const entry of profileState.items.slice(previousCount)) appendBattleLog(logs, entry, resolvedUserID, resolvedPlayerName);
+    renderPagination();
+  };
+  renderPagination();
+  container.append(pagination);
 }

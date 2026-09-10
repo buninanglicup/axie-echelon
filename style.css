@@ -102,7 +102,7 @@ h1 {
   padding: 9px 11px;
   text-transform: uppercase;
 }
-.top-nav-toggle:focus-visible, .nav-button:focus-visible, .profile-copy-id:focus-visible { outline: 2px solid #8feeb2; outline-offset: 3px; }
+.top-nav-toggle:focus-visible, .nav-button:focus-visible, .profile-copy-ronin:focus-visible, .profile-copy-client-id:focus-visible, .profile-copy-opponent-ronin:focus-visible, .profile-ronin-address:focus-visible, .profile-client-id:focus-visible { outline: 2px solid #8feeb2; outline-offset: 3px; }
 
 .app-tooltip { position: fixed; z-index: 200; max-width: min(280px, calc(100vw - 16px)); padding: 6px 8px; border: 1px solid rgba(143, 238, 178, 0.34); border-radius: 5px; background: #0b1d27; box-shadow: 0 5px 16px rgba(0, 0, 0, 0.35); color: #dff8ec; font: 600 10px/1.3 Inter, system-ui, sans-serif; pointer-events: none; white-space: pre-line; }
 
@@ -148,6 +148,7 @@ h1 {
 
 .dashboard-layout.profile-active {
   grid-template-columns: minmax(0, 1fr);
+  margin-top: 10px;
 }
 
 .dashboard-layout.morph-active .side-panel {
@@ -954,7 +955,21 @@ button.status-pill:not(:disabled):focus-visible {
 
 #profile-view .panel-heading {
   align-items: flex-start;
-  margin-bottom: 6px;
+  margin-bottom: 2px;
+}
+
+@media (min-width: 721px) {
+  .top-bar {
+    position: sticky;
+    z-index: 20;
+    top: 0;
+    padding: 12px 0 10px;
+    border: 1px solid rgba(143, 238, 178, 0.2);
+    border-radius: 10px;
+    background: rgba(16, 30, 40, 0.97);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.26);
+    backdrop-filter: blur(10px);
+  }
 }
 
 #profile-view .panel-heading h2 {
@@ -1164,6 +1179,8 @@ button.status-pill:not(:disabled):focus-visible {
   opacity: 0.5;
   cursor: not-allowed;
 }
+.profile-load-more { min-width: 132px; }
+.profile-pagination-status { color: #728b96; font-size: 11px; }
 
 .profile-battle-log-list {
   display: grid;
@@ -1191,8 +1208,8 @@ button.status-pill:not(:disabled):focus-visible {
 .profile-rating-summary { display: flex; align-items: center; gap: 5px; min-width: 0; }
 .profile-rating-label { color: #9dbab8; font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
 .profile-rating-player-name { max-width: 38%; color: #9dbab8; font-size: 11px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.profile-opponent-link { color: #aac8d2; font-size: 11px; font-weight: 700; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: none; }
-.profile-opponent-link:hover, .profile-opponent-link:focus-visible { color: #b9f3ff; text-decoration: underline; }
+.profile-opponent-link { color: #c1e5ed; font-size: 11px; font-weight: 800; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: none; }
+.profile-opponent-link:hover, .profile-opponent-link:focus-visible { color: #e0fbff; text-decoration: underline; }
 .profile-rating-transition { color: #edfef4; font-size: 12px; font-weight: 800; white-space: nowrap; }
 .profile-rating-delta { font-size: 11px; font-weight: 800; white-space: nowrap; }
 .profile-delta-chip { display: inline-flex; align-items: center; white-space: nowrap; }
@@ -1208,8 +1225,10 @@ button.status-pill:not(:disabled):focus-visible {
 .profile-status-pill.profile-result-draw { border-color: #e6bd68; background: linear-gradient(135deg, #665022, #896a2e); box-shadow: inset 0 1px rgba(255, 246, 211, 0.16), 0 3px 9px rgba(71, 48, 9, 0.28); }
 .profile-battle-opponent, .profile-battle-rating, .profile-battle-context, .profile-battle-mode { min-width: 0; font-size: 11px; white-space: nowrap; }
 .profile-battle-meta { color: #839ca6; }
-.profile-battle-opponent { display: flex; min-width: 0; flex: 0 1 auto; gap: 3px; overflow: hidden; color: #839ca6; }
+.profile-battle-opponent { display: flex; align-items: center; min-width: 0; flex: 0 1 auto; gap: 3px; overflow: visible; color: #839ca6; }
 .profile-battle-opponent .profile-opponent-link { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.profile-copy-opponent-ronin { display: inline-grid; flex: 0 0 auto; place-items: center; width: 16px; height: 16px; padding: 0; border: 1px solid rgba(175, 212, 210, 0.28); border-radius: 4px; background: transparent; color: #a6d8c8; font: 700 11px/1 system-ui, sans-serif; cursor: pointer; }
+.profile-copy-opponent-ronin:hover { background: rgba(143, 238, 178, 0.09); color: #dff8ec; }
 .profile-battle-rating { color: #edfef4; font-weight: 750; }
 .profile-battle-mode { color: #9ab4bd; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: capitalize; }
 .profile-battle-turns { color: #839ca6; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: capitalize; white-space: nowrap; }
@@ -1296,30 +1315,35 @@ button.profile-rune-tooltip:hover::after, button.profile-rune-tooltip:focus-visi
 .profile-title-stack { display: grid; gap: 2px; }
 .profile-title-stack h2 { margin: 0; }
 .profile-id-actions { display: flex; align-items: center; gap: 7px; min-width: 0; }
-.profile-player-id { color: #9dbab8; font-size: 10px; letter-spacing: 0.07em; }
-.profile-copy-id { color: #afd4d2; background: transparent; border: 1px solid rgba(175, 212, 210, 0.28); border-radius: 999px; padding: 4px 8px; font: inherit; font-size: 10px; letter-spacing: 0.06em; cursor: pointer; }
-.profile-copy-id:hover { background: rgba(143, 238, 178, 0.09); }
+.profile-ronin-address { color: #9dbab8; font-size: 10px; letter-spacing: 0.07em; cursor: help; }
+.profile-client-id-actions { margin-top: -1px; }
+.profile-ronin-address, .profile-client-id { color: #9dbab8; font-size: 10px; letter-spacing: 0.07em; cursor: help; }
+.profile-copy-ronin, .profile-copy-client-id { color: #afd4d2; background: #10222d; border: 1px solid rgba(175, 212, 210, 0.28); border-radius: 5px; cursor: pointer; }
+.profile-copy-ronin:hover, .profile-copy-client-id:hover { background: #183442; color: #dff8ec; }
+.profile-copy-ronin:disabled, .profile-copy-client-id:disabled { cursor: not-allowed; opacity: 0.5; }
+.profile-copy-icon { display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 4px; }
+.profile-copy-icon svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; }
 .profile-retention-note { margin: 2px 0 8px; font-size: 12px; }
-.profile-latest-team-copy-header { margin-top: 12px; }
+.profile-latest-team-copy-header { margin-top: 5px; }
 .profile-latest-team-copy { padding-top: 0; }
 .profile-latest-team-heading { color: #9dbab8; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
 .profile-latest-team-context { margin: 5px 0 0; color: #91abb4; font-size: 12px; }
-.profile-rating-overview { display: flex; align-items: center; gap: 12px; margin-top: 7px; }
-.profile-current-rating { display: grid; justify-items: center; gap: 3px; }
+.profile-rating-overview { display: grid; justify-items: start; gap: 3px; margin-top: 5px; }
+.profile-current-rating { display: grid; justify-items: start; }
 .profile-current-rating .vstar-badge-full { min-height: 28px; padding: 4px 8px 6px; }
 .profile-current-rating .vstar-badge-progress { display: none; }
-.profile-trend-change { color: #8facb8; font-size: 14px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.profile-trend-change { color: #8facb8; font-size: 10px; font-weight: 900; font-variant-numeric: tabular-nums; }
 .profile-trend-change.is-positive { color: #a6ffd0; }
 .profile-trend-change.is-negative { color: #ffb1bc; }
-.profile-rating-trend { display: inline-flex; align-items: center; gap: 7px; color: #89a4ae; }
+.profile-rating-trend { display: grid; grid-template-columns: max-content max-content; align-items: center; column-gap: 7px; row-gap: 2px; color: #89a4ae; }
 .profile-rating-trend-label { font-size: 9px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
-.profile-rating-sparkline { width: 104px; height: 28px; overflow: visible; }
+.profile-rating-sparkline { grid-column: 1 / -1; width: 104px; height: 24px; overflow: visible; }
 .profile-rating-sparkline polyline { stroke: #64dfb2; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; filter: drop-shadow(0 0 3px rgba(100, 223, 178, 0.38)); }
 .profile-latest-team-header { display: grid; width: min(600px, 48vw); align-self: flex-start; gap: 6px; }
 .profile-latest-axies { width: 100%; max-width: 600px; margin-top: 0; }
 .profile-latest-axies .profile-axie-morph { min-height: 92px; }
 .profile-latest-axies .profile-axie-morph img { max-height: 120px; }
-.profile-battle-history-heading { margin: 14px 0 8px; color: #dff8ec; font-size: 13px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+.profile-battle-history-heading { margin: 8px 0 8px; color: #dff8ec; font-size: 13px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
 
 /* Reusable rank treatment: a CSS-drawn rank crest avoids a text "VSTAR" label. */
 .vstar-badge { position: relative; display: inline-flex; align-items: center; gap: 6px; min-width: 0; box-sizing: border-box; overflow: hidden; border: 1px solid rgba(96, 231, 209, 0.28); border-radius: 14px; background: linear-gradient(110deg, #092c34 0%, #0d4650 54%, #0a2933 100%); box-shadow: inset 0 1px 0 rgba(194, 255, 245, 0.12), 0 3px 10px rgba(0, 20, 28, 0.22); color: #effffb; }
@@ -1375,8 +1399,8 @@ button.profile-rune-tooltip:hover::after, button.profile-rune-tooltip:focus-visi
 @media (max-width: 720px) {
   .profile-battle-summary { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; padding: 8px 10px 6px; }
   .profile-battle-summary-main { flex-wrap: nowrap; gap: 5px 7px; overflow: hidden; }
-  .profile-battle-opponent { flex: 1 1 56px; }
-  .profile-battle-context { min-width: 0; flex: 0 1 auto; overflow: hidden; font-size: 10px; text-overflow: ellipsis; }
+  .profile-battle-opponent { flex: 1 1 56px; max-width: 28%; }
+  .profile-battle-context { min-width: 0; flex: 0 1 34%; overflow: hidden; font-size: 10px; text-overflow: ellipsis; }
   .profile-battle-details-toggle { display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(143, 238, 178, 0.28); border-radius: 999px; background: transparent; color: #a6d8c8; font: inherit; font-size: 10px; padding: 3px 6px; cursor: pointer; }
   .profile-battle-details-toggle:focus-visible { outline: 2px solid #8feeb2; outline-offset: 2px; }
   .profile-rating-transition { font-size: 11px; }

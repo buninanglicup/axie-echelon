@@ -44,9 +44,11 @@ export function setCachedProfile(userID, roninAddress, profileUrl, name = null) 
 
 export async function resolvePlayerProfile(userID) {
   const cached = getCachedProfile(userID);
-  // A cached address-only profile is useful elsewhere, but not final for the
-  // profile UI: retry it so a newly available display name can replace a UUID.
-  if (cached?.nameResolved && cached.name) {
+  // The battle-log UI needs both a display name and a Ronin address. Do not
+  // treat a partial identity as final: a transient GraphQL response may have
+  // supplied the name without the address, and otherwise the missing address
+  // would stay hidden for the cache TTL.
+  if (cached?.nameResolved && cached.name && cached.roninAddress) {
     if (DEBUG_ON) console.log(`[resolvePlayerProfile] HIT: cached profile for ${userID}`);
     return cached;
   }
@@ -75,9 +77,8 @@ export async function resolvePlayerProfile(userID) {
     return { name: null, roninAddress: null, profileUrl: null };
   }
 
-  // Only cache a successful resolution. `roninAddress`/`profileUrl` may
-  // still legitimately be null here (player has no linked Ronin address) --
-  // that's a valid, cacheable outcome, distinct from a fetch error above.
+  // Cache successful responses, but incomplete cache entries are retried on
+  // the next lookup so a temporarily omitted Ronin address can be recovered.
   setCachedProfile(userID, roninAddress, profileUrl, name);
   return { name, roninAddress, profileUrl };
 }
