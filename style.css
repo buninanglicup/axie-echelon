@@ -112,12 +112,18 @@ h1 {
   justify-content: center;
   padding: 10px 15px;
   background: transparent;
-  border: 1px solid rgba(255,255,255,.12);
+  border: 1px solid transparent;
   border-radius: 9px;
   color: #bfdaea;
   cursor: pointer;
   font-weight: 650;
   text-decoration: none;
+  transition: color 120ms ease, background-color 120ms ease, border-color 120ms ease;
+}
+
+.nav-button:hover:not(.active) {
+  color: #dff8ec;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .nav-button.active {
@@ -1252,23 +1258,38 @@ button.status-pill:not(:disabled):focus-visible {
   background: rgba(255, 255, 255, 0.016);
   min-width: 0;
 }
-.profile-team-card--self { border-color: rgba(143, 238, 178, 0.16); background: linear-gradient(135deg, rgba(66, 183, 151, 0.075), rgba(255, 255, 255, 0.016) 58%); }
-.profile-team-card--opponent { border-color: rgba(125, 183, 211, 0.13); background: linear-gradient(225deg, rgba(75, 139, 175, 0.07), rgba(255, 255, 255, 0.016) 58%); }
+/* Team-identity colors are deliberately kept off the green/red family so they
+   never get confused with the WIN/LOSS outcome colors used elsewhere on this
+   page (a red-tinted OPPONENT panel next to a green WIN badge would create two
+   competing color languages). */
+.profile-team-card--self { border-color: rgba(45, 212, 191, 0.28); background: linear-gradient(135deg, rgba(45, 212, 191, 0.12), rgba(255, 255, 255, 0.02) 58%); }
+.profile-team-card--opponent { border-color: rgba(167, 139, 250, 0.26); background: linear-gradient(225deg, rgba(139, 92, 246, 0.11), rgba(255, 255, 255, 0.02) 58%); }
 .profile-team-label { color: #9dbab8; font-size: 10px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+.profile-team-card--self .profile-team-label { color: #7fe3d4; }
+.profile-team-card--opponent .profile-team-label { color: #c4b5fd; }
 .profile-team-card:last-child .profile-team-label { text-align: right; }
 .profile-team-squad { min-width: 0; }
 .profile-team-rating { justify-content: center; min-height: 24px; padding: 3px 6px; border: 1px solid rgba(210, 245, 237, 0.1); border-radius: 5px; background: rgba(4, 15, 21, 0.2); }
 .profile-team-rating .profile-rating-transition { font-size: 11px; }
 
+/* A distinct, high-contrast badge (rather than plain side borders) so the VS
+   marker doesn't get visually swallowed by the colorful Axie art on either side. */
 .profile-battle-versus {
   align-self: center;
-  color: #89a4ae;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  padding: 9px 10px;
-  border-left: 1px solid rgba(143, 238, 178, 0.18);
-  border-right: 1px solid rgba(143, 238, 178, 0.18);
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin: 0 auto;
+  padding: 0;
+  border: 1px solid rgba(159, 178, 189, 0.4);
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.07), transparent 60%), linear-gradient(160deg, #16303c, #0a1920);
+  color: #d7e9ee;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), inset 0 1px rgba(255, 255, 255, 0.08);
 }
 
 .profile-team-heading,
@@ -1286,13 +1307,21 @@ button.status-pill:not(:disabled):focus-visible {
   gap: 8px;
 }
 
-.profile-axie { position: relative; min-width: 0; text-align: center; }
+.profile-axie {
+  position: relative;
+  min-width: 0;
+  padding: 6px 4px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  text-align: center;
+}
 .profile-axie-inspect { position: absolute; z-index: 4; top: 4px; right: 4px; display: grid; width: 22px; height: 22px; place-items: center; padding: 0; border: 1px solid rgba(143, 238, 178, 0.38); border-radius: 5px; background: rgba(7, 22, 30, 0.84); color: #9edccc; cursor: pointer; opacity: 0.75; }
 .profile-axie-inspect svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-width: 2; }
 .profile-axie-inspect:hover, .profile-axie-inspect:focus-visible { background: #183442; color: #e0fff2; opacity: 1; }
 .profile-axie-inspect:focus-visible { outline: 2px solid #8feeb2; outline-offset: 2px; }
-.profile-axie-morph { position: relative; min-height: 76px; display: grid; place-items: center; color: #8facb8; font-size: 11px; }
-.profile-axie-morph img { display: block; width: 100%; max-height: 100px; object-fit: contain; }
+.profile-axie-morph { position: relative; min-height: 78px; display: grid; place-items: center; color: #8facb8; font-size: 11px; }
+.profile-axie-morph img { display: block; width: 100%; max-height: 102px; object-fit: contain; }
 .profile-axie-morph.is-unavailable { align-content: center; gap: 3px; color: #718a94; font-size: 10px; font-style: italic; }
 .profile-axie-unavailable-icon { color: #52717b; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 25px; font-style: normal; line-height: 1; }
 .profile-axie-name { display: block; overflow: hidden; color: #a9c0ca; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; letter-spacing: 0.02em; text-overflow: ellipsis; white-space: nowrap; }
@@ -1317,6 +1346,20 @@ button.profile-rune-tooltip:hover::after, button.profile-rune-tooltip:focus-visi
 .profile-identity { display: flex; align-items: center; gap: 10px; }
 .profile-title-stack { display: grid; gap: 2px; }
 .profile-title-stack h2 { margin: 0; }
+/* Name + rank badge share one row; recent form sits directly beneath, both
+   anchored to the name instead of floating in a separate column. */
+.profile-name-rating-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.profile-name-rating-slot:empty { display: none; }
+.profile-current-rating { display: inline-flex; align-items: center; }
+.profile-recent-form { display: flex; align-items: center; gap: 8px; margin: 6px 0 0; color: #9dbab8; font-size: 11px; }
+.profile-recent-form-label { color: #8facb8; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
+.profile-recent-form-dots { display: flex; align-items: center; gap: 4px; }
+.profile-form-dot { display: inline-block; width: 9px; height: 9px; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 50%; cursor: help; }
+.profile-form-dot--win { background: #64d99a; border-color: rgba(100, 217, 154, 0.55); box-shadow: 0 0 4px rgba(100, 217, 154, 0.4); }
+.profile-form-dot--loss { background: #ea7c97; border-color: rgba(234, 124, 151, 0.55); box-shadow: 0 0 4px rgba(234, 124, 151, 0.35); }
+.profile-form-dot--draw { background: #e6bd68; border-color: rgba(230, 189, 104, 0.55); }
+.profile-form-dot--unknown { background: #3d525c; }
+.profile-recent-form-record { color: #cfe3ea; font-weight: 800; font-variant-numeric: tabular-nums; }
 .profile-id-actions { display: flex; align-items: center; gap: 7px; min-width: 0; }
 .profile-ronin-address { color: #9dbab8; font-size: 10px; letter-spacing: 0.07em; cursor: help; }
 .profile-client-id-actions { margin-top: -1px; }
@@ -1328,13 +1371,16 @@ button.profile-rune-tooltip:hover::after, button.profile-rune-tooltip:focus-visi
 .profile-copy-icon { display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 4px; }
 .profile-copy-icon svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; }
 .profile-retention-note { margin: 2px 0 8px; font-size: 12px; }
-.profile-latest-team-copy-header { margin-top: 5px; }
+.profile-latest-team-copy-header { margin-top: 2px; }
 .profile-latest-team-copy { padding-top: 0; }
 .profile-latest-team-heading { color: #9dbab8; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
 .profile-latest-team-context { margin: 5px 0 0; color: #91abb4; font-size: 12px; }
-.profile-rating-overview { display: grid; justify-items: start; gap: 3px; margin-top: 5px; }
+.profile-rating-overview { display: grid; justify-items: start; gap: 3px; margin-top: 3px; }
 .profile-current-rating { display: grid; justify-items: start; }
-.profile-current-rating .vstar-badge-full { min-height: 28px; padding: 4px 8px 6px; }
+/* Grouped tight under the player name/ID block and sized up slightly so the
+   rank reads as part of the same player card rather than a separate module. */
+.profile-current-rating .vstar-badge-full { min-height: 32px; padding: 5px 10px 7px; }
+.profile-current-rating .vstar-badge-full .vstar-badge-value { font-size: 16px; }
 .profile-current-rating .vstar-badge-progress { display: none; }
 .profile-trend-change { color: #8facb8; font-size: 10px; font-weight: 900; font-variant-numeric: tabular-nums; }
 .profile-trend-change.is-positive { color: #a6ffd0; }
@@ -1343,7 +1389,17 @@ button.profile-rune-tooltip:hover::after, button.profile-rune-tooltip:focus-visi
 .profile-rating-trend-label { font-size: 9px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
 .profile-rating-sparkline { grid-column: 1 / -1; width: 104px; height: 24px; overflow: visible; }
 .profile-rating-sparkline polyline { stroke: #64dfb2; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; filter: drop-shadow(0 0 3px rgba(100, 223, 178, 0.38)); }
-.profile-latest-team-header { display: grid; width: min(600px, 48vw); align-self: flex-start; gap: 6px; }
+.profile-latest-team-header {
+  display: grid;
+  width: min(600px, 48vw);
+  align-self: flex-start;
+  gap: 6px;
+  padding: 12px 14px 14px;
+  border: 1px solid rgba(143, 238, 178, 0.16);
+  border-radius: 12px;
+  background: linear-gradient(160deg, rgba(143, 238, 178, 0.06), rgba(255, 255, 255, 0.014) 62%);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.04), 0 4px 14px rgba(0, 0, 0, 0.18);
+}
 .profile-latest-axies { width: 100%; max-width: 600px; margin-top: 0; }
 .profile-latest-axies .profile-axie-morph { min-height: 92px; }
 .profile-latest-axies .profile-axie-morph img { max-height: 120px; }
@@ -1536,8 +1592,9 @@ button.profile-rune-tooltip:hover::after, button.profile-rune-tooltip:focus-visi
   .profile-rating-transition { font-size: 11px; }
   .profile-battle-log-teams { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
   .profile-team-card { margin: 0 3px 8px; padding: 5px 4px 6px; }
-  .profile-battle-versus { align-self: center; padding: 4px 6px; border: 0; }
+  .profile-battle-versus { width: 26px; height: 26px; font-size: 9px; }
   .profile-axies { gap: 2px; }
+  .profile-axie { padding: 3px 2px 4px; border-radius: 6px; }
   .profile-axie-morph { min-height: 52px; }
   .profile-axie-morph img { max-height: 62px; }
   .profile-rune-tooltip { top: 4px; left: 4px; width: 16px; height: 16px; }
@@ -1546,10 +1603,11 @@ button.profile-rune-tooltip:hover::after, button.profile-rune-tooltip:focus-visi
   .profile-rune-badge { width: 16px !important; height: 16px; }
   .profile-axie-name { display: none; font-size: 10px; }
   .profile-battle-log-entry.is-expanded .profile-axie-name { display: block; }
-  .profile-latest-team-header { width: min(100%, 450px); }
+  .profile-latest-team-header { width: min(100%, 450px); padding: 9px 10px 11px; }
   .profile-latest-axies { max-width: 450px; margin-top: 0; }
   .profile-rating-overview { gap: 8px; }
   .profile-rating-trend-label { font-size: 8px; }
+  .profile-recent-form { gap: 6px; }
 }
 
 .eyebrow {
@@ -2570,8 +2628,9 @@ input {
 
   .profile-battle-log-teams { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .profile-team-card { margin: 0 8px 8px; padding: 7px 8px 8px; }
-  .profile-battle-versus { justify-self: center; padding: 5px 12px; border-top: 1px solid rgba(143, 238, 178, 0.18); border-bottom: 1px solid rgba(143, 238, 178, 0.18); border-left: 0; border-right: 0; }
+  .profile-battle-versus { justify-self: center; margin: 2px auto; }
   .profile-team-card:last-child .profile-team-label { text-align: left; }
+  .profile-recent-form-label { display: none; }
 
   .input-row {
     flex-direction: column;

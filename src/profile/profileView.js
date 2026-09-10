@@ -30,6 +30,58 @@ function gameModeLabel(value) {
 }
 function shortenUserID(userID) { return userID?.length > 14 ? `${userID.slice(0, 8)}…${userID.slice(-5)}` : text(userID, "Player"); }
 function shortenRoninAddress(address) { return address?.length === 42 ? `${address.slice(0, 6)}…${address.slice(-4)}` : text(address, "—"); }
+
+// The VSTAR badge and the recent win/loss strip both anchor to the player
+// name heading rather than living in a separate column, so a profile reads as
+// one identity card instead of name + rating + form as disconnected pieces.
+// Both helpers are idempotent: re-running renderProfileBattleLogPanel (e.g.
+// switching profiles) reuses the wrapper/row already inserted into the DOM
+// instead of nesting a new one each time.
+function ensureNameRatingSlot(profileHeading) {
+  if (!profileHeading) return null;
+  let row = profileHeading.parentElement;
+  if (!row || !row.classList.contains("profile-name-rating-row")) {
+    const wrapper = document.createElement("div"); wrapper.className = "profile-name-rating-row";
+    profileHeading.replaceWith(wrapper);
+    wrapper.append(profileHeading);
+    row = wrapper;
+  }
+  let slot = row.querySelector(".profile-name-rating-slot");
+  if (!slot) { slot = document.createElement("span"); slot.className = "profile-name-rating-slot"; row.append(slot); }
+  return { row, slot };
+}
+
+function ensureRecentFormRow(nameRow) {
+  if (!nameRow) return null;
+  let form = nameRow.nextElementSibling;
+  if (!form || !form.classList.contains("profile-recent-form")) {
+    form = document.createElement("div"); form.className = "profile-recent-form";
+    nameRow.insertAdjacentElement("afterend", form);
+  }
+  return form;
+}
+
+function renderRecentForm(container, items) {
+  container.replaceChildren();
+  const recent = items.slice(0, 10);
+  if (!recent.length) { container.hidden = true; return; }
+  container.hidden = false;
+  const label = document.createElement("span"); label.className = "profile-recent-form-label"; label.textContent = `Last ${recent.length} games`;
+  const dots = document.createElement("div"); dots.className = "profile-recent-form-dots";
+  let wins = 0, losses = 0, draws = 0;
+  for (const entry of recent) {
+    const variant = entry.result === "win" ? "win" : entry.result === "loss" ? "loss" : entry.result === "draw" ? "draw" : "unknown";
+    if (variant === "win") wins++; else if (variant === "loss") losses++; else if (variant === "draw") draws++;
+    const dot = document.createElement("span"); dot.className = `profile-form-dot profile-form-dot--${variant}`;
+    const resultLabel = variant === "win" ? "Win" : variant === "loss" ? "Loss" : variant === "draw" ? "Draw" : "Result unknown";
+    const detail = `${resultLabel} vs ${text(entry.opponent?.name, "Opponent")}`;
+    dot.dataset.tooltip = detail; dot.setAttribute("aria-label", detail); dot.setAttribute("tabindex", "0");
+    dots.append(dot);
+  }
+  const record = document.createElement("span"); record.className = "profile-recent-form-record"; record.textContent = draws ? `${wins}W-${losses}L-${draws}D` : `${wins}W-${losses}L`;
+  container.setAttribute("aria-label", `Last ${recent.length} games: ${wins} wins, ${losses} losses${draws ? `, ${draws} draws` : ""}`);
+  container.append(label, dots, record);
+}
 function copyIcon() {
   const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   icon.setAttribute("viewBox", "0 0 24 24"); icon.setAttribute("aria-hidden", "true"); icon.setAttribute("focusable", "false");
@@ -432,11 +484,17 @@ export async function renderProfileBattleLogPanel(container, userID, leaderboard
   const isLatestRanked = String(firstBattle.gameMode || "").toLowerCase() === "ranked";
   const ratingTrend = isLatestRanked ? createRatingTrend(profileState.items) : null;
   const ratingOverview = document.createElement("div"); ratingOverview.className = "profile-rating-overview";
-  const currentRating = document.createElement("div"); currentRating.className = "profile-current-rating";
-  if (String(firstBattle.gameMode || "").toLowerCase() === "ranked" && Number.isFinite(firstBattle.player?.impact?.vstarAfter)) currentRating.append(createVstarBadge({ value: firstBattle.player.impact.vstarAfter, variant: "full" }));
-  if (isLatestRanked) {
-    ratingOverview.append(currentRating);
+  const { row: nameRow, slot: nameRatingSlot } = ensureNameRatingSlot(profileHeading) || {};
+  if (nameRatingSlot) {
+    nameRatingSlot.replaceChildren();
+    if (isLatestRanked && Number.isFinite(firstBattle.player?.impact?.vstarAfter)) {
+      const currentRating = document.createElement("span"); currentRating.className = "profile-current-rating";
+      currentRating.append(createVstarBadge({ value: firstBattle.player.impact.vstarAfter, variant: "full" }));
+      nameRatingSlot.append(currentRating);
+    }
   }
+  const recentFormRow = ensureRecentFormRow(nameRow);
+  if (recentFormRow) renderRecentForm(recentFormRow, profileState.items);
   if (ratingTrend) {
     const trendChange = document.createElement("span"); trendChange.className = `profile-trend-change${ratingTrend.change >= 0 ? " is-positive" : " is-negative"}`;
     trendChange.textContent = `${ratingTrend.change > 0 ? "+" : ""}${ratingTrend.change}`;
