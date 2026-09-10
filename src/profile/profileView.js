@@ -454,8 +454,140 @@ export async function renderProfileBattleLogPanel(container, userID, leaderboard
     appendAxies(latestTeamHeader, firstBattle.team, "profile-axies profile-latest-axies", { showCharms: true, linkAxieIDs: true });
   }
   document.getElementById("profile-latest-team-copy-header")?.append(latestCopy);
-  const historyHeading = document.createElement("div"); historyHeading.className = "profile-battle-history-heading"; historyHeading.textContent = "Battle history"; container.append(historyHeading);
-  const logs = document.createElement("div"); logs.className = "profile-battle-log-list"; for (const entry of profileState.items) appendBattleLog(logs, entry, resolvedUserID, resolvedPlayerName); container.append(logs);
+  const filterState = { result: "all", mode: "all", opponent: "", date: "all" };
+  function matchesMode(entry) { return filterState.mode === "all" || String(entry.gameMode || "").toLowerCase() === filterState.mode; }
+  function matchesResult(entry) { return filterState.result === "all" || entry.result === filterState.result; }
+  function matchesOpponent(entry) {
+    if (!filterState.opponent) return true;
+    const name = String(entry.opponent?.name || "").toLowerCase();
+    return name.includes(filterState.opponent);
+  }
+  function matchesDateRange(entry) {
+    if (filterState.date === "all") return true;
+    const timestamp = Date.parse(entry.timestamp);
+    if (!Number.isFinite(timestamp)) return false;
+    const now = Date.now();
+    if (filterState.date === "today") {
+      const battleDate = new Date(timestamp), today = new Date(now);
+      return battleDate.getFullYear() === today.getFullYear() && battleDate.getMonth() === today.getMonth() && battleDate.getDate() === today.getDate();
+    }
+    if (filterState.date === "7d") return now - timestamp <= 7 * 24 * 60 * 60 * 1000;
+    return true;
+  }
+  // "Scoped" = every filter except Result, used for the record chip so it reads as a stable
+  // "your record under this search/mode/date scope" reference even while Result narrows the list below.
+  function scopedItems() { return profileState.items.filter((entry) => matchesMode(entry) && matchesOpponent(entry) && matchesDateRange(entry)); }
+
+  const filters = document.createElement("div"); filters.className = "profile-battle-filters";
+  const filtersRow1 = document.createElement("div"); filtersRow1.className = "profile-battle-filters-row profile-battle-filters-row-1";
+  const filtersLeft = document.createElement("div"); filtersLeft.className = "profile-battle-filters-left";
+  const historyHeading = document.createElement("div"); historyHeading.className = "profile-battle-history-heading"; historyHeading.textContent = "Battle history";
+  const resultCountChip = document.createElement("span"); resultCountChip.className = "profile-result-count-chip";
+  filtersLeft.append(historyHeading, resultCountChip);
+
+  const searchWrap = document.createElement("div"); searchWrap.className = "profile-battle-search";
+  searchWrap.append(inspectIcon());
+  const searchInput = document.createElement("input"); searchInput.type = "text"; searchInput.className = "profile-battle-search-input";
+  searchInput.placeholder = "Search opponent…"; searchInput.setAttribute("aria-label", "Search battles by opponent name");
+  const searchClear = document.createElement("button"); searchClear.type = "button"; searchClear.className = "profile-battle-search-clear";
+  searchClear.textContent = "×"; searchClear.setAttribute("aria-label", "Clear opponent search"); searchClear.hidden = true;
+  searchWrap.append(searchInput, searchClear);
+  filtersRow1.append(filtersLeft, searchWrap);
+
+  const filtersRow2 = document.createElement("div"); filtersRow2.className = "profile-battle-filters-row profile-battle-filters-right";
+  filters.append(filtersRow1, filtersRow2);
+  container.append(filters);
+
+  const logs = document.createElement("div"); logs.className = "profile-battle-log-list"; container.append(logs);
+
+  function updateResultCountChip() {
+    const scoped = scopedItems();
+    const wins = scoped.filter((entry) => entry.result === "win").length;
+    const losses = scoped.filter((entry) => entry.result === "loss").length;
+    const winsEl = document.createElement("span"); winsEl.className = "profile-result-count-wins"; winsEl.textContent = `${wins}W`;
+    const sep = document.createElement("span"); sep.className = "profile-result-count-sep"; sep.setAttribute("aria-hidden", "true"); sep.textContent = "–";
+    const lossesEl = document.createElement("span"); lossesEl.className = "profile-result-count-losses"; lossesEl.textContent = `${losses}L`;
+    resultCountChip.setAttribute("aria-label", `${wins} wins, ${losses} losses`);
+    resultCountChip.replaceChildren(winsEl, sep, lossesEl);
+  }
+
+  function renderFilteredLogs() {
+    logs.replaceChildren();
+    const filtered = scopedItems().filter(matchesResult);
+    if (!filtered.length) {
+      const empty = document.createElement("p"); empty.className = "profile-empty"; empty.textContent = "No battles match the selected filters.";
+      logs.append(empty);
+      return;
+    }
+    for (const entry of filtered) appendBattleLog(logs, entry, resolvedUserID, resolvedPlayerName);
+  }
+
+  let searchDebounce = null;
+  searchInput.oninput = () => {
+    searchClear.hidden = !searchInput.value;
+    window.clearTimeout(searchDebounce);
+    searchDebounce = window.setTimeout(() => {
+      filterState.opponent = searchInput.value.trim().toLowerCase();
+      updateResultCountChip();
+      renderFilteredLogs();
+    }, 200);
+  };
+  searchClear.onclick = () => {
+    searchInput.value = ""; searchClear.hidden = true; filterState.opponent = "";
+    updateResultCountChip(); renderFilteredLogs(); searchInput.focus();
+  };
+
+  const RESULT_FILTER_OPTIONS = [
+    { value: "all", label: "All", variant: "neutral" },
+    { value: "win", label: "Wins", variant: "win" },
+    { value: "loss", label: "Losses", variant: "loss" },
+    { value: "draw", label: "Draws", variant: "draw" },
+  ];
+  const MODE_FILTER_OPTIONS = [
+    { value: "all", label: "All" },
+    { value: "ranked", label: "Ranked" },
+    { value: "challenge", label: "Challenge" },
+    { value: "practice", label: "Casual" },
+    { value: "haunted", label: "Arcade" },
+  ];
+  const DATE_FILTER_OPTIONS = [
+    { value: "all", label: "All time" },
+    { value: "7d", label: "7 days" },
+    { value: "today", label: "Today" },
+  ];
+
+  function createSegmentedControl(options, groupLabel, defaultVariant, getSelected, onSelect) {
+    const group = document.createElement("div"); group.className = "profile-segmented"; group.setAttribute("role", "group"); group.setAttribute("aria-label", groupLabel);
+    const buttons = [];
+    function refresh() {
+      const selected = getSelected();
+      for (const button of buttons) {
+        const isActive = button.dataset.value === selected;
+        button.classList.toggle("is-active", isActive);
+        button.setAttribute("aria-pressed", String(isActive));
+      }
+    }
+    for (const option of options) {
+      const button = document.createElement("button");
+      button.type = "button"; button.className = "profile-segmented-option";
+      button.dataset.value = option.value; button.dataset.variant = option.variant || defaultVariant;
+      button.textContent = option.label;
+      button.onclick = () => { onSelect(option.value); refresh(); };
+      buttons.push(button); group.append(button);
+    }
+    refresh();
+    return group;
+  }
+
+  filtersRow2.append(
+    createSegmentedControl(RESULT_FILTER_OPTIONS, "Filter by result", "neutral", () => filterState.result, (value) => { filterState.result = value; renderFilteredLogs(); }),
+    createSegmentedControl(MODE_FILTER_OPTIONS, "Filter by game mode", "mode", () => filterState.mode, (value) => { filterState.mode = value; updateResultCountChip(); renderFilteredLogs(); }),
+    createSegmentedControl(DATE_FILTER_OPTIONS, "Filter by date range", "mode", () => filterState.date, (value) => { filterState.date = value; updateResultCountChip(); renderFilteredLogs(); }),
+  );
+
+  updateResultCountChip();
+  renderFilteredLogs();
+
   const pagination = document.createElement("div"); pagination.className = "profile-pagination";
   const loadMore = document.createElement("button"); loadMore.type = "button"; loadMore.className = "profile-load-more";
   const status = document.createElement("span"); status.className = "profile-pagination-status";
@@ -472,7 +604,6 @@ export async function renderProfileBattleLogPanel(container, userID, leaderboard
     pagination.append(loadMore, status);
   };
   loadMore.onclick = async () => {
-    const previousCount = profileState.items.length;
     loadMore.disabled = true; loadMore.textContent = "Loading…";
     profileState.error = null;
     await loadMoreProfileBattleLogs(leaderboardScope);
@@ -482,7 +613,8 @@ export async function renderProfileBattleLogPanel(container, userID, leaderboard
       pagination.replaceChildren(loadMore, status);
       return;
     }
-    for (const entry of profileState.items.slice(previousCount)) appendBattleLog(logs, entry, resolvedUserID, resolvedPlayerName);
+    updateResultCountChip();
+    renderFilteredLogs();
     renderPagination();
   };
   renderPagination();
