@@ -3,6 +3,7 @@
 // keep historical-snapshot requests aligned with leaderboard scope.
 export const profileState = {
   userID: null,
+  playerName: null,
   roninAddress: null,
   totalItems: 0,
   items: [],
@@ -37,6 +38,7 @@ export async function loadProfileBattlePage(userID, leaderboardScope = null) {
     const data = await fetchProfileBattleLogPage(userID, { leaderboardScope, offset: 0 });
     Object.assign(profileState, {
       userID: data.resolvedUserID || userID,
+      playerName: data.resolvedPlayerName || null,
       roninAddress: data.resolvedRoninAddress || null,
       totalItems: data.totalItems,
       items: data.items,

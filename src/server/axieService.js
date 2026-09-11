@@ -128,25 +128,25 @@ export function normalizeFighter(fighter, ownerAddress, accountId) {
 // Uses title/name, parts, and genesMetamorph hints to assign known tags
 export function getCollectibleType(tags) {
   const ordered = [
+    "Agamogenesis",
+    "Mystic",
     "Origin",
     "MEO",
-    "Agamogenesis",
-    "Nightmare",
-    "Mystic",
+    "MEO II",
     "Shiny",
-    "Summer",
+    "Xmas",
     "Japan",
-    "Xmas"
+    "Nightmare",
+    "Summer"
   ];
 
   const collectibleTags = (tags || []).filter((tag) => tag !== "Morphed");
   if (collectibleTags.length === 0) return "Not collectible";
 
-  for (const tag of ordered) {
-    if (collectibleTags.includes(tag)) return tag;
-  }
+  const orderedTags = ordered.filter((tag) => collectibleTags.includes(tag));
+  const additionalTags = collectibleTags.filter((tag) => !ordered.includes(tag));
 
-  return collectibleTags.join(", ");
+  return [...orderedTags, ...additionalTags].join(", ");
 }
 
 export function classifyCollectible(fighterRaw, normalized) {

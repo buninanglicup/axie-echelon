@@ -5,23 +5,25 @@
 
 export const AXIES_PER_PAGE = 30;
 
-// Configurable external links (dead code carried over from the original
-// file -- see the correction note in leaderboard/leaderboardState.js for
-// PROFILE_BASE, which is the one of these three actually used anywhere,
-// and belongs to the leaderboard feature instead).
+// Shared links used by Morph Viewer result cards.
 export const MARKETPLACE_BASE = "https://app.axieinfinity.com/marketplace/axies";
-export const BATTLE_LOG_BASE = "https://axie.top/profile"; // change this if you prefer another explorer
+export const BATTLE_LOG_BASE = "/profile";
+export const NOT_COLLECTIBLE = "Not collectible";
 
-export const ALL_TAGS = [
-  "Nightmare",
-  "Shiny",
-  "Summer",
-  "Japan",
-  "Xmas",
-  "MEO",
-  "Origin",
-  "Agamogenesis"
+export const COLLECTIBLE_FILTERS = [
+  { tag: "Agamogenesis", label: "AgamoGenesis", tone: "agamo" },
+  { tag: "Mystic", label: "Mystic", tone: "mystic" },
+  { tag: "Origin", label: "Origin", tone: "origin" },
+  { tag: "MEO", label: "MEO", tone: "meo" },
+  { tag: "MEO II", label: "MEO II", tone: "meo-ii" },
+  { tag: "Shiny", label: "SHINY", tone: "shiny" },
+  { tag: "Xmas", label: "Xmas", tone: "xmas" },
+  { tag: "Japan", label: "Japanese", tone: "japan" },
+  { tag: "Nightmare", label: "Nightmare", tone: "nightmare" },
+  { tag: "Summer", label: "Summer", tone: "summer" }
 ];
+
+export const ALL_TAGS = COLLECTIBLE_FILTERS.map(({ tag }) => tag);
 
 export const axieLookupState = {
   mode: "id",
@@ -31,7 +33,7 @@ export const axieLookupState = {
   lastServerResponse: null,
   activeTags: new Set(),
   showOnlyCollectibles: true, // default per user request
-  minEvolvedParts: 0 // UI present but slider disabled for now
+  minEvolvedParts: 0 // retained for the future evolved-parts filter
 };
 
 // ===== Axie-lookup-only DOM refs (queried once at module load, same timing

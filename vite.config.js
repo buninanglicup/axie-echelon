@@ -42,6 +42,9 @@ export default defineConfig(({ mode }) => {
       ),
       "import.meta.env.VITE_POLLING_INTERVAL": JSON.stringify(
         String(activeProfile.vitePollingInterval)
+      ),
+      "import.meta.env.VITE_DEBUG_ON": JSON.stringify(
+        String(activeProfile.debugOn)
       )
     }
   };

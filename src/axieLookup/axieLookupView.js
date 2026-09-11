@@ -6,7 +6,10 @@ import { escapeHtml } from "../shared/formatting.js";
 import {
   axieLookupState,
   AXIES_PER_PAGE,
+  BATTLE_LOG_BASE,
+  COLLECTIBLE_FILTERS,
   ALL_TAGS,
+  NOT_COLLECTIBLE,
   form,
   input,
   label,
@@ -25,14 +28,18 @@ import {
   showOnlyCollectiblesInput
 } from "./axieLookupState.js";
 
+const DEBUG_ON = import.meta.env.VITE_DEBUG_ON === "true";
+
 function buildFilterChips() {
   if (!collectibleFilters) return;
   collectibleFilters.replaceChildren();
-  for (const tag of ALL_TAGS) {
-    const id = `filter-${tag}`;
+  for (const filter of COLLECTIBLE_FILTERS) {
+    const { tag, label, tone } = filter;
+    const id = `filter-${tone}`;
     const wrapper = document.createElement("label");
-    wrapper.className = "filter-chip";
+    wrapper.className = `filter-chip filter-chip-${tone}`;
     wrapper.innerHTML = `\n      <input type="checkbox" id="${id}" data-tag="${tag}" />\n      <span>${tag}</span>\n    `;
+    wrapper.querySelector("span").textContent = label;
     const checkbox = wrapper.querySelector("input");
     checkbox.addEventListener("change", (e) => {
       if (e.target.checked) axieLookupState.activeTags.add(tag);
@@ -93,7 +100,8 @@ function applyFilters(items) {
     });
   }
 
-  // evolved parts filter (disabled slider; placeholder heuristic)
+  // Keep this predicate ready while the UI control remains disabled pending
+  // validation of the upstream part-stage contract.
   if (axieLookupState.minEvolvedParts > 0) {
     list = list.filter((a) => {
       const parts = Array.isArray(a.parts) ? a.parts : [];
@@ -110,8 +118,14 @@ function applyFilters(items) {
 }
 
 function buildMorphSummary(axie, previewFailed = false) {
+  if (getCollectibleTypeLabel(axie) === NOT_COLLECTIBLE) {
+    return "Not a collectible.";
+  }
+
   if (!axie?.genesMetamorph) {
-    return "Morph preview unavailable; no morphed parts were returned.";
+    return DEBUG_ON
+      ? "Morphed genes were not provided; showing a silhouette."
+      : "";
   }
 
   const parts = Array.isArray(axie.parts) ? axie.parts : [];
@@ -133,8 +147,18 @@ function buildMorphSummary(axie, previewFailed = false) {
   }
 
   return previewFailed
-    ? "Morph preview unavailable; morph part details unavailable"
-    : "Meta Morph detected; detailed part metadata unavailable (visual preview shown)";
+    ? "Morphed preview could not be rendered. Part details were not provided."
+    : "Morphed preview shown. Part details were not provided.";
+}
+
+function getCollectibleTypeLabel(axie) {
+  const tags = Array.isArray(axie?.collectibleTags)
+    ? axie.collectibleTags.filter((tag) => tag && tag !== "Morphed")
+    : [];
+
+  return tags.length > 0
+    ? tags.join(", ")
+    : axie?.collectibleType || "Not collectible";
 }
 
 function addAxieCard(axie) {
@@ -144,45 +168,46 @@ function addAxieCard(axie) {
   const morphSummary = buildMorphSummary(axie);
 
   const marketplaceUrl = `https://app.axieinfinity.com/marketplace/axies/${axie.id}/`;
-  const battleLogUrl = axie.accountId ? `https://axie.top/profile/${axie.accountId}` : null;
+  const battleLogUrl = axie.accountId
+    ? `${BATTLE_LOG_BASE}/${encodeURIComponent(axie.accountId)}`
+    : null;
 
   card.innerHTML = `
     <h2><a class="axie-link" href="${marketplaceUrl}" target="_blank" rel="noopener noreferrer">Axie #${escapeHtml(axie.id)}</a></h2>
 
-    ${battleLogUrl ? `<p style="margin:6px 0 8px;"><a class="axie-link" href="${battleLogUrl}" target="_blank" rel="noopener noreferrer">Open Battle Logs</a></p>` : ''}
+    ${battleLogUrl ? `<p style="margin:6px 0 8px;"><a class="axie-link" href="${battleLogUrl}">Open Player Profile</a></p>` : ''}
 
     <p class="meta">
-      ${escapeHtml(axie.name || "")}
+      Name: ${escapeHtml(axie.name || "")}
     </p>
 
     <p class="meta">
-      ${escapeHtml(axie.title || "")}
-      ${escapeHtml(axie.class || "")}
+      Class: ${escapeHtml(axie.class || "Unknown")}
     </p>
 
     <p class="meta collectible-type">
-      Collectible type: ${escapeHtml(axie.collectibleType || "Not collectible")}
+      Collectible type: ${escapeHtml(getCollectibleTypeLabel(axie))}
     </p>
 
-    <p class="meta">
-      ${escapeHtml(morphSummary)}
-    </p>
+    ${DEBUG_ON && morphSummary ? `<p class="meta">${escapeHtml(morphSummary)}</p>` : ""}
 
     <div class="images">
       <div class="image-box">
         <small>Original parts</small>
-        <img
-          src="${axie.standardImageUrl}"
-          alt="Original Axie ${escapeHtml(axie.id)}"
-          loading="lazy"
-          width="360"
-          height="180"
-        />
+        <div class="image-preview-frame">
+          <img
+            src="${axie.standardImageUrl}"
+            alt="Original Axie ${escapeHtml(axie.id)}"
+            loading="lazy"
+            width="360"
+            height="180"
+          />
+        </div>
       </div>
 
       <div class="image-box">
         <small>Morphed parts</small>
-        <div class="morph-target"></div>
+        <div class="image-preview-frame morph-target"></div>
       </div>
     </div>
   `;
@@ -191,6 +216,20 @@ function addAxieCard(axie) {
 
   const target = card.querySelector(".morph-target");
   if (!axie.genesMetamorph) {
+    if (getCollectibleTypeLabel(axie) !== NOT_COLLECTIBLE && axie.standardImageUrl) {
+      target.innerHTML = `
+        <img
+          class="morph-silhouette"
+          src="${axie.standardImageUrl}"
+          alt="Silhouette of collectible Axie ${escapeHtml(axie.id)}"
+          loading="lazy"
+          width="360"
+          height="180"
+        />
+      `;
+      return;
+    }
+
     target.innerHTML = `
       <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:180px; padding:1rem; text-align:center; color:#334155;">
         <span>${escapeHtml(buildMorphSummary(axie))}</span>
@@ -207,12 +246,18 @@ function addAxieCard(axie) {
 
       const morphText = buildMorphSummary(axie, true);
 
-      target.innerHTML = `
-        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:180px; padding:1rem; text-align:center; color:#334155;">
-          <strong style="display:block; margin-bottom:0.5rem; color:#1d4ed8;">Morph preview unavailable</strong>
-          <span>${escapeHtml(morphText)}</span>
-        </div>
-      `;
+      target.innerHTML = DEBUG_ON
+        ? `
+          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:180px; padding:1rem; text-align:center; color:#334155;">
+            <strong style="display:block; margin-bottom:0.5rem; color:#1d4ed8;">Morph preview unavailable</strong>
+            <span>${escapeHtml(morphText)}</span>
+          </div>
+        `
+        : `
+          <div style="display:flex; align-items:center; justify-content:center; min-height:180px; padding:1rem; text-align:center; color:#64748b;">
+            <span>Morphed preview unavailable.</span>
+          </div>
+        `;
     })
     .finally(() => {
       target.classList.remove("is-loading");
@@ -478,10 +523,9 @@ export function initAxieLookupView() {
   if (filterReset)
     filterReset.addEventListener("click", () => {
       axieLookupState.activeTags.clear();
-      for (const tag of ALL_TAGS) {
-        const el = document.querySelector(`#filter-${tag}`);
-        if (el) el.checked = false;
-      }
+      collectibleFilters?.querySelectorAll("input[type=checkbox]").forEach((input) => {
+        input.checked = false;
+      });
       axieLookupState.minEvolvedParts = 0;
       if (evolvedRange) evolvedRange.value = "0";
       if (evolvedValue) evolvedValue.textContent = "0";

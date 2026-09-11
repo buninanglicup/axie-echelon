@@ -181,6 +181,7 @@ An Origins season contains four eras. Sky Mavis names the numeric era selector `
   `scripts/validate-body-part-log-coverage.mjs`.
 - Leaderboard morph field behavior is documented in `docs/implementation/leaderboard_enrichment.md`: collectible Axies prefer `genes_metamorph`, non-collectible Ronin Axies use `genes`, anomalous collectible nulls fall back to `genes`, and starter Axies are currently name-only pending a starter-specific renderer. These rules apply only to leaderboard team previews; the separate Morph Viewer is unchanged.
 - The leaderboard Rune Filter is a searchable multi-select. It stores stable rune IDs, displays removable image/name chips, prevents duplicates, and applies OR semantics across selected runes. Typing only searches the catalog; selecting or removing a chip updates leaderboard results. The Morph Viewer is not affected.
+- The Morph Viewer collectible filter uses a two-column collection list. Evolved-parts filtering remains visible but disabled: the predicate exists, while the upstream `parts` stage fields still need fixture coverage and validation before enabling it.
 
 ### Planned application shell
 

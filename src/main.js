@@ -60,7 +60,7 @@ function initDarkTooltips() {
   };
   const show = (target) => {
     const message = target?.dataset?.tooltip;
-    if (!message || target.hasAttribute("disabled")) return;
+    if (!message) return;
     activeTarget = target;
     tooltip.textContent = message;
     tooltip.hidden = false;
@@ -140,8 +140,8 @@ function showDashboardEmptyState() {
   const profileHeading = document.getElementById("profile-player-name");
   if (!profilePanel || !profileHeading) return;
 
-  profileHeading.textContent = "Player Profile";
-  profileHeading.dataset.tooltip = "Player Profile";
+  profileHeading.textContent = "Player Profile"; //rhosty remove
+  profileHeading.dataset.tooltip = "Player Profile"; //rhosty remove
   profileView?.classList.add("is-empty-dashboard");
   document.getElementById("profile-identity-details")?.remove();
   document.getElementById("profile-latest-team-header")?.replaceChildren();
