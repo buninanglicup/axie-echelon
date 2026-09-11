@@ -7,7 +7,7 @@
 // only tracks job state.
 //
 // This is a direct structural port of runeScanJobs.js for the body-part
-// scan feature described in docs/implementation/body-part-filtering.md
+// scan feature described in docs/engineering/body-part-filtering.md
 // ("Next Milestone" #1). The job-lifecycle behavior (dedup key shape,
 // cancellation semantics, watchdog, heartbeat sweep) is intentionally
 // identical to the rune-scan job; only the scan payload (body-part names

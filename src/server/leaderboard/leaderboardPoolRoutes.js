@@ -12,7 +12,7 @@ function mapPoolPlayer(player) {
     mmr: player.vstar ?? player.mmr ?? player.rating,
     // NOT YET IMPLEMENTED: win_rate, daily_change, and recent_form do not exist
     // on the real Skymavis season-leaderboards response (confirmed against a
-    // live payload -- see docs/planning/leaderboard-roadmap.md). These fields
+    // live payload -- see docs/engineering/leaderboard-roadmap.md). These fields
     // have always evaluated to null / "-" / [] for every player. Left in place,
     // clearly marked, as a known future feature rather than removed, since
     // comparable leaderboard tools do support this and it's worth adding once a

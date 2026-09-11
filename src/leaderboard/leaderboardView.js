@@ -549,7 +549,7 @@ function startLeaderboardPolling() {
 // turned on" and "turned on again after being disabled" -- re-enabling
 // intentionally falls back to the documented default rather than
 // remembering whatever window the user had picked before disabling
-// (confirmed UX call, see docs/planning/leaderboard-roadmap.md).
+// (confirmed UX call, see docs/engineering/leaderboard-roadmap.md).
 
 function updateLiveModeControls() {
   if (leaderboardState.isManualHistoricalScope) {
@@ -621,7 +621,7 @@ async function fetchJsonWithRetry(url, attempts = 8) {
 // Fetches the full 1..LEADERBOARD_MAX_RANK candidate pool once per era.
 // Deliberately always requests the full ceiling regardless of any active
 // rank/name/rune filter -- see "Fetch strategy" in
-// docs/planning/leaderboard-roadmap.md for why. Not yet wired into
+// docs/engineering/leaderboard-roadmap.md for why. Not yet wired into
 // pagination (that's 3d); 3c consumes it for non-live filtering and rendering.
 let leaderboardPoolFetchScopeKey = null;
 const POOL_TEAM_ENRICHMENT_CONCURRENCY = 8;

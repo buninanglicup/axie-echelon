@@ -101,7 +101,7 @@ export const leaderboardState = {
   // Full 1..LEADERBOARD_MAX_RANK candidate pool for non-live pagination
   // (Phase 3). Separate from leaderboardData, which stays the legacy
   // route's single fixed window used by live mode -- see
-  // docs/planning/leaderboard-roadmap.md, "Fetch strategy".
+  // docs/engineering/leaderboard-roadmap.md, "Fetch strategy".
   leaderboardPool: [],
   leaderboardPoolLoaded: false,
   leaderboardPoolFetchPromise: null, // in-flight dedup guard

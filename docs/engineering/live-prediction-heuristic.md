@@ -13,7 +13,7 @@ The Live Mode prediction system estimates when a player will likely start their 
 ### Step 1: Extract Recent Battles
 
 The backend (leaderboardEnrichment.js) fetches the player's most recent ranked battles and provides:
-- `recentRankedBattles`: array of up to 3 completed battles with `{startedAt, endedAt}`
+- `recentRankedBattles`: array of up to 4 completed battles with `{startedAt, endedAt}`
 - Sorted newest → oldest
 
 Example:
@@ -118,9 +118,10 @@ This is the boundary for the prediction window.
 
 ---
 
-## The State Machine: 3-State Lifecycle
+## The State Machine: 4-State Lifecycle
 
-The UI shows exactly 3 states based on the current time relative to the prediction window.
+The prediction has three time-based states plus an `Unknown` state when there is
+not enough valid data to calculate a prediction.
 
 ### State A: Before Predicted Start
 
@@ -298,7 +299,7 @@ These are calculated independently.
 **Polling Stale Check:**
 - If no new data for 2.5× polling interval → show "Polling stale"
 - This is about data currency, not prediction validity
-- Independent from the 3-state prediction machine
+- Independent from the four-state prediction machine
 
 ---
 

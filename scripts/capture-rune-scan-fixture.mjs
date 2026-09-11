@@ -1,6 +1,6 @@
 // Manual, local-only capture of a real top-1000 rune-scan snapshot from
 // Skymavis, for inspecting real data shapes. This is not a source for the
-// committed synthetic fixture. See docs/implementation/rune-scan-fixtures.md
+// committed synthetic fixture. See docs/engineering/rune-scan-fixtures.md
 // for the full fixture workflow.
 //
 // Usage:

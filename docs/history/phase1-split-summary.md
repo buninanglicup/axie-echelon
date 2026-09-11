@@ -7,8 +7,9 @@
 **Date:** 2026-08-19
 **Scope:** `server.js` and `main.js` (formerly ~1830 and ~1740 lines respectively)
 
-This document explains what changed, why, how it was verified, and what's
-still open. It's meant to be read alongside the diff, not instead of it.
+This document explains what changed, why, and how it was verified at the time.
+Its open items and next steps are historical context; current work is tracked
+in [Project Status](../STATUS.md) and the engineering roadmap.
 
 ---
 
@@ -210,7 +211,7 @@ at a `leaderboardApi.js` file that was never created â€” the file's
 responsibilities ended up folded into `leaderboardView.js` instead) was
 also corrected.
 
-### 5.4 Still open â€” not covered by the fixes above
+### 5.4 Historical follow-ups recorded at the time
 
 1. **`geneDecoder.js`'s assumed location is still unverified.** Unlike
    `renderer.js`/`pagination.js` (now confirmed via a real `vite build` â€”
@@ -242,7 +243,7 @@ also corrected.
 3. **At the time, this commit did not touch:** the then-existing multi-process workaround, the live-mode
    page-reload bug, PIXI render concurrency vs. compact mode, or anything
    related to the planned rank-1000 pagination work. All of that remains
-   exactly as documented in `HANDOFF.md`/`PROJECT_STATUS.md`.
+  exactly as documented in the current project status and engineering notes.
 
 ---
 
@@ -255,9 +256,11 @@ external dependency involved.
 
 ---
 
-## 7. What's next (not in this commit)
+## 7. Historical next steps (not in this commit)
 
-Per the ongoing design discussion (not yet implemented):
+The following items were proposed at the time of this refactor. Several have
+since been implemented; they are retained here to preserve the original
+technical sequence. See the current roadmap before treating any item as open:
 - Introduce `SEASON_LEADERBOARD_API_MAX_LIMIT` (100, upstream-fixed),
   `MAXIMUM_PLAYERS_DISPLAYED_PER_PAGE`, and `LEADERBOARD_MAX_RANK` (1000),
   replacing the current ad-hoc `MAX_LEADERBOARD_REQUEST_SIZE` /

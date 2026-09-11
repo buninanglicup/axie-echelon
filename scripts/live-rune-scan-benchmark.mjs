@@ -1,6 +1,6 @@
 // Manual-only live benchmark for the async rune-scan job against real
 // Skymavis data. This complements the offline fixture tests and is not run
-// by npm test or CI. See docs/implementation/rune-scan-fixtures.md.
+// by npm test or CI. See docs/engineering/rune-scan-fixtures.md.
 //
 // Usage:
 //   node scripts/live-rune-scan-benchmark.mjs <eraMilestone> <runeId>
@@ -39,7 +39,7 @@ while (true) {
     console.log(`${Date.now() - startedAt}ms: ${job.processedCount}/${job.totalCandidates ?? "?"}, ${job.matches.length} matches, ${job.status}`);
     lastProcessed = job.processedCount;
   }
-  if (["complete", "failed", "cancelled"].includes(job.status)) break;
+  if (["complete", "partial", "failed", "cancelled"].includes(job.status)) break;
   await new Promise((resolve) => setTimeout(resolve, 200));
 }
 const finalJob = getRuneScanJob(started.jobId);

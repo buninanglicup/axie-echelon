@@ -1,21 +1,17 @@
 # Cache and Polling Strategy — Leaderboard Feature
 
-## Revision note (2026-09-03)
+## Review note (2026-09-11)
 
-This is a rewrite, not a patch, of the previous draft. The previous draft
-referenced `server.js - line 1683+` and `server.js - line 1070+` — those line
-numbers predate the Phase 1 backend split and no longer correspond to
-anything; the code now lives in `src/server/leaderboard/leaderboardCaches.js`
-and related files. This revision also adds the candidate-pool cache layer,
-which the previous draft didn't cover at all, and documents live-mode's
-actual cache behavior as confirmed from the current code rather than assumed.
+This document reflects the current split backend and frontend implementation.
+Cache ownership and keys should be reviewed whenever leaderboard scopes,
+candidate loading, or live polling behavior changes.
 
 ## Overview
 
 This document explains the cache architecture and polling behavior for the
 leaderboard feature, covering both live-tracking (polling) use and non-live
 (paginated browsing) use. The goal is to balance data freshness against
-Skymavis API rate-limit constraints.
+Sky Mavis API rate-limit constraints.
 
 ## Important: cache *settings* are shared between live and non-live mode
 
@@ -27,7 +23,7 @@ etc.) is a single global value used by both modes. What actually differs is a
 
 ```js
 if (liveMode) {
-  // Bypasses getCachedPage() — always fetches fresh from Skymavis.
+  // Bypasses getCachedPage() — always fetches fresh from Sky Mavis.
   const payload = await fetchAndEnrichLeaderboard(limit, offset, eraMilestone, true);
   setCachedPage(cacheKey, payload); // still WRITES into the same shared cache
   return response.json(payload);
@@ -37,17 +33,22 @@ if (liveMode) {
 
 Live mode skips the page-cache *read* (it always wants fresh data) but still
 *writes* its fresh result into the same `pageCache` map that non-live mode
-reads from, under the same key format (`leaderboard_${milestone}_${limit}_${offset}`).
+reads from, under the same scope-aware key format (`leaderboard_${scope}_${limit}_${offset}`).
 If live and non-live requests ever land on the same limit/offset within the
 same TTL window, one can serve the other's cached payload. This is existing
 behavior, not something introduced by the pagination work below.
 
-## Four-layer cache architecture **[layer 4 is new]**
+## Four primary cache layers **[layer 4 is new]**
+
+These are the four caches that directly shape leaderboard loading, browsing,
+and scanning. The backend also maintains separate profile, team-composition,
+enrichment-status, and average-match-duration caches; those specialized caches
+are covered where their features require them.
 
 ### Layer 1: Browser cache (sessionStorage)
 
 - **TTL:** `LEADERBOARD_STORAGE_TTL_MS`, 30s default.
-- **Key:** `leaderboard_cache_${milestone}_${limit}_${offset}` (`getLeaderboardStorageKey()` in `src/leaderboard/leaderboardState.js`).
+- **Key:** scope-aware `leaderboard_cache_${scope}_${limit}_${offset}` (`getLeaderboardStorageKey()` in `src/leaderboard/leaderboardState.js`).
 - **Scope:** the legacy eager leaderboard view only.
 - **Use case:** avoid re-hitting the backend within a browser session for the
   legacy route. Not used by the pool/team endpoints.
@@ -55,7 +56,7 @@ behavior, not something introduced by the pagination work below.
 ### Layer 2: Server page cache (in-memory)
 
 - **TTL:** `LEADERBOARD_PAGE_CACHE_TTL_MS`, 30s default.
-- **Key:** `leaderboard_${milestone}_${limit}_${offset}`.
+- **Key:** scope-aware `leaderboard_${scope}_${limit}_${offset}`.
 - **Location:** `pageCache` Map in `leaderboardCaches.js`; read/write logic in
   `leaderboardLegacyRoutes.js`.
 - **Scope:** the legacy `/api/leaderboard` route only (live mode included, per
@@ -68,7 +69,7 @@ behavior, not something introduced by the pagination work below.
 - **TTL:** `TEAM_CACHE_TTL_MS`, 10 min default. Refresh threshold:
   `TEAM_CACHE_REFRESH_THRESHOLD`, 50% of TTL — marks the entry "stale" but
   still usable while a background refresh runs.
-- **Key:** per-player (`clientId`/`userID`).
+- **Key:** per-player and leaderboard scope (`clientId`/`userID` plus the era or offseason scope).
 - **Location:** `teamCache` Map in `leaderboardCaches.js`.
 - **Scope:** shared across the legacy route, the pool/team endpoints, and rune
   scanning — a player's team data is reused everywhere it's needed, regardless
@@ -80,20 +81,20 @@ behavior, not something introduced by the pagination work below.
 
 - **TTL:** `RANK_CANDIDATE_CACHE_TTL_MS`, 3 min default for non-live pool and
   rune scanning.
-- **Key:** `${eraMilestone}_${maxRank}` (e.g. `"4_1000"`).
+- **Key:** one entry per leaderboard scope and 100-player chunk, such as
+  `${scope}:offset:${offset}`.
 - **Content:** the raw, unenriched rank/name/MMR list for ranks `1..maxRank` —
   cheap fields only, no team/battle-log data.
 - **Location:** `rankCandidateCache` Map in `leaderboardCandidates.js`,
   populated by `fetchRankCandidates()`; read by both
   `leaderboardPoolRoutes.js` (`/api/leaderboard/pool`) and
   `leaderboardRuneRoutes.js` (rune scanning).
-- **Why this cache matters more than it looks:** it's keyed by **era only**,
-  not by any per-user filter state. Once one request (of any kind — a plain
-  rank browse, a name search, a rune scan) populates this cache for an era,
-  every other request for that era during the TTL window is a free hit,
-  regardless of what filters that later request has active. This is the
-  cache that makes "always fetch the full 1000-player pool, filter
-  client-side" cheap in aggregate — see `leaderboard-roadmap.md`, "Fetch
+- **Why this cache matters more than it looks:** it is keyed by leaderboard
+  scope and chunk offset, not by any per-user filter state. Once a request of
+  any kind (plain rank browse, name search, or rune/body-part scan) populates a
+  chunk, other requests for that same scope and chunk can reuse it during the
+  TTL window. This makes fetching the full 1000-player pool and filtering
+  client-side cheaper in aggregate — see `leaderboard-roadmap.md`, "Fetch
   strategy" section, for the full reasoning.
 - **Cost on a miss:** upstream's `season-leaderboards` endpoint caps at 100
   players per request, so a cold fetch for `maxRank=1000` costs **10
@@ -118,29 +119,27 @@ non-live-mode concern.
 
 ## Polling strategy (live mode only)
 
-*(unchanged from prior draft — applies only to live-tracking polling, not to
-the non-live pagination work)*
+This applies only to live-tracking polling, not to the non-live pagination
+work.
 
-### Recommended: 20s polling + 30s cache
+### Default: 30s polling + 30s cache
 
 ```
-t=0s    → Fetch from Skymavis (cache miss)
-t=20s   → Serve from cache (hit!) — data is 20s old
-t=30s   → Cache expires
-t=40s   → Fetch again — captures matches finished between t=20-40s
+t=0s    → Fetch from Sky Mavis (cache miss)
+t=30s   → Poll again; the 30s page cache has expired, so fetch fresh data
+t=60s   → Poll again and repeat the cycle
 ```
 
 | Interval | Cache Hit Rate | Battle Update Window | API Calls/Hour | Risk |
 |---|---|---|---|---|
-| 10s | ~40% | 10s | 180-200 | High (rate limits) |
-| **20s** | ~50% | 20-40s | 120-140 | Optimal |
-| 30s | 40-50% | 30-60s | 80-100 | Good |
-| 60s | 70%+ | 60s | 40-50 | Safe but stale |
+| 15s | Low | 15-30s | ~240 | Higher request pressure |
+| **30s** | Low | ~30-60s | ~120 | Default balance |
+| 60s | Low | ~60-120s | ~60 | Lower pressure, staler results |
 
 ## Data freshness guide
 
 ### Must be fresh (short cache, live mode):
-- `lastRankedBattleTime` — 30s TTL via page-cache miss.
+- `lastRankedBattleTime` — refreshed on each live page-cache miss.
 - `rank` / `mmr` / `winRate` — 30s cache acceptable.
 
 ### Can be stale (long cache):
@@ -163,7 +162,7 @@ TEAM_CACHE_TTL_MS=600000
 TEAM_CACHE_REFRESH_THRESHOLD=0.5
 
 # Rank candidate pool cache TTL (ms) — non-live pool + rune scanning only
-# Recommended: raise from the 30000 default for non-live pagination use.
+# Default: 180000 ms (3 minutes) for non-live pagination and scans.
 RANK_CANDIDATE_CACHE_TTL_MS=180000   # example: 3 minutes
 
 # Concurrency limit for battle-log fetches (shared globally)
@@ -175,18 +174,16 @@ BATTLELOG_FETCH_CONCURRENCY=4
 With `DEBUG_ON=true`, watch for:
 
 ```
-[fetchRankCandidates] cache HIT for 4_1000
-[fetchRankCandidates] fetched 1000 candidates for 4_1000
+[fetchCandidateChunk] cache HIT for <scope>:offset:0
+[fetchRankCandidates] fetched candidate chunks for <scope>
 [getCachedPage] HIT: leaderboard_4_50_0
 [getCachedTeam] HIT: returning cached team for <userID>
 ```
 
 ## Scaling for multiple concurrent users
 
-*(unchanged from prior draft — applies to Layers 1–3; Layer 4's era-only
-keying already scales well across concurrent users by design, since all
-users browsing the same era share one cache entry regardless of their
-individual filter state)*
+Layer 4 scales across concurrent users because users browsing the same scope
+share candidate chunks regardless of their individual filter state.
 
 ## Summary
 
@@ -195,8 +192,9 @@ individual filter state)*
   stale-while-revalidate. Live mode writes but doesn't read.
 - **Team cache (10 min):** shared across every feature that needs per-player
   team data.
-- **Rank candidate pool cache (recommend 3–5 min):** non-live pagination and
-  rune scanning only, keyed by era, shared across all users and all filter
-  types for that era. Never touched by live mode.
-- **Polling (20s, live mode only):** ~50% cache hit rate on the page cache,
-  catches battles within 20–40s.
+- **Rank candidate pool cache (3 min default):** non-live pagination and rune or
+  body-part scanning, keyed by leaderboard scope and chunk offset, shared
+  across users and filter types for that scope. Never touched by live mode.
+- **Polling (30s by default, live mode only):** live mode bypasses page-cache
+  reads, so each poll requests a fresh activity timestamp while team data can
+  still come from the shared team cache.

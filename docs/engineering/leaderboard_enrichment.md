@@ -18,10 +18,40 @@ this is a rate-limit/request-volume limitation, not a confirmed rune-ID or
 team-matching failure. Candidate-chunk caching, bounded retries, and
 Retry-After handling are implemented.
 
-**See also:** [Cache and Polling Strategy](../planning/cache-and-polling-strategy.md) — comprehensive guide to the three-layer cache architecture, polling optimization, and tuning recommendations for live battle tracking.
+**See also:** [Cache and Polling Strategy](cache-and-polling-strategy.md) — comprehensive guide to the cache architecture, polling optimization, and tuning recommendations for live battle tracking.
 
-## Current goal
-Fetch the Skymavis leaderboard and enrich each row with the player's most recent ranked team so the frontend can render morph previews for top players.
+## Current behavior
+
+The legacy leaderboard route fetches a Sky Mavis leaderboard page and enriches
+each row with the player's most recent ranked team so the frontend can render
+morph previews for top players. The newer non-live pool flow enriches visible
+rows progressively through the pool and team endpoints; this document focuses
+on the shared team and battle-log behavior.
+
+## Freshness and enrichment flow
+
+For each leaderboard player, the enrichment path is:
+
+```text
+leaderboard row
+  -> profile/address resolution
+  -> recent battle-log request
+  -> latest ranked team extraction
+  -> rune, charm, and gene fields retained on fighters
+  -> scoped team/composition caches
+  -> leaderboard Axie preview
+```
+
+Profile and address resolution use the long-lived profile cache in both live
+and non-live modes. In live mode, the battle-log request still runs every poll
+because it is the source of `lastRankedBattleTime` and
+`recentRankedBattles`. Those live activity fields are never reused from an old
+poll. If the request fails, the response reports a null timestamp and
+`battleTimeFetchFailed: true`; a cached team composition may still be shown.
+
+Outside live mode, the scoped team cache can provide the most recently observed
+team while a stale entry is refreshed in the background. This keeps team
+previews responsive without presenting an old battle timestamp as current.
 
 ## Desired leaderboard behavior
 - The leaderboard `Team` column should display the three fighters used in the player's last ranked battle.
@@ -51,13 +81,13 @@ The leaderboard battle-log payload exposes both `genes` and
 
 ## What changed
 ### 1. Cache successful team extractions
-- Added an in-memory `teamCache` keyed by `clientId`.
-- Cache TTL default is now `300000` ms (5 minutes).
+- Added an in-memory `teamCache` keyed by player and leaderboard scope.
+- Cache TTL default is `600000` ms (10 minutes).
 - This reduces repeated battle-log fetches for the same player during rapid refreshes.
 - Configurable via `TEAM_CACHE_TTL_MS`.
 
 ### 2. Resilient battle-log fetching
-- Replaced simple `fetch()` with `fetchWithRetry()`.
+- Replaced simple `fetch()` with the shared battle-log client's retry wrapper.
 - Each battle-log request now uses:
   - timeout per attempt: `3000` ms
   - retry attempts: `3`
@@ -90,7 +120,7 @@ The leaderboard battle-log payload exposes both `genes` and
 ### Defaults set in backend modules
 - `TEAM_CACHE_TTL_MS` = `600000` (10 minutes) — see `src/server/leaderboard/leaderboardConstants.js`
 - `LEADERBOARD_PAGE_CACHE_TTL_MS` = `30000` (30 seconds) — synced with browser cache
-- `LEADERBOARD_STORAGE_TTL_MS` = `30000` (30 seconds, browser-side) — see `src/main.js`
+- `LEADERBOARD_STORAGE_TTL_MS` = `30000` (30 seconds, browser-side) — see `src/leaderboard/leaderboardState.js`
 - `BATTLELOG_FETCH_ATTEMPTS` = `3`
 - `BATTLELOG_FETCH_TIMEOUT_MS` = `3000`
 - `BATTLELOG_FETCH_BACKOFF_MS` = `500`
@@ -129,18 +159,19 @@ for ($i=1; $i -le 5; $i++) {
 - `[fetchWithRetry] attempt ...`
 
 ## Change log
-- `TEAM_CACHE_TTL_MS` increased from `60000` to `300000`
+- `TEAM_CACHE_TTL_MS` current default is `600000` ms (10 minutes)
 - batch log request limit increased from `10` to `20`
 - retry + timeout + Retry-After handling added to `fetchBattleLogsForClient`
 - cache + retry behavior documented in the split backend modules and this document
 
 ## Notes
-- A longer cache TTL is reasonable for testing and repeated refreshes, but may delay updates if a player changes team frequently.
+- A longer cache TTL is reasonable for testing and repeated refreshes, but may delay updates if a player changes team frequently. Live mode refreshes battle logs every poll while retaining cached team composition when a fresh fetch fails.
 - Scanning 20 logs usually only adds a small local cost because the code exits when the first ranked match is found.
-- If the leaderboard still shows occasional misses, the next step is asynchronous enrichment: render rows immediately and update team previews after the server fetches them.
+- Non-live browsing already uses progressive enrichment for visible pool rows; the legacy route remains eager until live-mode migration is completed.
 
 ---
 
 File references:
 - `src/server/leaderboard/leaderboardCaches.js`, `src/server/leaderboard/battleLogClient.js`, `src/server/leaderboard/leaderboardCandidates.js` — implementation details for cache, retry, and enrichment logic
-- `src/config.js` — leaderboard page size config (`getSeasonLeaderboardLimit`)
+- `src/server/leaderboard/leaderboardConstants.js` — cache, retry-related, and leaderboard limits
+- `src/leaderboard/leaderboardState.js` — browser-side leaderboard cache and display state

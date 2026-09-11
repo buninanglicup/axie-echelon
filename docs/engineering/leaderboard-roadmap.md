@@ -1,9 +1,9 @@
 # Leaderboard Pagination & Live-Filter Fix — Shared Understanding
 
-Status: Planning / implementation tracking. This document records the diagnosis,
-settled decisions, implementation progress, and remaining work.
+Status: Current engineering roadmap. This document records the diagnosis,
+settled decisions, shipped implementation, and remaining work.
 
-## Revision note (2026-09-03)
+## Review note (2026-09-11)
 
 This revision supersedes the "250-player preload" scope from the previous draft.
 Confirmed decision: the candidate pool ceiling is **1000 players**, matching what
@@ -15,19 +15,19 @@ development/testing value. This revision also resolves several open questions
 from that draft (page-size ambiguity, filter composition, fetch strategy) that
 were previously either unclear or marked "double check."
 
-Everything in Sections 1–7 below is unchanged from the prior draft except where
-marked **[UPDATED]** or **[NEW]**.
+The original pagination proposal has been implemented for non-live browsing.
+The remaining deferred work is live-mode migration, scan resumability, and
+follow-up polish.
 
 ## Current implementation status
 
 - Phase 1 backend split: complete.
 - Phase 1 frontend split: complete; the former large view module now delegates
   rendering, filtering, and rune filtering to focused modules.
-- Shared leaderboard constants and rank ceiling: **in progress — see "Rank
-  ceiling fix" below.**
+- Shared leaderboard constants and rank ceiling: complete.
 - Tracker retirement and unified single-process startup: complete.
-- Frontend pool/team pagination pipeline: planned; the UI still uses the legacy
-  eager leaderboard endpoint.
+- Frontend pool/team pagination pipeline: complete for non-live browsing;
+  live mode intentionally remains on the legacy eager route.
 
 Current frontend module boundaries:
 
@@ -47,29 +47,21 @@ base part `Sleepless`, for example). The existing GraphQL Axie detail `parts`
 response is a verification/fallback path only; per-Axie detail requests must
 not be added to a top-1000 scan without a separate rate-limit design. The cards
 catalog is a separate battle-card reference, not a confirmed body-part mapping.
-See `docs/implementation/body-part-filtering.md`.
+See `docs/engineering/body-part-filtering.md`.
 
-## Rank ceiling fix **[NEW]**
+## Rank ceiling decision
 
-`LEADERBOARD_MAX_RANK` is declared in two places and had drifted apart:
+`LEADERBOARD_MAX_RANK` is declared in the frontend and backend and is now
+aligned at 1000:
 
-- Frontend (`leaderboardState.js`): `1000` — correct, matches the product decision.
-- Backend (`leaderboardConstants.js`): `35` — stale; this value is what actually
-  clamps `/api/leaderboard/pool`'s `rankMax`, so the pool endpoint currently
-  refuses to return anyone past rank 35 regardless of what the frontend asks for.
+- Frontend (`leaderboardState.js`): `1000`.
+- Backend (`leaderboardConstants.js`): `1000`.
 
-**Fix:** set the backend `LEADERBOARD_MAX_RANK` to `1000` to match the frontend.
-No other code change is required for the candidate-fetch machinery — see "Why no
-chunking/windowing changes are needed" below.
+The candidate-fetch machinery uses this product ceiling and makes no additional
+per-rank-window request.
 
-This also has a side benefit: `leaderboardRuneRoutes.js` already scans
-`1..LEADERBOARD_MAX_RANK` for rune matches, using this same constant. Once both
-the pool route and the rune scanner consistently request `maxRank = 1000`, they
-land on the exact same `rankCandidateCache` entry (`${milestone}_1000`) instead
-of populating separate, overlapping cache entries. This resolves the "pool cache
-and rune-scan cache currently contain overlapping data rather than sharing one
-entry" gap noted in an earlier draft — as a side effect of the ceiling fix, not
-as separate work.
+The pool and scan paths now share the same scope-aware candidate chunks rather
+than maintaining separate overlapping pools.
 
 ## Sky Mavis endpoint clarification **[NEW]**
 
@@ -141,19 +133,15 @@ because:
   all — a match could be anywhere in the range, so the full range has to be
   scanned regardless.
 - It would require a second fetch function (windowed, arbitrary start offset)
-  and a second cache-key shape (`pool_${milestone}_${rankMin}_${rankMax}`)
+  and a second cache-key shape alongside the existing scope-aware chunks
   alongside the existing full-pool one — real added complexity.
-- It doesn't actually save calls in aggregate: the full-pool cache is keyed
-  by **era only** (`${milestone}_1000`), so it's shared across every request
-  for that era regardless of which filters triggered it. The first request of
-  any kind (rank browse, name search, rune filter) pays the 10-call cost and
-  populates the cache; every other request during that cache's TTL window,
-  from any user, using any filter combination, is a free hit off the same
-  cached pool. Windowed per-range fetches don't share cache entries with each
-  other or with the full-pool cache, so a session that starts with plain rank
-  browsing and then applies a rune filter would pay for both the windowed
-  calls *and* the full-pool fetch — worse than just doing the full-pool fetch
-  once, up front.
+- It doesn't actually save calls in aggregate: the full-pool cache is shared
+  through scope-aware candidate chunks. The first request of any kind (rank
+  browse, name search, rune filter, or body-part filter) pays the cold-fetch
+  cost for the chunks it needs; later requests for the same scope and chunks
+  can reuse them during the TTL window. Windowed per-range fetches would not
+  share those entries, so a session that starts with rank browsing and then
+  applies a scan filter could pay for both paths.
 
 **Adopted: always fetch the full pool, `rankMax = 1000`, regardless of which
 filters are active.** One fetch strategy, one cache key, one function
@@ -180,23 +168,22 @@ narrow to the intersection of all three, not any one alone.
   team matches the rune/body-part filter. This avoids enriching all 1000
   players just to check a rune that only matters for a filtered subset.
 
-## Pagination requirements
+## Implemented pagination behavior
 
 - Add a sticky pagination bar below the leaderboard table, using the existing
   `.pagination-bar` / `renderPagination()` visual pattern in `main.js`.
 - Use a separate DOM instance because the current pagination element belongs
   to the Morph Viewer results section.
-- **[UPDATED — resolves prior "double check what page size means" note]**
+- **Page-size distinction:**
   There are two distinct, previously-conflated concepts that happen to share
   the value `50`:
   - `MAXIMUM_PLAYERS_DISPLAYED_PER_PAGE` (`leaderboardState.js`) — the
     **client-side page size**: how many rows of the locally-cached pool are
-    shown per page. This is the constant Phase 3's pager should actually use.
-    Currently declared but unused.
+    shown per page. This is the constant used by the current pager.
   - `GET_SEASON_LEADERBOARD_API_LIMIT` (`leaderboardState.js`) — the
     **legacy route's per-request size**, used only by the old eager
     `/api/leaderboard?limit=&offset=` path that this pagination work bypasses
-    entirely. Unrelated to client-side paging once Phase 3 ships.
+    entirely. It remains separate from client-side paging.
 - When the displayed row count exceeds the page size, split it into pages
   using the existing `getPageItems(items, page, pageSize)` helper in
   `src/pagination.js` — already generic, already used elsewhere (Axie lookup),
@@ -246,8 +233,9 @@ piece of work.
 
 ## Per-player enrichment status model
 
-*(unchanged from prior draft — see implementation for the `EnrichmentStatus`
-type and legal transitions)*
+The backend retains an on-demand enrichment status model for pool/team work.
+Visible non-live rows use progressive team requests, while live mode continues
+to use the eager legacy route until Phase 6 migration is designed and tested.
 
 ## Implementation progress
 
@@ -259,18 +247,16 @@ type and legal transitions)*
 
 *(unchanged)*
 
-### Phase 3 — Frontend candidate pool and client-side pagination **[UPDATED]**
+### Phase 3 — Frontend candidate pool and client-side pagination ✅ DONE
 
-Phase 3 is the implementation phase for moving non-live browsing to the full
-candidate pool. It is broken into the following steps so each change can be
-validated and committed independently:
+Phase 3 moved non-live browsing to the full candidate pool. The completed
+steps were:
 
 - **3a — Backend constant and response documentation fixes:** raise
   `LEADERBOARD_MAX_RANK` to 1000, use the settled candidate-cache TTL, and mark
   unavailable pool metrics as not yet implemented.
-- **3b — Full-pool loading:** request `rankMax=1000` once per era/load, protect
-  against duplicate in-flight requests, and keep the pool fetch separate from
-  legacy rendering until the consumer path is ready.
+- **3b — Full-pool loading:** request `rankMax=1000` once per scope/load and
+  protect against duplicate in-flight requests.
 - **3c — Client-side filtering:** apply rank range and player-name substring
   as one combined predicate over the loaded pool. Live mode remains on its
   existing `leaderboardData` path.
@@ -305,13 +291,16 @@ support; unrecoverable candidate-pool failures return HTTP 503 from the pool
 route. Remaining verification also includes morph completeness for real
 ranked-battle payloads and live upstream behavior after a backend restart.
 
-### Phase 4 — Progressive enrichment and status-driven rendering
+### Phase 4 — Progressive enrichment and status-driven rendering ✅ DONE
 
-*(unchanged, narrowing behavior updated per "Filter composition model" above)*
+Visible non-live rows request team data progressively after cheap pool
+filtering. Enrichment status and unavailable team states are rendered without
+blocking the initial candidate list.
 
 ### Phase 5 — Prefetch behavior
 
-*(unchanged)*
+No separate prefetch phase is currently required; visible-page enrichment and
+candidate-chunk caching provide the current loading strategy.
 
 ### Phase 6 — Live-mode integration
 
@@ -319,25 +308,30 @@ ranked-battle payloads and live upstream behavior after a backend restart.
 
 ### Phase 7 — Polish
 
-*(unchanged)*
+Ongoing UI polish includes optional display-preference persistence, browser
+coverage, and bundle-size work tracked in `docs/STATUS.md`.
 
-## Open questions **[NEW]**
+### Display preference persistence
 
-- An earlier draft plan apparently described a simpler workflow for a
-  rank-filter-only case (a direct windowed backend request rather than a
-  full-pool fetch). That draft (`leaderboard-pagination-plan-2.md`) no longer
-  exists in the repository and predates a local Git history loss recorded in
-  `docs/history/recovery-review.md`, so its exact reasoning couldn't be
-  recovered. The "windowed fetch" idea was independently re-considered and
-  explicitly rejected in this revision (see "Fetch strategy" above) based on
-  current usage patterns and cache-sharing behavior — noted here so this
-  isn't mistaken for the original (unrecoverable) plan.
+The leaderboard's Standard/Compact density toggle is currently held in
+frontend state only. A full page reload restores Standard mode because the
+preference is not written to `localStorage` or `sessionStorage`. This is a
+small UI-polish opportunity rather than a data or workflow limitation; if it
+is addressed, `localStorage` is the appropriate scope because the preference
+is display-level and should survive browser sessions.
+
+## Open questions
+
 - Real data source for `winRate` / `dailyChange` / `recentForm` — not
   investigated. Deferred.
 - Whether to add resumability for terminal partial scans — deferred.
+- Whether to migrate live mode from the legacy eager route to the pool/team
+  pipeline while preserving fresh activity timestamps — deferred to Phase 6.
 
 ## Recommended next step
 
-Phase 3 is implemented, including automatic offseason and historical era
-scopes. Live mode, enrichment status polish (Phases 4–7), and scan resumability
-remain separate, later work.
+The non-live candidate-pool, filtering, pagination, and progressive enrichment
+work is implemented, including automatic offseason and historical era scopes.
+Remaining work is live-mode migration, scan resumability, browser coverage,
+bundle-size reduction, and optional demo-mode preparation; see
+`docs/STATUS.md` for the prioritized project roadmap.

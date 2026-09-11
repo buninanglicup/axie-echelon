@@ -2,7 +2,7 @@
 export const SEASON_LEADERBOARD_API_MAX_LIMIT = 100;
 // Product decision: deepest rank the app will ever inspect. Must match the
 // frontend copy of this same constant in src/leaderboard/leaderboardState.js
-// -- see docs/planning/leaderboard-roadmap.md, "Rank ceiling fix", for why
+// -- see docs/engineering/leaderboard-roadmap.md, "Rank ceiling fix", for why
 // these two are declared separately and how they drifted apart before.
 export const LEADERBOARD_MAX_RANK = 1000;
 

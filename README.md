@@ -1,13 +1,78 @@
 # Axie Echelon
 
-Axie Echelon is a full-stack Axie Origins leaderboard analysis dashboard. It
-turns leaderboard, battle-history, team, rune, and gene data into a focused
-local experience for browsing ranked players, investigating team composition,
-and running long-lived rune or body-part scans.
+**Beyond the Rank**
+
+Axie Echelon is a local Axie Origins analysis dashboard for studying ranked
+players, their battle history, team compositions, rune and charm loadouts, and
+Axie collectible data. It combines live Sky Mavis data with accepted local
+season snapshots so current and historical views remain distinguishable.
 
 The project is intentionally built around real integration constraints:
 upstream rate limits, incomplete data, asynchronous work, stale responses,
 and the difference between a current leaderboard and historical season eras.
+
+## Application views
+
+Axie Echelon currently has three main views.
+
+### Leaderboard
+
+The Leaderboard is the main page. It provides:
+
+- Current-season selection with era views for **Rare**, **Epic**, **Mystic**,
+  **Final**, and **Offseason**.
+- Rank, player-name, body-part, and rune filters that can be combined. Multiple
+  values within a filter use **OR** semantics; different filter types intersect
+  with **AND** semantics.
+- Standard and compact table density modes.
+- Optional live tracking with a match-recency window and configurable polling
+  interval. Activity labels estimate recent ranked activity from completed
+  battles; they do not confirm that a player is currently in a match.
+- Team previews, rune metadata, player links, and progressive enrichment.
+
+Only the current season is available today. The season selector is visibly
+locked and marked **Previous season access coming soon** because historical
+season support depends on the snapshot-archival workflow being completed.
+
+During offseason, the four completed eras are read from accepted local
+artifacts while the current offseason leaderboard is the only view that calls
+the upstream leaderboard API. When a new season begins, its current era will
+use the upstream source; completed eras will become historical snapshot-backed
+views after capture and acceptance.
+
+The global player search in the header accepts a Ronin address or client ID and
+opens the matching Player Profile view.
+
+### Player Profile
+
+The Player Profile view can be opened from the global search or from leaderboard
+player links. With no player selected, it presents a clear prompt to search by
+Ronin address or client ID and provides a link back to the Leaderboard.
+
+For a selected player, the profile includes:
+
+- Player identity and current rating context.
+- The ranked team currently displayed for the player and other observed teams.
+- Axie compositions with their rune and charm configurations.
+- Marketplace links from Axie IDs.
+- A recent ranked-battle history with result, rating or star movement, match
+  duration, elapsed time, opponent, and both team configurations.
+- A ranked-history summary with an MMR or star-movement sparkline.
+- Battle filters for opponent, result, game mode, and battle date or range.
+
+The profile initially loads 20 battles. Loading more records at the bottom
+extends the history and updates the summary visualization and ranked records.
+
+### Morph Viewer
+
+The Morph Viewer searches Axies by individual Axie ID or Ronin address and
+renders their metamorphosed parts. It supports collectible-aware filtering and
+paginated results.
+
+Metamorph data is not a reliable on-chain GraphQL field for this workflow, so
+the viewer enriches results through Sky Mavis Origins APIs rather than relying
+on marketplace GraphQL alone. Address lookup also accounts for ownership and
+delegation data before applying collectible filters.
 
 ## Current and historical leaderboard views
 
@@ -21,26 +86,14 @@ without turning Offseason into a fifth era tab.*
 *Historical Final view: Final is selected while `Current: Offseason` remains
 available for returning to the automatic leaderboard.*
 
-## What it does
+## Cross-cutting capabilities
 
-- Browse the top-ranked player pool with rank, name, and activity filters.
-- Switch between the automatic current leaderboard and reached historical
-  season eras. During offseason, the current source is distinct from Final
-  rather than being treated as a fake fifth era.
-- Scan the top-ranked pool for one or more runes or body parts, with progress,
-  partial results, cancellation, and terminal job states. Historical tabs scan
-  accepted local captured-team evidence only; they never use live enrichment.
-- Combine rune and body-part scans correctly: selections within a filter use
-  **OR** semantics, while rune and body-part filters intersect with **AND**
-  semantics.
-- Inspect enriched team previews, rune metadata, player profiles, and morphed
-  Axies.
-- Look up individual Axies or Ronin addresses, including collectible-aware
-  filtering and paginated results.
-
-> Activity labels are estimates derived from completed ranked battles and
-> timing patterns. They do not claim to confirm a player is currently in a
-> live match.
+- Scan the ranked player pool for one or more runes or body parts, with
+  progress, partial results, cancellation, and terminal job states.
+- Use accepted local captured-team evidence for historical scans; historical
+  views never silently fall back to live enrichment.
+- Distinguish confirmed results, unavailable data, and partial scan coverage
+  instead of silently treating missing data as a match.
 
 ## Engineering highlights
 
@@ -77,7 +130,7 @@ The UI keeps the automatically resolved current state separate from a manual
 historical selection:
 
 | View | Data source | Stable scope key |
-| --- | --- | --- |
+| ---  | ---         | ---              |
 | Current Rare/Epic/Mystic/Final | `/origins/v2/season-leaderboards?milestone=N` | `season:<seasonId>:milestone:<N>` |
 | Current Offseason | `/origins/v2/leaderboards` | `offseason:<seasonId>` |
 | Manually selected historical era | Accepted local snapshot, or “Snapshot unavailable” | `season:<seasonId>:milestone:<N>` |
@@ -122,6 +175,70 @@ The Vite frontend runs on port `5173`; the Express API runs on port `8787`.
 Never commit `.env` files, API keys, or raw API captures. See
 [SECURITY.md](SECURITY.md) for publication guidance.
 
+### Multiple local profiles
+
+The app also supports profile-driven local testing. Each profile can have its
+own API key, leaderboard rank window, polling interval, debug setting, and
+automatically derived frontend/backend ports. A profile is selected when the
+process starts and remains fixed until that process is restarted.
+
+To run the default profile:
+
+```powershell
+npm run dev
+```
+
+To run a configured numbered profile in another terminal:
+
+```powershell
+$env:TRACKER_PROFILE = "2"
+npm run dev
+```
+
+Profiles are configured with variables such as
+`TRACKER_PROFILE_2_MAVIS_API_KEY`, `TRACKER_PROFILE_2_VITE_LEADERBOARD_LIMIT`,
+and `TRACKER_PROFILE_2_VITE_LEADERBOARD_OFFSET`. The repository includes
+convenience launch scripts under `scripts/trackers/` for the predefined local
+profiles. Keep every API key in the ignored `.env`; never copy credentials into
+the scripts or documentation.
+
+## Troubleshooting
+
+- **Blank page at `127.0.0.1:8787`:** Use the Vite frontend at
+  `http://127.0.0.1:5173`. The backend port serves API responses, not the
+  Vite development experience.
+- **Port already in use:** Stop the process using `5173` or `8787`, then start
+  the corresponding service again.
+- **Leaderboard is blank:** Check the backend terminal for upstream API errors
+  and open `http://127.0.0.1:8787/api/leaderboard/pool` directly.
+- **API key errors:** Confirm `AXIE_ECHELON_API_KEY` exists in the ignored
+  project-root `.env` file and restart the backend after changing it.
+- **Stale frontend behavior:** Restart the backend after changing server-side
+  modules. Vite reloads frontend modules, but it does not restart Node.
+- **Previous seasons are unavailable:** This is intentional while snapshot
+  archival and accepted historical artifacts are being completed. The current
+  season's completed eras can be available locally even though older seasons
+  remain locked.
+
+## Data maintenance
+
+Season and era metadata is resolved from `src/data/season.json`. To inspect
+available seasons:
+
+```powershell
+node .\scripts\list-seasons.mjs
+```
+
+The rune and charm registries are generated from Sky Mavis metadata. Refresh
+them intentionally with `node .\scripts\update-runes.mjs` or
+`npm run charms:update`. Registry refreshes require `AXIE_ECHELON_API_KEY`
+and should be reviewed before committing generated changes.
+
+Historical snapshots are local operator data under the gitignored
+`data/snapshots/` directory. Follow [snapshot archival](docs/engineering/snapshot-archival.md)
+and [SECURITY.md](SECURITY.md) before capturing, verifying, or publishing
+anything related to snapshots.
+
 ## Quality checks
 
 ```powershell
@@ -155,8 +272,9 @@ src/
   server/            Routes, API clients, caches, scan jobs, concurrency
   data/              Season, rune, card, and mapping metadata
 docs/
-  implementation/    Data-flow and feature notes
-  planning/          Architecture and roadmap decisions
+  STATUS.md          Current state, limitations, verification, and roadmap
+  engineering/       Architecture, data-flow, and implementation notes
+  history/           Selected technical history and postmortems
 server.js             Express entry point
 vite.config.js        Frontend dev server and API proxy
 ```
@@ -183,15 +301,30 @@ vite.config.js        Frontend dev server and API proxy
 - Enable the documented local end-of-era scheduler only when you are ready to
   capture private snapshot artifacts; it is off by default and still requires
   manual review/acceptance. See
-  [snapshot archival](docs/implementation/snapshot-archival.md).
-- Investigate the intermittent live-mode page reload behavior.
+  [snapshot archival](docs/engineering/snapshot-archival.md).
 - Consider resumable scan jobs for requests that reach the watchdog timeout.
 - Split the PIXI/Spine bundle further to reduce initial load cost.
 - Add a public demo or a clearly labeled fixture-backed demo mode for portfolio
   viewing without exposing credentials.
+- Decide whether to hide or lock unavailable eras when a season has only partly
+  progressed. For example, Rare may be the only selectable era early in a
+  season; Offseason should be disabled outside offseason.
 
 ## Further reading
 
-- [Project handoff and current status](PROJECT_HANDOFF.md)
-- [Rune scan job architecture](docs/planning/rune-scan-job-architecture.md)
-- [Body-part filtering design](docs/implementation/body-part-filtering.md)
+- [Project status and roadmap](docs/STATUS.md)
+- [Engineering documentation index](docs/engineering/README.md)
+- [Rune scan job architecture](docs/engineering/rune-scan-job-architecture.md)
+- [Body-part filtering design](docs/engineering/body-part-filtering.md)
+- [Historical snapshot archival](docs/engineering/snapshot-archival.md)
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for API-key handling, ignored local data, and
+publication checks. Credentials belong only in local environment variables,
+ignored `.env` files, or a deployment secret manager.
+
+## License
+
+All rights reserved. This project is not currently licensed for reuse,
+modification, or redistribution.

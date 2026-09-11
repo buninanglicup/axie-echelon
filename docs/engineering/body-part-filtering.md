@@ -7,7 +7,7 @@ complete.
 
 Body-part scans should use local gene decoding as the primary path. Battle-log fighter payloads already include `genes`, `genes_metamorph`, `axieID`, and `axieType`, so a top-1000 scan should not make an additional request per fighter when the gene can be decoded locally.
 
-The existing rune scan job architecture is the intended model for a future body-part scan: candidate pool, bounded enrichment, polling, cancellation, deduplication, partial results, and client-side result pagination.
+Body-part scans use the shared [Leaderboard Scan Job Architecture](rune-scan-job-architecture.md): candidate pool, bounded enrichment, polling, cancellation, deduplication, partial results, and client-side result pagination.
 
 ## Canonical Variant Matching
 
@@ -37,7 +37,11 @@ Reference sources used for verification:
 - [agp-npm part metadata](https://github.com/ShaneMaglangit/agp-npm/blob/main/src/assets/parts.json)
 - [agp-npm documentation](https://shanemaglangit.github.io/agp-npm/classes/axie_gene.AxieGene.html)
 
-`agp-npm` is archived and GPL-3.0 licensed. Its source and JSON assets are references and validation oracles; they are not copied into this project. A future compact mapping must be independently created or sourced from a compatible official source.
+`agp-npm` is archived and GPL-3.0 licensed. Its source and JSON assets are
+references and validation oracles; they are not copied into this project. The
+project's independently reviewed candidate mapping is the runtime source for
+the current filter, but broader evidence is still needed before treating it as
+a complete canonical registry.
 
 The Sky Mavis cards catalog at `/origins/v2/community/cards` is stored separately in `src/data/cards.json`. It describes battle cards and associated slots, not a confirmed gene-to-body-part mapping. It must not be assumed to resolve body-part names.
 
@@ -58,9 +62,10 @@ review. The resulting card names are labeled candidate-only evidence because
 card names and gene body-part names are not independently proven equivalent.
 
 This validates the captured 512-bit decoder layout only. It does not establish
-canonical body-part names, variant relationships such as `Yen` -> `Sleepless`,
-or complete 256-bit coverage. Those still require independently prepared
-mapping evidence before a production filter can be built.
+complete canonical body-part names, variant relationships such as `Yen` ->
+`Sleepless`, or complete 256-bit coverage. The current production filter uses
+the reviewed mapping where evidence exists and reports unknown data rather
+than inventing matches where it does not.
 
 The existing GraphQL parts probe (`tmp-axie-parts-query.js`) was also checked,
 but the current local environment returned `Invalid authentication credentials`
@@ -82,17 +87,17 @@ Axies and 9,576 named parts. All 1,596 genes decoded and all observed parts
 matched the decoded class and slot. It produced 192 verified structural keys:
 every key has one untagged base name, while 83 also have collectible names.
 
-`src/data/body-part-mapping-candidate.json` preserves those 192 keys. It is a
-candidate artifact, not runtime data. All 192 records are marked `candidate`
+`src/data/body-part-mapping-candidate.json` preserves those 192 keys and is
+loaded by the runtime mapper. All 192 records remain marked `candidate`
 because exactly one untagged base name was observed. Names carrying
 `specialGenes` are retained as variants. For example, Aquatic/Eyes/2 resolves
 to `Sleepless` with `Insomnia` (Mystic) and `Yen` (Japan), while Plant/Back/4
-resolves to `Shiitake` with `Yakitori` (Japan). The classification still needs
-broader capture review before this file can power filtering.
+resolves to `Shiitake` with `Yakitori` (Japan). Broader capture review is still
+needed to expand and strengthen the mapping.
 
-`src/bodyPartMapper.js` provides an isolated lookup over this candidate file,
-with regression tests for canonical and variant matching. It is not connected
-to a route or UI yet; the local predicate and scanner use it directly.
+`src/bodyPartMapper.js` provides the runtime lookup over this candidate file,
+with regression tests for canonical and variant matching. The local predicate,
+scanner, HTTP job route, and leaderboard selector use it directly.
 
 `src/bodyPartFilter.js` now provides the local fighter predicate. It reads
 `genes_metamorph` first and falls back to `genes`, decodes dominant parts,
@@ -104,7 +109,8 @@ have no mapper entry simply cannot produce a confirmed match.
 existing narrowed leaderboard candidate flow. It reuses the team cache and
 battle-log fetch path, applies rank/name narrowing before enrichment, scans in
 bounded batches, and reports matched body-part details. Its async job and HTTP
-route are intentionally still separate follow-up work.
+route use the shared scan lifecycle described in
+`rune-scan-job-architecture.md`.
 
 `src/server/leaderboard/bodyPartScanJobs.js` now owns queued/running/complete/
 partial/failed/cancelled lifecycle state, case-insensitive selection
