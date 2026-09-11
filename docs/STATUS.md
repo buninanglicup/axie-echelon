@@ -24,6 +24,7 @@ The current implementation supports leaderboard browsing, current and historical
 - Large live scans can reach the watchdog timeout and finish as `partial`; resumable scans are not implemented.
 - Historical scans only use accepted captured-team evidence and do not claim complete era history.
 - Snapshot capture and retention remain operator-managed and local-only.
+- The leaderboard currently keeps the `MMR` column and does not support a `MOVE`/rank-change column. Rank movement is not part of the active data contract, so any such column must be added only when the backend and UI semantics are clearly defined and verified.
 - The PIXI/Spine bundle is large, and the production build reports a chunk over 500 KB.
 - Automated browser coverage is incomplete. Existing Playwright checks cover
 	selected leaderboard flows but are not part of the standard test command or
@@ -34,10 +35,12 @@ The current implementation supports leaderboard browsing, current and historical
 1. Add maintained Playwright coverage for the Leaderboard, Player Profile, and
 	Morph Viewer workflows.
 2. Improve resumability for scans that reach the watchdog timeout.
-3. Evaluate migrating live mode from the legacy eager leaderboard route to the
+3. Define and add a supported `MOVE`/rank-change column only when the live data
+	contract provides reliable deltas and the UI/UX is validated.
+4. Evaluate migrating live mode from the legacy eager leaderboard route to the
 	pool/team pipeline while preserving fresh activity timestamps.
-4. Reduce initial PIXI/Spine bundle cost through further code splitting.
-5. Consider a fixture-backed demo mode for portfolio viewing after safe,
+5. Reduce initial PIXI/Spine bundle cost through further code splitting.
+6. Consider a fixture-backed demo mode for portfolio viewing after safe,
    anonymized leaderboard, profile, lookup, and morph fixtures are prepared.
 
 ## Verification

@@ -147,22 +147,6 @@ export function renderLeaderboardRows(leaderboardBody, players) {
     rankValue.className = "rank-value";
     rankValue.textContent = player.rank || "-";
     rankCell.append(rankValue);
-    const movement = document.createElement("span");
-    const rankChange = Number(player.rankChange);
-    if (Number.isFinite(rankChange) && rankChange !== 0) {
-      const movedUp = rankChange > 0;
-      movement.className = `rank-movement ${movedUp ? "rank-movement-up" : "rank-movement-down"}`;
-      movement.textContent = `${movedUp ? "▲" : "▼"} ${Math.abs(rankChange)}`;
-      movement.setAttribute("aria-label", movedUp
-        ? `Up ${Math.abs(rankChange)} place${Math.abs(rankChange) === 1 ? "" : "s"} since the previous update`
-        : `Down ${Math.abs(rankChange)} place${Math.abs(rankChange) === 1 ? "" : "s"} since the previous update`);
-    } else {
-      movement.className = "rank-movement rank-movement-flat";
-      movement.textContent = "—";
-      movement.title = "No rank change recorded yet";
-      movement.setAttribute("aria-label", "No rank change recorded yet");
-    }
-    rankCell.append(movement);
     if (rankNumber >= 1 && rankNumber <= 3) rankCell.classList.add("podium-rank");
     row.append(rankCell);
 

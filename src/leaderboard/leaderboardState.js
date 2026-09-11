@@ -129,11 +129,6 @@ export const leaderboardState = {
   pollingIntervalSeconds: POLLING_INTERVAL_SECONDS, // initialized from env variable
   leaderboardPollTimer: null,
   compactModeEnabled: false,
-  // The upstream leaderboard has no previous-rank field. Keep the most recent
-  // successful response per scope so the UI can show movement on the next poll
-  // without changing the API contract or persisting stale ranks between eras.
-  rankSnapshotByUser: new Map(),
-  rankSnapshotScopeKey: null,
   lastSuccessfulPollAt: null, // Tracks live-mode poll health; compare to pollingIntervalSeconds * 2.5 to determine if the estimate should mute to Unknown.
   avgMatchDurationMs: null, // Latest median match duration from the backend; used by predictNextActivity() to estimate whether the player is likely still in a match.
 

@@ -114,34 +114,6 @@ function fingerprintLeaderboard(players) {
     .join("|");
 }
 
-// The live leaderboard response contains only the current position. Compare
-// it with the preceding successful response for this exact scope so movement
-// is useful while remaining explicitly unavailable on the first observation.
-function annotateRankMovement(players, scope) {
-  const scopeKey = getLeaderboardScopeKey(scope);
-  if (leaderboardState.rankSnapshotScopeKey !== scopeKey) {
-    leaderboardState.rankSnapshotByUser = new Map();
-    leaderboardState.rankSnapshotScopeKey = scopeKey;
-  }
-
-  const previousRanks = leaderboardState.rankSnapshotByUser;
-  const annotated = players.map((player) => {
-    const currentRank = Number(player?.rank);
-    const previousRank = previousRanks.get(player?.userID);
-    const rankChange = Number.isFinite(currentRank) && Number.isFinite(previousRank)
-      ? previousRank - currentRank
-      : null;
-    return { ...player, rankChange };
-  });
-
-  leaderboardState.rankSnapshotByUser = new Map(
-    players
-      .filter((player) => player?.userID && Number.isFinite(Number(player.rank)))
-      .map((player) => [player.userID, Number(player.rank)])
-  );
-  return annotated;
-}
-
 // ===== Rank / activity filter labels & application =====
 function updateRankFilterLabels() {
   if (!rankFilterValue) return;
@@ -884,8 +856,7 @@ async function hydrateLeaderboard() {
     // Player data is used as-is. Filtering may separately consult the
     // last-known-good timestamp cache when a live battle-time fetch fails;
     // rendering still uses the raw current-cycle timestamp.
-    const rawPlayers = Array.isArray(data.players) ? data.players : [];
-    const players = annotateRankMovement(rawPlayers, scope);
+    const players = Array.isArray(data.players) ? data.players : [];
 
     if (leaderboardState.liveModeEnabled) {
       for (const player of players) {
