@@ -25,6 +25,7 @@ import "./src/server/shared/env.js";
 
 import express from "express";
 import cors from "cors";
+import rateLimit from "express-rate-limit";
 import path from "node:path";
 import {
   allowedOrigin,
@@ -46,11 +47,42 @@ console.log(`Starting server on port ${port} (${process.env.PORT ? 'PORT env ove
 
 const app = express();
 
+const baselineLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests. Please slow down." }
+});
+
+const expensiveRouteLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests to this endpoint. Please slow down." }
+});
+
+const liveModeLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 150,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (request) => `${request.ip}:liveMode`,
+  skip: (request) => String(request.query.liveMode ?? "").toLowerCase() !== "true",
+  message: { error: "Live mode polling limit reached for this hour. Try a longer polling interval." }
+});
+
 app.use(
   cors({
     origin: allowedOrigin
   })
 );
+
+app.use(baselineLimiter);
+app.use("/api/address", expensiveRouteLimiter);
+app.use("/api/leaderboard/team", expensiveRouteLimiter);
+app.use("/api/leaderboard", liveModeLimiter);
 
 app.get("/", (request, response) => {
   response.sendFile(path.resolve("index.html"));

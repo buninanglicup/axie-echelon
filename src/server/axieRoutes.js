@@ -7,6 +7,7 @@ import { cleanAxieId, cleanRoninAddress } from "./shared/validators.js";
 import { getAxieMarketplaceDetails, fetchAxiesOwnedByAddress } from "./shared/marketplaceAxieClient.js";
 import { getProfileByRoninAddress } from "./shared/profileClient.js";
 import { resolveAxieById, getAllUserFighters, normalizeFighter, classifyCollectible } from "./axieService.js";
+import { getCachedAddressLookup, setCachedAddressLookup } from "./shared/addressLookupCache.js";
 
 const router = express.Router();
 
@@ -40,13 +41,28 @@ router.get("/api/axie-detail/:id", async (request, response) => {
 router.get("/api/address/:address", async (request, response) => {
   try {
     const address = cleanRoninAddress(request.params.address);
+    const page = Math.max(1, Number(request.query.page) || 1);
+    const pageSize = Math.min(100, Math.max(1, Number(request.query.limit) || 30));
+
+    const cached = getCachedAddressLookup(address);
+    if (cached) {
+      const responseBody = {
+        profile: cached.profile,
+        axies: cached.axies,
+        morphDataNotice: cached.morphDataNotice,
+        page: Math.min(page, cached.totalPages || 1),
+        pageSize: cached.pageSize,
+        totalPages: cached.totalPages,
+        totalItems: cached.totalItems
+      };
+      console.log(`[/api/address] CACHE HIT: address=${address}, page=${page}, pageSize=${pageSize}`);
+      return response.json(responseBody);
+    }
+
     console.log(`[/api/address] CALL: address=${address}`);
 
     const profile = await getProfileByRoninAddress(address);
     console.log(`[/api/address] Profile resolved: accountId=${profile.accountId}, name=${profile.name}`);
-
-    const page = Math.max(1, Number(request.query.page) || 1);
-    const pageSize = Math.max(1, Number(request.query.limit) || 30);
 
     const ownedAxies = await fetchAxiesOwnedByAddress(address);
     let fighterItems = ownedAxies.items;
@@ -107,11 +123,10 @@ router.get("/api/address/:address", async (request, response) => {
       }
     }
 
-    console.log(`[/api/address] Processed ${processedCount} fighters, ${errorCount} errors. Returning ${uniqueAxies.size} axies.`);
-
-    response.json({
+    const axies = [...uniqueAxies.values()];
+    const responseBody = {
       profile,
-      axies: [...uniqueAxies.values()],
+      axies,
       morphDataNotice: ownedAxies.items.length > 0 && fighters.items.length === 0
         ? "This address has Axies, but morph data is unavailable for this wallet. Search an individual Axie ID to retrieve its latest morph data."
         : null,
@@ -119,7 +134,12 @@ router.get("/api/address/:address", async (request, response) => {
       pageSize,
       totalPages: Math.max(1, Math.ceil(totalItems / pageSize)),
       totalItems
-    });
+    };
+
+    setCachedAddressLookup(address, responseBody);
+    console.log(`[/api/address] Processed ${processedCount} fighters, ${errorCount} errors. Returning ${uniqueAxies.size} axies.`);
+
+    response.json(responseBody);
   } catch (error) {
     response.status(400).json({
       error: error.message
