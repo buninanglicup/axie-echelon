@@ -131,6 +131,7 @@ function initProfilePageIfNeeded() {
   if (leaderboardView) leaderboardView.classList.add("hidden");
   if (profilePanel) {
     renderProfileBattleLogPanel(profilePanel, profileId);
+    requestAnimationFrame(() => initProfileAssetScale());
   }
 }
 

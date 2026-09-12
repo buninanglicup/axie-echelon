@@ -1599,6 +1599,18 @@ button.status-pill:not(:disabled):focus-visible {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), inset 0 1px rgba(255, 255, 255, 0.08);
 }
 
+:root {
+  --player-profile-rune-size-min: 24px;
+  --player-profile-rune-size-max: 40px;
+  --player-profile-rune-size: clamp(var(--player-profile-rune-size-min), 2.6vw, var(--player-profile-rune-size-max));
+  --player-profile-rune-size-battlecard-min: 20px;
+  --player-profile-rune-size-battlecard-max: 32px;
+  --player-profile-rune-size-battlecard: clamp(var(--player-profile-rune-size-battlecard-min), 2vw, var(--player-profile-rune-size-battlecard-max));
+  --profile-charm-size-min: 18px;
+  --profile-charm-size-max: 28px;
+  --profile-charm-size: clamp(var(--profile-charm-size-min), 2.4vw, var(--profile-charm-size-max));
+}
+
 .profile-team-heading,
 .profile-axie-name,
 .profile-rune-name {
@@ -1634,13 +1646,13 @@ button.status-pill:not(:disabled):focus-visible {
 .profile-axie-name { display: block; overflow: hidden; color: #a9c0ca; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; letter-spacing: 0.02em; text-overflow: ellipsis; white-space: nowrap; }
 .profile-axie-marketplace-link { color: #8acfe3; text-decoration: none; }
 .profile-axie-marketplace-link:hover, .profile-axie-marketplace-link:focus-visible { color: #c4f5ff; text-decoration: underline; }
-.profile-rune-tooltip { position: absolute; z-index: 3; top: 4px; left: 4px; width: clamp(20px, 2.6vw, 48px); height: clamp(20px, 2.6vw, 48px); padding: 0; border: 0; background: transparent; cursor: pointer; }
+.profile-rune-tooltip { position: absolute; z-index: 3; top: 4px; left: 4px; width: var(--player-profile-rune-size); height: var(--player-profile-rune-size); padding: 0; border: 0; background: transparent; cursor: pointer; }
 .profile-rune-tooltip:focus-visible { outline: 2px solid #8feeb2; outline-offset: 2px; }
 .profile-rune-badge { display: block; width: 100%; height: 100%; opacity: 0.82; object-fit: contain; }
 .profile-rune-badge-text { display: grid; place-items: center; border: 1px solid rgba(143, 238, 178, 0.42); border-radius: 5px; background: rgba(10, 20, 28, 0.85); color: #8feeb2; font-size: clamp(9px, 1vw, 13px); font-weight: 800; }
 .profile-rune-tooltip::after { position: absolute; z-index: 12; top: calc(100% + 6px); left: 0; display: none; width: max-content; max-width: 160px; padding: 6px 8px; border: 1px solid rgba(143, 238, 178, 0.34); border-radius: 5px; background: #0b1d27; box-shadow: 0 5px 16px rgba(0, 0, 0, 0.35); color: #dff8ec; content: attr(data-detail); font: 600 10px/1.3 Inter, system-ui, sans-serif; text-align: left; white-space: pre-line; pointer-events: none; }
 button.profile-rune-tooltip:hover::after, button.profile-rune-tooltip:focus-visible::after, button.profile-rune-tooltip.is-details-visible::after { display: block; }
-.profile-charm-slots { --profile-charm-size: clamp(18px, 2vw, 34px); display: grid; grid-template-columns: repeat(6, minmax(0, var(--profile-charm-size))); justify-content: center; gap: 2px; margin: 4px auto 0; }
+.profile-charm-slots { display: grid; grid-template-columns: repeat(6, minmax(0, var(--profile-charm-size))); justify-content: center; gap: 2px; margin: 4px auto 0; }
 .profile-charm-slot { position: relative; display: grid; width: var(--profile-charm-size); height: var(--profile-charm-size); min-width: 0; place-items: center; padding: 0; border: 1px solid rgba(143, 238, 178, 0.12); border-radius: 3px; background: rgba(255, 255, 255, 0.025); color: #647d88; font: inherit; font-size: clamp(8px, 0.9vw, 11px); font-weight: 800; line-height: 1; cursor: pointer; }
 .profile-charm-slot.is-equipped { border-color: rgba(117, 213, 190, 0.5); background: rgba(69, 186, 157, 0.18); color: #b7ffe2; box-shadow: inset 0 0 8px rgba(65, 203, 169, 0.1); }
 .profile-charm-slot:focus-visible { outline: 2px solid #8feeb2; outline-offset: 2px; }
@@ -1701,9 +1713,9 @@ button.profile-rune-tooltip:hover::after, button.profile-rune-tooltip:focus-visi
 
 /* Header team is an inspectable current composition; history keeps its
    per-battle equipment deliberately quieter. */
-.profile-latest-team-header .profile-charm-slots { --profile-charm-size: clamp(20px, 2.4vw, 40px); gap: 3px; }
+.profile-latest-team-header .profile-charm-slots { gap: 3px; }
 .profile-latest-team-header .profile-charm-art { width: calc(var(--profile-charm-size) * 0.72); height: calc(var(--profile-charm-size) * 0.72); }
-.profile-team-card .profile-rune-tooltip { width: clamp(20px, 2.6vw, 48px); height: clamp(20px, 2.6vw, 48px); }
+.profile-team-card .profile-rune-tooltip { width: var(--player-profile-rune-size-battlecard); height: var(--player-profile-rune-size-battlecard); }
 .profile-team-card .profile-rune-badge { width: 100%; height: 100%; }
 .profile-retention-note { margin: 2px 0 8px; font-size: 12px; }
 .profile-latest-team-copy-header { margin-top: 10px; padding-top: 9px; border-top: 1px solid rgba(157, 186, 184, 0.13); }
