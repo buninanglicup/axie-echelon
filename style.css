@@ -1600,15 +1600,28 @@ button.status-pill:not(:disabled):focus-visible {
 }
 
 :root {
+  /* Sized as a % of .profile-axie's own rendered width (the containing
+     block for .profile-rune-tooltip, and the default block width that
+     .profile-charm-slots inherits) instead of viewport width (vw), so
+     rune/charm now track the SAME box the axie art scales against
+     (.profile-axie-morph img { width: 100% }). This is what closes the
+     drift: previously these grew/shrank with the browser window while
+     the card itself was capped by the sidebar width and the 1500px
+     content cap, so at some widths the ratio was simply wrong, not
+     just "too small" or "too big" everywhere.
+     Coefficients (25% rune / 15% charm) were calibrated against a real
+     .profile-axie width measured in devtools, then hand-tuned on top —
+     re-check them the same way if the axie tile's own sizing/layout
+     ever changes. */
   --player-profile-rune-size-min: 24px;
   --player-profile-rune-size-max: 40px;
-  --player-profile-rune-size: clamp(var(--player-profile-rune-size-min), 2.6vw, var(--player-profile-rune-size-max));
+  --player-profile-rune-size: clamp(var(--player-profile-rune-size-min), 25%, var(--player-profile-rune-size-max));
   --player-profile-rune-size-battlecard-min: 20px;
   --player-profile-rune-size-battlecard-max: 32px;
-  --player-profile-rune-size-battlecard: clamp(var(--player-profile-rune-size-battlecard-min), 2vw, var(--player-profile-rune-size-battlecard-max));
+  --player-profile-rune-size-battlecard: clamp(var(--player-profile-rune-size-battlecard-min), 25%, var(--player-profile-rune-size-battlecard-max));
   --profile-charm-size-min: 18px;
   --profile-charm-size-max: 28px;
-  --profile-charm-size: clamp(var(--profile-charm-size-min), 2.4vw, var(--profile-charm-size-max));
+  --profile-charm-size: clamp(var(--profile-charm-size-min), 15%, var(--profile-charm-size-max));
 }
 
 .profile-team-heading,
@@ -1653,14 +1666,14 @@ button.status-pill:not(:disabled):focus-visible {
 .profile-rune-tooltip::after { position: absolute; z-index: 12; top: calc(100% + 6px); left: 0; display: none; width: max-content; max-width: 160px; padding: 6px 8px; border: 1px solid rgba(143, 238, 178, 0.34); border-radius: 5px; background: #0b1d27; box-shadow: 0 5px 16px rgba(0, 0, 0, 0.35); color: #dff8ec; content: attr(data-detail); font: 600 10px/1.3 Inter, system-ui, sans-serif; text-align: left; white-space: pre-line; pointer-events: none; }
 button.profile-rune-tooltip:hover::after, button.profile-rune-tooltip:focus-visible::after, button.profile-rune-tooltip.is-details-visible::after { display: block; }
 .profile-charm-slots { display: grid; grid-template-columns: repeat(6, minmax(0, var(--profile-charm-size))); justify-content: center; gap: 2px; margin: 4px auto 0; }
-.profile-charm-slot { position: relative; display: grid; width: var(--profile-charm-size); height: var(--profile-charm-size); min-width: 0; place-items: center; padding: 0; border: 1px solid rgba(143, 238, 178, 0.12); border-radius: 3px; background: rgba(255, 255, 255, 0.025); color: #647d88; font: inherit; font-size: clamp(8px, 0.9vw, 11px); font-weight: 800; line-height: 1; cursor: pointer; }
+.profile-charm-slot { position: relative; display: grid; width: 100%; aspect-ratio: 1; min-width: 0; place-items: center; padding: 0; border: 1px solid rgba(143, 238, 178, 0.12); border-radius: 3px; background: rgba(255, 255, 255, 0.025); color: #647d88; font: inherit; font-size: clamp(8px, 0.9vw, 11px); font-weight: 800; line-height: 1; cursor: pointer; }
 .profile-charm-slot.is-equipped { border-color: rgba(117, 213, 190, 0.5); background: rgba(69, 186, 157, 0.18); color: #b7ffe2; box-shadow: inset 0 0 8px rgba(65, 203, 169, 0.1); }
 .profile-charm-slot:focus-visible { outline: 2px solid #8feeb2; outline-offset: 2px; }
 .profile-charm-slot::after { position: absolute; z-index: 12; bottom: calc(100% + 6px); left: 50%; display: none; width: max-content; max-width: 180px; padding: 6px 8px; border: 1px solid rgba(143, 238, 178, 0.34); border-radius: 5px; background: #0b1d27; box-shadow: 0 5px 16px rgba(0, 0, 0, 0.35); color: #dff8ec; content: attr(data-detail); font-size: 10px; font-weight: 600; line-height: 1.3; text-align: left; transform: translateX(-50%); white-space: pre-line; pointer-events: none; }
 .profile-charm-slot:hover::after, .profile-charm-slot:focus-visible::after, .profile-charm-slot.is-details-visible::after { display: block; }
 .profile-charm-image { overflow: visible; }
-.profile-charm-art { display: block; width: calc(var(--profile-charm-size) * 0.7); height: calc(var(--profile-charm-size) * 0.7); max-width: calc(100% - 4px); max-height: calc(100% - 4px); margin: auto; border-radius: inherit; object-fit: contain; }
-.profile-charm-slot.has-unusual-art-ratio .profile-charm-art { width: calc(var(--profile-charm-size) * 0.62); height: calc(var(--profile-charm-size) * 0.62); }
+.profile-charm-art { display: block; width: 70%; height: 70%; max-width: calc(100% - 4px); max-height: calc(100% - 4px); margin: auto; border-radius: inherit; object-fit: contain; }
+.profile-charm-slot.has-unusual-art-ratio .profile-charm-art { width: 62%; height: 62%; }
 
 .profile-identity { display: flex; align-items: center; gap: 10px; }
 .profile-title-stack { display: grid; gap: 4px; }
@@ -1714,7 +1727,7 @@ button.profile-rune-tooltip:hover::after, button.profile-rune-tooltip:focus-visi
 /* Header team is an inspectable current composition; history keeps its
    per-battle equipment deliberately quieter. */
 .profile-latest-team-header .profile-charm-slots { gap: 3px; }
-.profile-latest-team-header .profile-charm-art { width: calc(var(--profile-charm-size) * 0.72); height: calc(var(--profile-charm-size) * 0.72); }
+.profile-latest-team-header .profile-charm-art { width: 72%; height: 72%; }
 .profile-team-card .profile-rune-tooltip { width: var(--player-profile-rune-size-battlecard); height: var(--player-profile-rune-size-battlecard); }
 .profile-team-card .profile-rune-badge { width: 100%; height: 100%; }
 .profile-retention-note { margin: 2px 0 8px; font-size: 12px; }
