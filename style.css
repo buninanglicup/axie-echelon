@@ -1351,8 +1351,8 @@ button.status-pill:not(:disabled):focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: calc(22px * var(--tile-scale));
+  height: calc(22px * var(--tile-scale));
   border-radius: 999px;
   overflow: hidden;
   background: rgba(149, 194, 255, 0.12);
@@ -1553,6 +1553,7 @@ button.status-pill:not(:disabled):focus-visible {
 }
 
 .profile-team-card {
+  --tile-scale: clamp(0.7, 100vw / 1500, 1);
   display: grid;
   grid-template-rows: auto 1fr auto;
   gap: 5px;
@@ -1633,21 +1634,21 @@ button.status-pill:not(:disabled):focus-visible {
 .profile-axie-name { display: block; overflow: hidden; color: #a9c0ca; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; letter-spacing: 0.02em; text-overflow: ellipsis; white-space: nowrap; }
 .profile-axie-marketplace-link { color: #8acfe3; text-decoration: none; }
 .profile-axie-marketplace-link:hover, .profile-axie-marketplace-link:focus-visible { color: #c4f5ff; text-decoration: underline; }
-.profile-rune-tooltip { position: absolute; z-index: 3; top: 4px; left: 4px; width: 40px; height: 40px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.profile-rune-tooltip { position: absolute; z-index: 3; top: 4px; left: 4px; width: clamp(20px, 2.6vw, 48px); height: clamp(20px, 2.6vw, 48px); padding: 0; border: 0; background: transparent; cursor: pointer; }
 .profile-rune-tooltip:focus-visible { outline: 2px solid #8feeb2; outline-offset: 2px; }
-.profile-rune-badge { display: block; width: 40px !important; height: 40px; opacity: 0.82; object-fit: contain !important; }
-.profile-rune-badge-text { display: grid; place-items: center; border: 1px solid rgba(143, 238, 178, 0.42); border-radius: 5px; background: rgba(10, 20, 28, 0.85); color: #8feeb2; font-size: 8px; font-weight: 800; }
+.profile-rune-badge { display: block; width: 100%; height: 100%; opacity: 0.82; object-fit: contain; }
+.profile-rune-badge-text { display: grid; place-items: center; border: 1px solid rgba(143, 238, 178, 0.42); border-radius: 5px; background: rgba(10, 20, 28, 0.85); color: #8feeb2; font-size: clamp(9px, 1vw, 13px); font-weight: 800; }
 .profile-rune-tooltip::after { position: absolute; z-index: 12; top: calc(100% + 6px); left: 0; display: none; width: max-content; max-width: 160px; padding: 6px 8px; border: 1px solid rgba(143, 238, 178, 0.34); border-radius: 5px; background: #0b1d27; box-shadow: 0 5px 16px rgba(0, 0, 0, 0.35); color: #dff8ec; content: attr(data-detail); font: 600 10px/1.3 Inter, system-ui, sans-serif; text-align: left; white-space: pre-line; pointer-events: none; }
 button.profile-rune-tooltip:hover::after, button.profile-rune-tooltip:focus-visible::after, button.profile-rune-tooltip.is-details-visible::after { display: block; }
-.profile-charm-slots { --profile-charm-size: 24px; display: grid; grid-template-columns: repeat(6, var(--profile-charm-size)); justify-content: center; gap: 2px; margin: 4px auto 0; }
-.profile-charm-slot { position: relative; display: grid; width: var(--profile-charm-size); height: var(--profile-charm-size); min-width: 0; place-items: center; padding: 0; border: 1px solid rgba(143, 238, 178, 0.12); border-radius: 3px; background: rgba(255, 255, 255, 0.025); color: #647d88; font: inherit; font-size: 7px; font-weight: 800; line-height: 1; cursor: pointer; }
+.profile-charm-slots { --profile-charm-size: clamp(18px, 2vw, 34px); display: grid; grid-template-columns: repeat(6, minmax(0, var(--profile-charm-size))); justify-content: center; gap: 2px; margin: 4px auto 0; }
+.profile-charm-slot { position: relative; display: grid; width: var(--profile-charm-size); height: var(--profile-charm-size); min-width: 0; place-items: center; padding: 0; border: 1px solid rgba(143, 238, 178, 0.12); border-radius: 3px; background: rgba(255, 255, 255, 0.025); color: #647d88; font: inherit; font-size: clamp(8px, 0.9vw, 11px); font-weight: 800; line-height: 1; cursor: pointer; }
 .profile-charm-slot.is-equipped { border-color: rgba(117, 213, 190, 0.5); background: rgba(69, 186, 157, 0.18); color: #b7ffe2; box-shadow: inset 0 0 8px rgba(65, 203, 169, 0.1); }
 .profile-charm-slot:focus-visible { outline: 2px solid #8feeb2; outline-offset: 2px; }
 .profile-charm-slot::after { position: absolute; z-index: 12; bottom: calc(100% + 6px); left: 50%; display: none; width: max-content; max-width: 180px; padding: 6px 8px; border: 1px solid rgba(143, 238, 178, 0.34); border-radius: 5px; background: #0b1d27; box-shadow: 0 5px 16px rgba(0, 0, 0, 0.35); color: #dff8ec; content: attr(data-detail); font-size: 10px; font-weight: 600; line-height: 1.3; text-align: left; transform: translateX(-50%); white-space: pre-line; pointer-events: none; }
 .profile-charm-slot:hover::after, .profile-charm-slot:focus-visible::after, .profile-charm-slot.is-details-visible::after { display: block; }
 .profile-charm-image { overflow: visible; }
-.profile-charm-art { display: block; width: 16px; height: 16px; max-width: calc(100% - 4px); max-height: calc(100% - 4px); margin: auto; border-radius: inherit; object-fit: contain; }
-.profile-charm-slot.has-unusual-art-ratio .profile-charm-art { width: 14px; height: 14px; }
+.profile-charm-art { display: block; width: calc(var(--profile-charm-size) * 0.7); height: calc(var(--profile-charm-size) * 0.7); max-width: calc(100% - 4px); max-height: calc(100% - 4px); margin: auto; border-radius: inherit; object-fit: contain; }
+.profile-charm-slot.has-unusual-art-ratio .profile-charm-art { width: calc(var(--profile-charm-size) * 0.62); height: calc(var(--profile-charm-size) * 0.62); }
 
 .profile-identity { display: flex; align-items: center; gap: 10px; }
 .profile-title-stack { display: grid; gap: 4px; }
@@ -1700,10 +1701,10 @@ button.profile-rune-tooltip:hover::after, button.profile-rune-tooltip:focus-visi
 
 /* Header team is an inspectable current composition; history keeps its
    per-battle equipment deliberately quieter. */
-.profile-latest-team-header .profile-charm-slots { --profile-charm-size: 28px; gap: 3px; }
-.profile-latest-team-header .profile-charm-art { width: 19px; height: 19px; }
-.profile-team-card .profile-rune-tooltip { width: 30px; height: 30px; }
-.profile-team-card .profile-rune-badge { width: 30px !important; height: 30px; }
+.profile-latest-team-header .profile-charm-slots { --profile-charm-size: clamp(20px, 2.4vw, 40px); gap: 3px; }
+.profile-latest-team-header .profile-charm-art { width: calc(var(--profile-charm-size) * 0.72); height: calc(var(--profile-charm-size) * 0.72); }
+.profile-team-card .profile-rune-tooltip { width: clamp(20px, 2.6vw, 48px); height: clamp(20px, 2.6vw, 48px); }
+.profile-team-card .profile-rune-badge { width: 100%; height: 100%; }
 .profile-retention-note { margin: 2px 0 8px; font-size: 12px; }
 .profile-latest-team-copy-header { margin-top: 10px; padding-top: 9px; border-top: 1px solid rgba(157, 186, 184, 0.13); }
 .profile-latest-team-copy-header:empty { margin: 0; padding: 0; border-top: none; }
@@ -1739,6 +1740,7 @@ button.profile-rune-tooltip:hover::after, button.profile-rune-tooltip:focus-visi
 .profile-rating-sparkline { grid-column: 1 / -1; width: 132px; height: 30px; overflow: visible; background: linear-gradient(to bottom, rgba(100, 223, 178, 0.08), transparent); border-radius: 2px; }
 .profile-rating-sparkline polyline { stroke: #64dfb2; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2.5; filter: drop-shadow(0 0 4px rgba(100, 223, 178, 0.5)); }
 .profile-latest-team-header {
+  --tile-scale: clamp(0.75, 100vw / 1600, 1);
   display: grid;
   width: min(600px, 48vw);
   align-self: flex-start;
@@ -1749,6 +1751,7 @@ button.profile-rune-tooltip:hover::after, button.profile-rune-tooltip:focus-visi
   background: linear-gradient(160deg, rgba(143, 238, 178, 0.06), rgba(255, 255, 255, 0.014) 62%);
   box-shadow: inset 0 1px rgba(255, 255, 255, 0.04), 0 4px 14px rgba(0, 0, 0, 0.18);
 }
+
 .profile-latest-axies { width: 100%; max-width: 600px; margin-top: 0; }
 .profile-latest-axies .profile-axie-morph { min-height: 70px; } /* Latest team: container height */
 .profile-latest-axies .profile-axie-morph img { max-height: 95px; } /* Latest team: Axie image size */
@@ -1969,10 +1972,9 @@ button.profile-rune-tooltip:hover::after, button.profile-rune-tooltip:focus-visi
   .profile-axie { padding: 3px 2px 4px; border-radius: 6px; }
   .profile-axie-morph { min-height: 52px; }
   .profile-axie-morph img { max-height: 62px; }
-  .profile-rune-tooltip { top: 4px; left: 4px; width: 16px; height: 16px; }
+  .profile-rune-tooltip { top: 4px; left: 4px; width: 20px; height: 20px; }
   .profile-axie-inspect { top: 3px; right: 3px; width: 18px; height: 18px; }
   .profile-axie-inspect svg { width: 11px; height: 11px; }
-  .profile-rune-badge { width: 16px !important; height: 16px; }
   .profile-axie-name { display: none; font-size: 10px; }
   .profile-battle-log-entry.is-expanded .profile-axie-name { display: block; }
   .profile-latest-team-header { width: min(100%, 450px); padding: 9px 10px 11px; }
