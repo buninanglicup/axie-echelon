@@ -2,6 +2,7 @@ import express from "express";
 import { getOrFetchPlayerEnrichment } from "./enrichmentCache.js";
 import { resolveLeaderboardScope } from "../seasonRoutes.js";
 import { getHistoricalSnapshotEnrichment } from "../snapshots/snapshotReader.js";
+import { cleanUserId } from "../shared/validators.js";
 
 export function createLeaderboardEnrichmentRouter({
   getLiveEnrichment = getOrFetchPlayerEnrichment,
@@ -11,9 +12,11 @@ export function createLeaderboardEnrichmentRouter({
 
   router.get("/api/leaderboard/team/:userID", async (request, response) => {
     try {
-      const userID = String(request.params.userID || "").trim();
-      if (!userID) {
-        return response.status(400).json({ error: "userID is required." });
+      let userID;
+      try {
+        userID = cleanUserId(request.params.userID);
+      } catch (validationError) {
+        return response.status(400).json({ error: validationError.message });
       }
       const leaderboardScope = resolveLeaderboardScope(request);
       if (request.query.historical === "1") {
