@@ -13,6 +13,16 @@ leaderboard feature, covering both live-tracking (polling) use and non-live
 (paginated browsing) use. The goal is to balance data freshness against
 Sky Mavis API rate-limit constraints.
 
+## Operational guard rails for live polling and expensive reads
+
+The backend now uses shared Express rate-limiters to keep active polling and
+expensive upstream reads under control. The baseline limiter covers ordinary API
+traffic in general, `expensiveRouteLimiter` is applied to the costliest routes,
+and the `liveMode` route gets its own hourly quota keyed by the normalized client
+IP with `ipKeyGenerator(request.ip)`. This prevents an unlimited polling loop from
+amplifying Sky Mavis requests while still allowing ordinary non-live reads and
+cache hits to continue normally.
+
 ## Important: cache *settings* are shared between live and non-live mode
 
 There is a common misconception worth stating plainly: live mode and non-live

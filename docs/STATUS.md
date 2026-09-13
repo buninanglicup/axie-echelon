@@ -16,8 +16,9 @@ The current implementation supports leaderboard browsing, current and historical
 - Progressive team enrichment with cached team previews, rune metadata, profiles, and morphed Axie rendering.
 - Player battle-history profiles with team, rune, charm, and provenance data.
 - Axie ID and Ronin-address lookup with collectible-aware filtering and pagination.
+- API safety rails for expensive routes: shared baseline quota, route-level expensive limiter, live-mode hourly budget, and request validation for IDs and Ronin addresses.
 - Historical snapshot capture, acceptance, verification, and local-only reading.
-- Node test coverage for core filters, scan jobs, caching, profiles, and snapshots.
+- Node test coverage for core filters, scan jobs, caching, profiles, snapshots, and route/input hardening.
 
 ## Known Issues and Limitations
 
@@ -48,6 +49,7 @@ The current implementation supports leaderboard browsing, current and historical
 Run the local quality checks before publishing changes:
 
 ```powershell
+node --test src/server/shared/validators.test.js src/server/shared/rateLimiters.test.js src/server/axieRoutes.test.js src/server/profile/profileRoutes.test.js
 npm test
 npm run build
 git diff --check
