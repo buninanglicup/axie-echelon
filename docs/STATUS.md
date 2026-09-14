@@ -16,9 +16,17 @@ The current implementation supports leaderboard browsing, current and historical
 - Progressive team enrichment with cached team previews, rune metadata, profiles, and morphed Axie rendering.
 - Player battle-history profiles with team, rune, charm, and provenance data.
 - Axie ID and Ronin-address lookup with collectible-aware filtering and pagination.
-- API safety rails for expensive routes: shared baseline quota, route-level expensive limiter, live-mode hourly budget, and request validation for IDs and Ronin addresses.
+- API safety rails for expensive routes: shared baseline quota, independent `createExpensiveRouteLimiter()` instances on the wallet-lookup and team-enrichment routes, live-mode hourly budget, and request validation for IDs and Ronin addresses.
 - Historical snapshot capture, acceptance, verification, and local-only reading.
 - Node test coverage for core filters, scan jobs, caching, profiles, snapshots, and route/input hardening.
+
+## Completed hardening tasks
+
+- Task A: userID validation is implemented and verified.
+- Task B: `/api/address/:address` is hardened with a 1..100 clamp and cache reuse for repeated wallet lookups.
+- Task C: `baselineLimiter`, independent expensive-route per-route limiters, and `liveModeLimiter` with IPv6-safe key generation are live and in use.
+- Task D: confirmed that `profileCache.js` does not cover the address lookup path, which is why the route-level protections were needed.
+- Task E: `validators.test.js`, `rateLimiters.test.js`, `axieRoutes.test.js`, and `leaderboardEnrichmentRoutes.test.js` all pass under the repo's real `node:test` + Express + `fetch()` convention.
 
 ## Known Issues and Limitations
 
@@ -49,7 +57,7 @@ The current implementation supports leaderboard browsing, current and historical
 Run the local quality checks before publishing changes:
 
 ```powershell
-node --test src/server/shared/validators.test.js src/server/shared/rateLimiters.test.js src/server/axieRoutes.test.js src/server/profile/profileRoutes.test.js
+node --test src/server/shared/validators.test.js src/server/shared/rateLimiters.test.js src/server/axieRoutes.test.js src/server/leaderboard/leaderboardEnrichmentRoutes.test.js src/server/profile/profileRoutes.test.js
 npm test
 npm run build
 git diff --check

@@ -3,6 +3,9 @@ import { getOrFetchPlayerEnrichment } from "./enrichmentCache.js";
 import { resolveLeaderboardScope } from "../seasonRoutes.js";
 import { getHistoricalSnapshotEnrichment } from "../snapshots/snapshotReader.js";
 import { cleanUserId } from "../shared/validators.js";
+import { createExpensiveRouteLimiter } from "../shared/rateLimiters.js";
+
+const expensiveRouteLimiter = createExpensiveRouteLimiter();
 
 export function createLeaderboardEnrichmentRouter({
   getLiveEnrichment = getOrFetchPlayerEnrichment,
@@ -10,7 +13,7 @@ export function createLeaderboardEnrichmentRouter({
 } = {}) {
   const router = express.Router();
 
-  router.get("/api/leaderboard/team/:userID", async (request, response) => {
+  router.get("/api/leaderboard/team/:userID", expensiveRouteLimiter, async (request, response) => {
     try {
       let userID;
       try {

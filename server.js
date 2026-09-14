@@ -54,7 +54,6 @@ app.use(
 );
 
 app.use(baselineLimiter);
-app.use("/api/leaderboard/team", expensiveRouteLimiter);
 app.use("/api/leaderboard", liveModeLimiter);
 
 app.get("/", (request, response) => {

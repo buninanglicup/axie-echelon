@@ -10,16 +10,19 @@ export const baselineLimiter = rateLimit({
   message: { error: "Too many requests. Please slow down." }
 });
 
-// Stricter budget for the two routes that trigger real upstream cost per
-// request: on-demand team enrichment (leaderboardEnrichmentRoutes.js) and
-// a cache-miss address lookup (axieRoutes.js, post-Task-B cache).
-export const expensiveRouteLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 min
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Too many requests to this endpoint. Please slow down." }
-});
+// Factory, not a singleton -- the expensive upstream routes each get their
+// own independent store so normal use of one route cannot burn the other
+// route's quota. Wallet lookups and leaderboard-row enrichment are distinct
+// user journeys with different costs and different cache behavior.
+export function createExpensiveRouteLimiter() {
+  return rateLimit({
+    windowMs: 60 * 1000, // 1 min
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many requests to this endpoint. Please slow down." }
+  });
+}
 
 // liveMode=true (leaderboardLegacyRoutes.js) turns a single request into a
 // recurring client-side poll. A per-request limiter alone can't catch that

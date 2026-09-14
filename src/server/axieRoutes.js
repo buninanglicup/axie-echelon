@@ -13,7 +13,9 @@ import { getAxieMarketplaceDetails, fetchAxiesOwnedByAddress } from "./shared/ma
 import { getProfileByRoninAddress } from "./shared/profileClient.js";
 import { resolveAxieById, getAllUserFighters, normalizeFighter, classifyCollectible } from "./axieService.js";
 import { getCachedAddressLookup, setCachedAddressLookup } from "./shared/addressLookupCache.js";
-import { expensiveRouteLimiter } from "./shared/rateLimiters.js";
+import { createExpensiveRouteLimiter } from "./shared/rateLimiters.js";
+
+const expensiveRouteLimiter = createExpensiveRouteLimiter();
 
 export function createAxieRouter({
   resolveAxieById: resolveAxieByIdDep,

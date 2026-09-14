@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import express from "express";
-import { baselineLimiter, expensiveRouteLimiter, liveModeLimiter } from "./rateLimiters.js";
+import { baselineLimiter, createExpensiveRouteLimiter, liveModeLimiter } from "./rateLimiters.js";
 
 let server;
 let baseUrl;
+let expensiveRouteLimiter;
 
 before(async () => {
+  expensiveRouteLimiter = createExpensiveRouteLimiter();
   const app = express();
   // Dummy handlers standing in for the real routes -- these tests exercise
   // the limiter middleware itself, not route business logic, matching how
