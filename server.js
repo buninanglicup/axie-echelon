@@ -54,7 +54,18 @@ app.use(
 );
 
 app.use(baselineLimiter);
+// Live-mode polling intentionally shares one budget across the entire
+// /api/leaderboard subtree. This is a deliberate design choice: the live-mode
+// limiter is separate from the per-route expensiveRouteLimiter budgets used on
+// individual handlers, not a bypass or oversight.
 app.use("/api/leaderboard", liveModeLimiter);
+
+// trust proxy is intentionally left unset because this app is currently local-only
+// and not yet deployed to production. Before any production deployment behind a
+// reverse proxy, load balancer, or CDN, confirm the actual proxy topology and set
+// app.set("trust proxy", ...) to match it (for example: 1 for one hop, or a
+// specific count/CIDR list for multiple hops); never use a blanket true.
+// This directly affects the accuracy of the IP-based rate limiter in rateLimiters.js.
 
 app.get("/", (request, response) => {
   response.sendFile(path.resolve("index.html"));

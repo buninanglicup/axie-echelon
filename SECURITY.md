@@ -39,27 +39,27 @@ written to logs, or included in documentation. Tests use synthetic,
 anonymized fixtures only. Run `npm run check:snapshots` before publishing
 changes.
 
+## Current dependency status
+
+Last checked: 2026-09-14.
+
+- qs / Express advisory path (GHSA-x5fp-wj9c-mxmx and GHSA-4mjr-xmp4-gh2g): RESOLVED.
+  The repo pins `qs` to `^6.16.0` via the `overrides` entry in `package.json`. This was confirmed by `npm audit --omit=dev` and a full test-suite pass.
+- bn.js advisory (GHSA-378v-28hj-76wf, infinite loop): NOT YET FIXABLE.
+  The installed `@axieinfinity/mixer` version is `1.4.9`, which is the newest published release and still depends on the vulnerable `bn.js` range `5.0.0 - 5.2.2`. This is a wait-for-upstream item; recheck periodically for a new mixer release that bumps its bn.js dependency past `5.2.2`.
+
 ## Reverse-proxy and rate-limit safety
 
-IP-based throttling depends on the application seeing the true client IP. If the
-backend sits behind NGINX, Cloudflare, a load balancer, or another proxy, set
-Express `trust proxy` explicitly and only trust forwarded IP headers from the
-expected upstreams. Without this configuration, multiple users behind the same
-proxy can share the same limiter bucket and the quota becomes both less accurate
-and easier to bypass.
+IP-based throttling depends on the application seeing the true client IP. This app is currently local-only and not yet deployed to production, so `trust proxy` is intentionally left unset until the real proxy topology is known.
 
-The app uses generic `429` responses with a `Retry-After` header when the rate
-limit triggers. These responses should not include stack traces, file paths,
-internal service URLs, or sensitive config values. Keep the public response body
-and headers minimal and consistent.
+Before deployment behind a reverse proxy, load balancer, or CDN, confirm the actual topology and set Express `app.set("trust proxy", ...)` to match it (for example: `1` for a single hop, or a specific count/CIDR list for multiple hops). Never use a blanket `true`.
 
-## Dependency risk tracking
+The app uses generic `429` responses with a `Retry-After` header when the rate limit triggers. These responses should not include stack traces, file paths, internal service URLs, or sensitive config values.
 
-Track production dependency advisories in the normal release checklist.
+## Known deferred items
 
-- The direct `express` / `qs` advisory path has been addressed through the current dependency override/fix path in `package.json`.
-- The remaining `bn.js` advisory is still upstream-blocked through `@axieinfinity/mixer`, which is actively used by the renderer in `src/renderer.js`. This is not an in-app code issue; it requires upstream package remediation before it can be fully resolved.
-- Do not set `trust proxy` until the production topology is known. For local-only runs, leaving it unset is the correct default.
+- Trust proxy configuration: deferred until production deployment; see the comment in `server.js`.
+- `addressLookupCache.js` only purges stale entries on read access, not via a background sweep; accepted as low-risk for current scale.
 
 ## Pre-publication checklist
 
