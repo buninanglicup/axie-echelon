@@ -1,6 +1,6 @@
 # Project Status
 
-_Last reviewed: 2026-09-11_
+_Last reviewed: 2026-09-14_
 
 ## Current State
 
@@ -16,9 +16,20 @@ The current implementation supports leaderboard browsing, current and historical
 - Progressive team enrichment with cached team previews, rune metadata, profiles, and morphed Axie rendering.
 - Player battle-history profiles with team, rune, charm, and provenance data.
 - Axie ID and Ronin-address lookup with collectible-aware filtering and pagination.
-- API safety rails for expensive routes: shared baseline quota, independent `createExpensiveRouteLimiter()` instances on the wallet-lookup and team-enrichment routes, live-mode hourly budget, and request validation for IDs and Ronin addresses.
+- API safety rails for expensive routes: shared baseline quota, independent `createExpensiveRouteLimiter()` instances on the wallet-lookup and team-enrichment routes, live-mode hourly budget, request validation for IDs and Ronin addresses, and safe 429 responses with `Retry-After` headers.
 - Historical snapshot capture, acceptance, verification, and local-only reading.
 - Node test coverage for core filters, scan jobs, caching, profiles, snapshots, and route/input hardening.
+
+## Security and production hardening notes
+
+### Audit summary (2026-09-14)
+
+- Confirmed safe: `cleanUserId()` rejects malformed UUIDv6 user IDs, and `cleanRoninAddress()` rejects malformed Ronin inputs before any upstream lookup. Both are enforced in the actual route handlers for leaderboard team enrichment and wallet/address lookup.
+- Confirmed safe: the address-lookup cache keys are created from the cleaned Ronin address, so equivalent raw inputs normalize to one canonical entry rather than poisoning the cache with alternate spellings.
+- Confirmed safe: expensive routes are isolated by independent rate-limit instances, and live-mode traffic is throttled under a separate hourly budget. The 429 responses are generic and include `Retry-After` while avoiding stack traces or internal config leakage.
+- Resolved: the direct `express` / `qs` advisory path has been addressed in the dependency tree with the currently supported override/fix path in `package.json`.
+- Upstream pending: the `bn.js` advisory remains attached to `@axieinfinity/mixer`, which is actively used by the renderer in `src/renderer.js`; this is not fixable in-app without changing the upstream mixer package itself.
+- Pre-deploy requirement only: IP-based limiters assume a trusted proxy / forwarded-IP model. Because this repo is still local-only, `trust proxy` remains intentionally unset until actual production topology is confirmed.
 
 ## Completed hardening tasks
 

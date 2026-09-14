@@ -34,7 +34,7 @@ import {
   SNAPSHOT_CAPTURE_CHECK_INTERVAL_MINUTES,
   SNAPSHOT_CAPTURE_CATCH_UP
 } from "./src/server/shared/env.js";
-import { baselineLimiter, expensiveRouteLimiter, liveModeLimiter } from "./src/server/shared/rateLimiters.js";
+import { baselineLimiter, liveModeLimiter } from "./src/server/shared/rateLimiters.js";
 import axieRoutes from "./src/server/axieRoutes.js";
 import seasonRoutes from "./src/server/seasonRoutes.js";
 import leaderboardRoutes from "./src/server/leaderboard/leaderboardRoutes.js";

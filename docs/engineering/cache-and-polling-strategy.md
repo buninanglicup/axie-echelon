@@ -23,6 +23,29 @@ IP with `ipKeyGenerator(request.ip)`. This prevents an unlimited polling loop fr
 amplifying Sky Mavis requests while still allowing ordinary non-live reads and
 cache hits to continue normally.
 
+### Security notes for IP-based throttling
+
+IP-based rate limiting is reliable only when Express sees the true client IP.
+When the app is deployed behind a reverse proxy or load balancer, `request.ip`
+may collapse many clients behind the same proxy unless the app has an explicit
+`trust proxy` configuration and the forwarded headers are trusted. This is not a
+code bug in the limiter itself, but it is a deployment requirement: without a
+trusted reverse-proxy setup, different users can share the same rate-limit key.
+
+The 429 response contract is deliberately minimal and safe: it reports a generic
+"too many requests" error, includes the standard `Retry-After` header when the
+rate-limit library emits it, and does not expose stack traces, internal config,
+or service details in the payload.
+
+### Canonicalization and cache safety
+
+Address lookups are canonicalized before caching. The cache key is created from
+`cleanRoninAddress(address)`, not the raw user input. That means equivalent
+inputs such as `ronin:...`, `RONIN:...`, or mixed-case variants map to the same
+canonical `0x...` key and do not create divergent cache entries for the same
+wallet. This makes the address lookup cache stable and avoids accidental cache
+poisoning through input normalization differences.
+
 ## Important: cache *settings* are shared between live and non-live mode
 
 There is a common misconception worth stating plainly: live mode and non-live

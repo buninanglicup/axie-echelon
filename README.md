@@ -94,9 +94,18 @@ available for returning to the automatic leaderboard.*
   views never silently fall back to live enrichment.
 - Distinguish confirmed results, unavailable data, and partial scan coverage
   instead of silently treating missing data as a match.
-- Harden expensive upstream routes with shared Express rate-limiters, input
-  validation, and scoped live polling quotas so repeated lookups and polluted
-  request params are rejected before they amplify upstream cost.
+- Harden expensive upstream routes with shared Express rate-limiters, strict
+  input validation for UUIDv6 user IDs and Ronin addresses, route-scoped live
+  polling quotas, and safe 429 responses with `Retry-After` headers so repeated
+  lookups and polluted request params are rejected before they amplify upstream
+  cost.
+- Canonicalize wallet lookups by cleaned Ronin address before caching so
+  equivalent raw inputs share the same key instead of creating divergent cache
+  entries.
+- Keep Skymavis API credentials server-side only; do not expose them in the
+  browser bundle or frontend config. This repo is still local-only today, so
+  reverse-proxy trust settings remain a pre-deployment checklist item rather
+  than a current local bug.
 
 ## Engineering highlights
 
@@ -104,7 +113,8 @@ available for returning to the automatic leaderboard.*
 | --- | --- |
 | Current vs. historical data | Explicit leaderboard scopes keep automatic offseason data separate from `Rare`/`Epic`/`Mystic`/`Final` history. |
 | API pressure | In-memory candidate, page, team, profile, and enrichment caches reduce repeated upstream work. |
-| API guard rails | Shared baseline and route-specific limiters, live polling quotas, and input validation block runaway requests before they amplify upstream cost. |
+| API guard rails | Shared baseline and route-specific limiters, live polling quotas, canonicalized address caching, and strict input validation block runaway requests before they amplify upstream cost. |
+| Proxy-aware rate limiting | IP-based quotas assume the app runs behind a trusted reverse proxy or load balancer; forwarded-IP trust must be configured before relying on per-client throttling. |
 | Long scans | Rune and body-part filtering use asynchronous jobs with queueing, progress polling, cancellation, partial results, and watchdog timeouts. |
 | Race conditions | Scope keys and generation guards prevent old leaderboard or scan responses from overwriting newer UI state. |
 | Incomplete upstream data | The UI distinguishes confirmed results, unavailable data, and partial scan coverage instead of silently treating them as matches. |
